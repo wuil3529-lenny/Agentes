@@ -21,7 +21,6 @@ Cada agente tiene su propia carpeta, herramientas exclusivas (Skills), y un perf
 * 🗺️ **Nami (La Navegante - Frontend & UI/UX)**: Especialista en diseño visual, TailwindCSS, prototipos web autocontenidos (`index.html`) y búsqueda de referencias visuales. Sus interfaces siempre deben poder previsualizarse.
 * 🚬 **Sanji (El Cocinero - QA & Automatización de Oficina)**: Maestro en el escaneo de correos, gestión de Google Calendar, Google Docs y revisión de PDFs. También se encarga de probar que el código de Zoro no esté en llamas.
 * 📚 **Robin (La Arqueóloga - Arquitectura & Seguridad)**: Auditora profunda del sistema. Vela por las buenas prácticas, escanea vulnerabilidades, protege secretos en `.gitignore` y diseña arquitecturas complejas de software.
-* 🎯 **Usop (El Francotirador - Marketing / Growth)**: (En desarrollo) Tareas de posicionamiento, SEO y marketing orgánico.
 
 ## 🛠️ Herramientas (Skills)
 El poder real de la tripulación radica en el sistema de **Skills**. Cada agente tiene su carpeta `/skills/` donde viven herramientas altamente específicas (como buscar en DuckDuckGo, crear Nodos en Obsidian, interactuar con el CLI de ngrok, etc.).
