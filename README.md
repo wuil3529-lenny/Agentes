@@ -12,6 +12,7 @@ Este ecosistema ya no opera mediante llamadas aisladas; ha evolucionado a la **A
 2. **Memoria Fractal (Obsidian RAG)**: Los agentes se comunican de forma asíncrona leyendo y escribiendo en archivos `.md`. Obsidian actúa como una red neuronal visual donde los agentes conectan nodos conceptuales, bitácoras de errores e informes.
 3. **Punteros Lógicos**: Para sortear los límites de tokens, los agentes no se envían el código entero. Se pasan rutas locales de archivos ("punteros") y modifican el código directamente en el disco.
 4. **Pruebas y QA**: El sistema utiliza Gherkin para las validaciones y pruebas de calidad (QA).
+5. **Método de Parada Dura (Hard Stop)**: Implementado de forma estricta para cortar ejecuciones, forzar validaciones y evitar sesgos, alucinaciones o bucles infinitos en el comportamiento de los agentes.
 
 ## 👥 Miembros de la Tripulación
 
