@@ -1,0 +1,4 @@
+# Documentación n8n MCP
+Nodo padre para colapsar toda la documentación de n8n y evitar ruido visual.
+
+**Conexiones:** [[Perfil_Zoro]]

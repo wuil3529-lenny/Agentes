@@ -1,0 +1,1506 @@
+"""
+luffy_agent.py — Definición del Agente Director: Luffy
+=======================================================
+Arquitectura: LangGraph + langchain_openai + NVIDIA NIM (Python 3.14 compatible)
+
+Luffy es el nodo "supervisor" (manager) en el grafo LangGraph.
+Su rol es:
+  - Recibir el objetivo del usuario.
+  - Decidir a qué agente de la tripulación delegar la siguiente subtarea.
+  - Consolidar los resultados y dar la respuesta final.
+
+El LLM utilizado se conecta exclusivamente a la API de NVIDIA NIM.
+Su identidad, capacidades y protocolo de comunicación se cargan dinámicamente
+desde memoria_compartida/luffy_perfil.json para que todos los agentes
+puedan conocerlo y comunicarse con él de forma consistente.
+"""
+import os
+import sys
+from pathlib import Path
+_APP_ROOT = Path(__file__).resolve().parents[1]
+
+import os
+import sys
+import io
+import re
+import json
+from datetime import datetime
+from pathlib import Path
+from dotenv import load_dotenv
+
+# ─── EXCEPCIONES DEL AGENTE ───
+class AgentLoopError(Exception): pass
+
+if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.stderr.encoding and sys.stderr.encoding.lower() != "utf-8":
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich.table import Table
+from rich.columns import Columns
+from rich.text import Text
+from rich.rule import Rule
+
+from typing import Annotated, TypedDict, Optional
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
+from langgraph.checkpoint.memory import MemorySaver
+
+from memory import (
+    guardar_en_historial,
+    cargar_historial,
+    listar_perfiles_disponibles,
+    construir_contexto_para_agente,
+    cargar_perfil_agente,
+    SHARED_MEMORY_PATH,
+    leer_mensajes,
+    registrar_bitacora,
+    guardar_cerebro
+)
+
+# ─── Cargar variables de entorno desde la carpeta raíz compartida ──────────────
+ROOT_ENV_PATH = (_APP_ROOT / ".env")
+load_dotenv(dotenv_path=ROOT_ENV_PATH)
+
+# ─── Ubicación Común de Archivos Temporales (Basura / Scratch) ─────────────────
+# Cualquier archivo temporal que pueda ser borrado y no forme parte ni de skins,
+# ni habilidades, ni funciones, debe guardarse en: Archivos_temporales/
+ARCHIVOS_TEMPORALES_PATH = (_APP_ROOT / "Archivos_temporales")
+ARCHIVOS_TEMPORALES_DOCKER = "/app/Archivos_temporales"
+
+MEMORIA_PATH = Path(
+    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / "memoria_compartida"))
+)
+LUFFY_PERFIL_FILE = Path(__file__).parent / ".agents" / "luffy_perfil.json"
+CREW_NAME       = os.getenv("CREW_NAME", "SombrerosDePaja")
+MAX_ITERACIONES = 50
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LLM
+# ══════════════════════════════════════════════════════════════════════════════
+
+def crear_llm(temperatura: float = 0.2, agente: str = "LUFFY"):
+    """
+    Crea y retorna una instancia del LLM conectado a NVIDIA NIM vía ChatNVIDIA.
+
+    Args:
+        temperatura: Controla la creatividad del modelo (0.0-1.0).
+        agente: Nombre del agente para buscar su API key en el .env
+
+    Returns:
+        ChatNVIDIA: Modelo de lenguaje listo para usar, con soporte nativo de bind_tools para NIM.
+    """
+    from langchain_openai import ChatOpenAI
+    
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    model_name = "deepseek-chat"
+
+    return ChatOpenAI(
+        model=model_name,
+        api_key=api_key,
+        base_url="https://api.deepseek.com",
+        temperature=temperatura,
+        max_tokens=4096,
+        timeout=120.0,
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Carga de Perfil
+# ══════════════════════════════════════════════════════════════════════════════
+
+def cargar_perfil_luffy() -> dict:
+    """
+    Carga el perfil de Luffy desde memoria_compartida/luffy_perfil.json.
+
+    Returns:
+        dict: Perfil completo o un dict vacío si el archivo no existe.
+    """
+    if LUFFY_PERFIL_FILE.exists():
+        try:
+            return json.loads(LUFFY_PERFIL_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+
+def _capacidades_como_texto(perfil: dict) -> str:
+    """Serializa las capacidades del perfil en texto legible para el prompt."""
+    caps = perfil.get("capacidades", {})
+    if not caps:
+        return ""
+    lineas = ["Mis capacidades son:"]
+    for nombre, info in caps.items():
+        nivel = info.get("nivel", "")
+        desc  = info.get("descripcion", "")
+        lineas.append(f"  - {nombre} [{nivel.upper()}]: {desc}")
+    return "\n".join(lineas)
+
+
+def _protocolo_como_texto(perfil: dict) -> str:
+    """Serializa el protocolo de comunicación del perfil en texto para el prompt."""
+    proto = perfil.get("protocolo_comunicacion", {})
+    if not proto:
+        return ""
+    fmt_resultado = proto.get("formato_mensaje_a_luffy", {})
+    fmt_delegacion = proto.get("formato_delegacion_de_luffy", {})
+    lineas = [
+        "Protocolo de comunicacion con los agentes:",
+        "  Cuando recibas un resultado de un agente, espera este formato:",
+        "    " + json.dumps(fmt_resultado, ensure_ascii=False),
+        "  Cuando delegues una tarea a un agente, usa este formato:",
+        "    " + json.dumps(fmt_delegacion, ensure_ascii=False),
+    ]
+    return "\n".join(lineas)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Prompt del Supervisor
+# ══════════════════════════════════════════════════════════════════════════════
+
+def construir_prompt_supervisor(
+    agentes_disponibles: list[str],
+    perfiles_agentes: dict[str, dict] = None,
+    modo: str = "pizarra"
+) -> ChatPromptTemplate:
+    """
+    Construye el prompt del sistema para Luffy como supervisor.
+
+    Carga el perfil de Luffy desde luffy_perfil.json e incorpora:
+      - Su identidad y presentación.
+      - Sus capacidades.
+      - Los agentes disponibles y sus perfiles (si los hay).
+      - El protocolo de comunicación inter-agente.
+      - Las instrucciones de delegación y formato JSON.
+
+    Args:
+        agentes_disponibles:  Lista de nombres de agentes en la tripulación.
+        perfiles_agentes:     {nombre: perfil_dict} de los agentes registrados.
+
+    Returns:
+        ChatPromptTemplate: Prompt listo para usar con el LLM.
+    """
+    perfil = cargar_perfil_luffy()
+    perfiles_agentes = perfiles_agentes or {}
+
+    # ── Identidad de Luffy ──────────────────────────────────────────────────
+    nombre_completo = perfil.get("nombre_completo", "Monkey D. Luffy")
+    titulo          = perfil.get("titulo", "Capitan y Director")
+    presentacion    = perfil.get("presentacion", "")
+    limitaciones    = perfil.get("limitaciones", [])
+
+    identidad = (
+        f"Eres {nombre_completo}, {titulo}.\n"
+        f"{presentacion}\n"
+    )
+    if limitaciones:
+        identidad += "\nTen en cuenta estas limitaciones:\n"
+        identidad += "\n".join(f"  - {l}" for l in limitaciones)
+
+    # ── Capacidades ─────────────────────────────────────────────────────────
+    capacidades_txt = _capacidades_como_texto(perfil)
+
+    # ── Agentes disponibles y sus perfiles ──────────────────────────────────
+    if agentes_disponibles:
+        opciones = ", ".join(f'"{a}"' for a in agentes_disponibles)
+        bloque_agentes = f"\nTienes a tu disposicion los siguientes agentes: {opciones}.\n"
+
+        # Resumir las capacidades de cada agente si tenemos su perfil
+        for nombre in agentes_disponibles:
+            perfil_ag = perfiles_agentes.get(nombre, {})
+            if perfil_ag:
+                caps_ag = perfil_ag.get("capacidades", {})
+                desc_caps = "; ".join(
+                    f"{k}: {v.get('descripcion', '')}"
+                    for k, v in caps_ag.items()
+                ) if caps_ag else "sin descripcion de capacidades"
+                bloque_agentes += f"  - {nombre}: {perfil_ag.get('presentacion', desc_caps)}\n"
+
+        if modo == "chat":
+            instruccion_delegacion = (
+                bloque_agentes
+                + "\n\nESTAS RESPONDIENDO A UN MENSAJE DIRECTO DEL USUARIO POR TELEGRAM:\n"
+                + "1. DEBES usar la herramienta `tool_enviar_telegram` para responder al usuario de forma natural y confirmarle la recepcion.\n"
+                + "2. Si el mensaje es una charla casual, solo responde usando la herramienta Telegram.\n"
+                + "3. Si es una orden de trabajo, ADEMAS de usar la herramienta Telegram para notificar al usuario, tu respuesta final en texto (fuera de las herramientas) DEBE ser UN SOLO bloque Markdown de ticket estructurado que empiece por `## TKT-[INICIALES]`, Estado al final como `PENDIENTE` y Responsable. Yo interceptare este bloque y lo pondre en la Pizarra por ti.\n"
+                + "REGLA DE DELEGACIÓN ESTRICTA: Si la tarea involucra a otro agente (ej. Zoro), el campo `Responsable` de tu ticket DEBE ser EXACTAMENTE el nombre de ese agente (ej. `- **Responsable:** Zoro`) y el `Estado` DEBE ser EXACTAMENTE `- **Estado:** PENDIENTE`. NUNCA uses nombres combinados como 'Luffy / Zoro' ni estados como 'EN_PROGRESO'. Si tú también tienes tareas, haz tu parte PRIMERO usando herramientas, y luego genera el ticket delegando el resto.\n"
+                + "4. PREVENCIÓN DE DUPLICADOS: ANTES de crear un ticket en la pizarra, VERIFICA si ya existe un ticket PENDIENTE o EN_PROGRESO para la misma tarea exacta (usando la herramienta leer_bitacora). NO crees tickets duplicados.\n"
+                + "5. NO respondas con JSON. Responde con texto plano y/o bloques Markdown."
+            )
+        else:
+            instruccion_delegacion = (
+                bloque_agentes
+                + "\nDELEGACIÓN POR LA PIZARRA (BITACORA.MD):\n"
+                + "1. Toda delegación a agentes (Zoro, Nami, Robin) SE HACE EXCLUSIVAMENTE modificando la Bitacora.md, creando o actualizando tickets.\n"
+                + "1b. DELEGACIÓN GRANULAR (REGLA ANTI-OLVIDO): Cuando una tarea incluye MÚLTIPLES subtareas para el mismo agente (ej. 'crea un archivo de saludo Y un archivo temporal'), DEBES crear UN TICKET SEPARADO por cada subtarea. NUNCA agrupes más de una acción concreta en un solo ticket. Cada ticket debe tener una única acción verificable. Además, cuando delegues la creación de archivos, SIEMPRE especifica el nombre exacto del archivo en el campo `Tarea`, incluyendo el prefijo del nombre del agente (ej. `nami_saludo.md`, `robin_temp.md`).\n"
+                + "2. NOTIFICACIÓN PROACTIVA (IMPORTANTE): Siempre que analices el fallo o éxito de un ticket, o que vayas a crear un nuevo ticket para delegar una tarea, DEBES enviar un mensaje usando explícitamente tu herramienta `tool_enviar_telegram`. DEBES comunicarte constantemente con el usuario mediante tu herramienta si necesitas clarificar o reportar algo.\n"
+                + "3. ATENCIÓN A ALERTAS DE SEGURIDAD: Cuando veas un ticket de [REVISION_SEGURIDAD] asignado a ti, delega las correcciones a los subagentes en la Pizarra. Si ya las delegaste en turnos anteriores y los tickets hijos ya no están en la Bitacora, USA TU HERRAMIENTA `consultar_estado_ticket` pasándole el ID del ticket hijo (ej. TKT-SEC-123). Si el RAG te confirma que fue completado, da por concluida la revisión y CIERRA tu propio ticket padre.\n"
+                + "4. REGLA DE DELEGACIÓN ESTRICTA: Si reasignas o delegas a otro agente (ej. Zoro), el campo `Responsable` de tu bloque Markdown DEBE ser EXACTAMENTE el nombre de ese agente (ej. `- **Responsable:** Zoro`) y el `Estado` DEBE ser EXACTAMENTE `- **Estado:** PENDIENTE`. NUNCA uses nombres combinados como 'Luffy / Zoro' ni estados como 'EN_PROGRESO'. Esto es vital para el parser.\n"
+                + "5. MANTENIMIENTO DE PIZARRA (BARRIDO TOTAL OBLIGATORIO): Al finalizar CADA TURNO, lee la Bitacora.md completa. Para CADA ticket que encuentres, sin importar su estado (CERRADO, COMPLETADO, ABORTADO, REPAIR, PENDIENTE_REVISION), evalua si tienes evidencia de que la tarea fue ejecutada (el archivo existe, el historial del ticket lo confirma). Si la evidencia existe, usa `tool_limpiar_pizarra` para archivarlo y retirarlo. NO dejes tickets muertos en la pizarra. Si un TKT-SYS-REPAIR existe y el agente ya completo su tarea original, archiva AMBOS tickets.\n"
+                + "6. AUTO-REPARACIÓN DE AGENTES (TKT-SYS-REPAIR): Para tareas normales puedes cerrar el ticket. PERO si es de auto-curación (TKT-SYS-REPAIR o modifica .py), tienes PROHIBIDO marcarlo como CERRADO. Debes marcarlo como PENDIENTE_REVISION y asignar al sistema para que valide, o dejar que el Escudo lo procese. NUNCA lo cierres tú mismo.\n"
+                + "6b. RESURRECCIÓN DE TICKETS ABORTADOS: Cuando proceses un TKT-SYS-REPAIR, tu responsabilidad no termina al reparar al agente. DEBES revisar el ticket original que causó el fallo (el que está en estado ABORTADO). Si descubres que fue un FALSO POSITIVO (la tarea sí se completó correctamente en la realidad): Cambia el estado del ticket original abortado a CERRADO y archívalo junto con el SYS-REPAIR. Si descubres que fue un ERROR REAL (la tarea no se completó): Después de reparar al agente, DEBES editar la Bitacora.md para cambiar el estado del ticket original abortado de nuevo a PENDIENTE, permitiendo que el agente retome su trabajo en el siguiente ciclo. NUNCA archives un ticket abortado que no se ha cumplido.\n"
+                + "7. CAMPO OBLIGATORIO 'evidencia_hallazgo': Cuando respondas con tu JSON Minimalista de Cierre, SIEMPRE debes incluir el campo \"evidencia_hallazgo\" a nivel raíz. Este campo debe contener una descripción concreta y específica de lo que hiciste, qué encontraste o qué corregiste. Ejemplo: \"Se corrigió la función _transformar_ruta_linux en skill_ia_creativa.py que causaba [Errno 2] por rutas Windows en Docker Linux.\" Si este campo está vacío o ausente, el Auditor RECHAZARÁ tu trabajo automáticamente y entrarás en un bucle infinito de corrección. NUNCA lo dejes vacío.\n"
+                + "8. Al terminar tu turno, responde ÚNICAMENTE con el JSON Minimalista de Cierre (Protocolo Inter-Agente) para ceder el control."
+                  + "9. AUTO-RECUPERACIÓN EN CALIENTE (SENTRY): Si al ejecutar un comando o código te topas con un error, TU SIGUIENTE PASO INMEDIATO debe ser usar `consultar_sentry_errores(mensaje_error)`. Si encuentras la solución, aplícala. Si es un error nuevo y logras resolverlo tú mismo, es OBLIGATORIO que uses `registrar_solucion_error(error, solucion)` inmediatamente para guardar la receta en la memoria colectiva.\n"
+            )
+    else:
+        instruccion_delegacion = (
+            "\nPor ahora no tienes agentes en tu tripulacion. "
+            "Responde tu mismo directamente al usuario.\n"
+            "Cuando termines, responde SOLO con el JSON final."
+        )
+
+    # ── Protocolo de comunicación y Manual Quirúrgico ────────────────────────
+    protocolo_txt = _protocolo_como_texto(perfil) if modo == "pizarra" else ""
+    manual_quirurgico_txt = perfil.get("manual_quirurgico", "")
+
+    # ── Prompt final ────────────────────────────────────────────────────────
+    system_prompt = "\n\n".join(filter(None, [
+        identidad,
+        capacidades_txt,
+        instruccion_delegacion,
+        protocolo_txt,
+        manual_quirurgico_txt,
+        "Antes de usar cualquier habilidad o herramienta, consulta siempre el Manual Quirúrgico de Herramientas y Skills para verificar cuándo usarla (gatillo) y seguir el paso a paso exacto.",
+        "Recuerda siempre el contexto de la conversacion y usalo para dar respuestas coherentes y consistentes.",
+
+        "REGLA DE DESARROLLO AUTÓNOMO: Tienes acceso a herramientas de código (`crear_archivo`, `ejecutar_comando`, `leer_archivo`). "
+        "Úsalas ÚNICA Y EXCLUSIVAMENTE para crear scripts temporales que te ayuden a cumplir tu tarea si tus herramientas actuales fallan, "
+        "o para crear/modificar tus propias skills en tu carpeta `skills/`. Si el usuario pide desarrollar una aplicación, una API, "
+        "un flujo de n8n o modificar código general del proyecto, DEBES DELEGARLO A ZORO. Zoro es el Ingeniero de Software; "
+        "tú solo programas para automejorarte o resolver bloqueos en tu área de expertise.",
+
+    ]))
+
+    return ChatPromptTemplate.from_messages([
+        SystemMessage(content=system_prompt),
+        MessagesPlaceholder(variable_name="messages"),
+    ])
+
+# ─── NODO DE LANGGRAPH PARA LUFFY ──────────────────────────────────────────────
+
+from langchain_core.tools import tool
+from langchain_core.messages import AIMessage, ToolMessage
+from memory import leer_mensajes, publicar_mensaje, registrar_bitacora, guardar_cerebro
+
+@tool
+def tool_limpiar_habitacion() -> str:
+    """Ejecuta la rutina de limpieza para mantener solo las 4 carpetas oficiales y 6 archivos raíz en Luffy."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_limpiar_habitacion...")
+    try:
+        from skill_limpiar_luffy import limpiar_habitacion_luffy
+        res = limpiar_habitacion_luffy()
+        return f"Limpieza completada: {res}"
+    except Exception as e:
+        return f"Error en limpieza: {e}"
+
+@tool
+def tool_limpiar_carpeta_raiz() -> str:
+    """Ejecuta la rutina de limpieza general para organizar la carpeta raíz del proyecto y mantener las 10 carpetas y 9 archivos oficiales."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_limpiar_carpeta_raiz...")
+    try:
+        from skill_limpiar_carpeta_raiz import limpiar_carpeta_raiz_luffy
+        res = limpiar_carpeta_raiz_luffy()
+        return f"Limpieza de carpeta raíz completada: {res}"
+    except Exception as e:
+        return f"Error en limpieza de carpeta raíz: {e}"
+
+@tool
+def tool_auditar_ssot() -> str:
+    """Audita y supervisa la coherencia de la Bitácora oficial (SSOT)."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_auditar_ssot...")
+    try:
+        from skill_supervisor import auditar_consistencia_ssot
+        res = auditar_consistencia_ssot()
+        return f"Auditoría SSOT completada: {res}"
+    except Exception as e:
+        return f"Error en auditoría SSOT: {e}"
+
+@tool
+def tool_enviar_telegram(mensaje: str) -> str:
+    """Envía un mensaje o alerta de Telegram a través del bridge de la tripulación."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_enviar_telegram(mensaje='{mensaje}')")
+    try:
+        from telegram_bridge import enviar_mensaje_telegram
+        res = enviar_mensaje_telegram(mensaje)
+        return f"Telegram enviado: {res}"
+    except Exception as e:
+        return f"Error en Telegram bridge: {e}"
+
+@tool
+def tool_inbox_gmail() -> str:
+    """Analiza los correos de Gmail y genera el informe único en la carpeta informes."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_inbox_gmail...")
+    try:
+        import sys
+        from pathlib import Path
+        skills_path = Path(__file__).parent / "skills"
+        if str(skills_path) not in sys.path:
+            sys.path.insert(0, str(skills_path))
+        from skill_inbox_luffy import generar_informe_google_docs
+        res = generar_informe_google_docs()
+        return f"Reporte de Gmail Inbox generado: {res}"
+    except Exception as e:
+        return f"Error en Gmail Inbox: {e}"
+
+@tool
+def tool_registrar_agente(nombre_agente: str, descripcion_rol: str = "") -> str:
+    """Registra un nuevo agente en la tripulación."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_registrar_agente...")
+    try:
+        from skill_registrar_agente_luffy import registrar_nuevo_agente_luffy
+        res = registrar_nuevo_agente_luffy(nombre_agente, descripcion_rol)
+        return f"Agente registrado: {res}"
+    except Exception as e:
+        return f"Error registrando agente: {e}"
+
+@tool
+def tool_google_docs(accion: str, titulo: str, contenido: str = "") -> str:
+    """Crea o edita un documento simple en Google Docs."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_google_docs...")
+    try:
+        import sys
+        from pathlib import Path
+        skills_path = Path(__file__).parent / "skills"
+        if str(skills_path) not in sys.path:
+            sys.path.insert(0, str(skills_path))
+        from skill_google_docs_sanji import DocManager, ProDocBuilder
+        
+        doc = ProDocBuilder()
+        doc.h1(titulo)
+        doc.para(contenido)
+        
+        dm = DocManager(title=titulo, id_file=str(Path(__file__).parent / "data" / "docs_temp_id.txt"))
+        url = dm.publicar(doc)
+        return f"Google Docs ({accion}): Documento disponible en {url}"
+    except Exception as e:
+        return f"Error en Google Docs: {e}"
+
+@tool
+def tool_google_calendar_listar(dias_futuros: int = 7) -> str:
+    """Lista los próximos eventos del calendario para los siguientes N días."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_google_calendar_listar...")
+    try:
+        import sys
+        from pathlib import Path
+        skills_path = Path(__file__).parent / "skills"
+        if str(skills_path) not in sys.path:
+            sys.path.insert(0, str(skills_path))
+        from skill_google_luffy import calendar_listar_eventos
+        evs = calendar_listar_eventos(dias_futuros)
+        if not evs:
+            return "No hay eventos próximos en el calendario."
+        res = []
+        for e in evs:
+            res.append(f"- [{e['inicio']}] {e['titulo']} (Lugar: {e['ubicacion']})")
+        return "\n".join(res)
+    except Exception as e:
+        return f"Error leyendo el calendario: {e}"
+
+@tool
+def tool_google_drive_buscar(query: str = "", max_results: int = 10, order_by: str = "") -> str:
+    """Busca archivos en Google Drive. Para buscar los más pesados usa order_by='quotaBytesUsed desc'"""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_google_drive_buscar...")
+    try:
+        import sys
+        from pathlib import Path
+        skills_path = Path(__file__).parent / "skills"
+        if str(skills_path) not in sys.path:
+            sys.path.insert(0, str(skills_path))
+        from skill_google_luffy import drive_buscar_archivos
+        archivos = drive_buscar_archivos(query, max_results, order_by)
+        if not archivos:
+            return "No se encontraron archivos."
+        res = []
+        for a in archivos:
+            size_mb = int(a.get('quotaBytesUsed', a.get('size', 0))) / (1024 * 1024)
+            res.append(f"- ID: {a['id']} | Nombre: {a['name']} | Tamaño: {size_mb:.2f} MB")
+        return "\n".join(res)
+    except Exception as e:
+        return f"Error buscando en Google Drive: {e}"
+
+@tool
+def tool_limpiar_pizarra(id_ticket: str) -> str:
+    """Borra un ticket de la Bitacora.md. Úsalo solo para tickets CERRADOS o COMPLETADOS."""
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_limpiar_pizarra(id_ticket='{id_ticket}')")
+    try:
+        import sys
+        from pathlib import Path
+        skills_path = Path(__file__).parent / "skills"
+        if str(skills_path) not in sys.path:
+            sys.path.insert(0, str(skills_path))
+        from skill_limpiar_pizarra_luffy import limpiar_pizarra_luffy
+        res = limpiar_pizarra_luffy(id_ticket)
+        return f"Resultado de limpieza: {res}"
+    except Exception as e:
+        return f"Error limpiando pizarra: {e}"
+
+@tool
+def tool_crear_skill_tripulacion(agente: str, nombre_skill: str, objetivo: str, entradas_salidas: str, hard_stops: str, codigo_python: str) -> str:
+    """
+    Crea una nueva habilidad (.md y .py) para un agente de la tripulación.
+    Usa esto obligatoriamente cuando el usuario te pida dotar de una nueva capacidad a un agente.
+    Argumentos deben ser muy detallados. El código de python debe usar tipado estricto y try-except.
+    """
+    print(f"\n[Luffy Herramienta] Ejecutando: tool_crear_skill_tripulacion para {agente}...")
+    try:
+        from skill_crear_herramienta import iniciar_creacion_skill
+        return iniciar_creacion_skill(agente, nombre_skill, objetivo, entradas_salidas, hard_stops, codigo_python)
+    except Exception as e:
+        return f"Error al crear habilidad: {e}"
+
+
+import sys
+from pathlib import Path
+skills_path_local = Path(__file__).parent / "skills"
+if str(skills_path_local) not in sys.path:
+    sys.path.insert(0, str(skills_path_local))
+from skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
+from skill_refinador import tool_validar_objetivo
+from skill_entrevistador import tool_gestionar_entrevista
+from skill_crear_plan import tool_crear_plan
+from skill_memoria_vectorial import tool_guardar_solucion, tool_buscar_soluciones, consultar_estado_ticket
+from skill_sentry import consultar_sentry_errores, registrar_solucion_error, tool_reportar_fallo_critico
+from skill_buscar_internet_luffy import tool_buscar_internet_luffy
+
+HERRAMIENTAS_LUFFY = [
+    crear_archivo,
+    leer_archivo,
+    listar_directorio,
+    ejecutar_comando,
+    tool_validar_objetivo,
+    tool_gestionar_entrevista,
+    tool_crear_plan,
+    tool_guardar_solucion,
+    tool_buscar_soluciones,
+    consultar_estado_ticket,
+    consultar_sentry_errores,
+    registrar_solucion_error,
+    tool_reportar_fallo_critico,
+    tool_buscar_internet_luffy,
+    tool_limpiar_habitacion,
+    tool_limpiar_carpeta_raiz,
+    tool_auditar_ssot,
+    tool_enviar_telegram,
+    tool_registrar_agente,
+    tool_limpiar_pizarra,
+    tool_crear_skill_tripulacion,
+]
+
+def funcion_nodo_luffy(estado: dict) -> dict:
+    print(f"\n[Luffy] Analizando la situación...")
+    
+    # 1. Leer mensajes pendientes del canal
+    mensajes_nuevos = leer_mensajes(agente="Luffy")
+    contexto_mensajes = ""
+    if mensajes_nuevos:
+        contexto_mensajes = "\n--- MENSAJES EN TU CANAL ---\n"
+        for m in mensajes_nuevos:
+            contexto_mensajes += f"De {m['de']}: {json.dumps(m['contenido'], ensure_ascii=False)}\n"
+            
+    # Inyectar contexto
+    mensajes_langgraph = list(estado["messages"])
+    if contexto_mensajes and mensajes_langgraph:
+        ultimo_contenido = mensajes_langgraph[-1].content
+        mensajes_langgraph[-1].content = ultimo_contenido + contexto_mensajes
+
+    # ── CHECK MODO ENTREVISTADOR ──
+    estado_entrevista_file = Path(__file__).resolve().parent / "estado_entrevista.json"
+    entrevista_activa = estado_entrevista_file.exists()
+    
+        ultimo_texto = mensajes_langgraph[-1].content.lower() if mensajes_langgraph and hasattr(mensajes_langgraph[-1], 'content') else ""
+    gatillos = ["vamos a platicar sobre este proyecto", "vamos a aclarar ideas", "tengo una idea, ¿me ayudas a darle forma?"]
+    if any(g in ultimo_texto for g in gatillos) and not entrevista_activa:
+        print("[Luffy] Gatillo de Entrevistador detectado.")
+        entrevista_activa = True
+
+    if entrevista_activa:
+        print("[Luffy] 🛑 MODO ENTREVISTADOR ACTIVO. Delegación bloqueada.")
+        
+        # Leer el contenido actual del CTX para que el LLM sepa qué falta
+        contenido_ctx = "No hay archivo CTX creado todavía. DEBES usar accion='iniciar'."
+        ya_iniciada = False
+        try:
+            if estado_entrevista_file.exists():
+                estado_data = __import__('json').loads(estado_entrevista_file.read_text(encoding="utf-8"))
+                ctx_path = Path(estado_data.get("ctx_path", ""))
+                if ctx_path.exists():
+                    contenido_ctx = ctx_path.read_text(encoding="utf-8")
+                    ya_iniciada = True
+                else:
+                    print(f"[Luffy] Error: ctx_path no existe -> {ctx_path}")
+        except Exception as e:
+            print(f"[Luffy] Exception leyendo CTX: {e}")
+            pass
+
+        regla_iniciar = (
+            "- LA ENTREVISTA YA ESTÁ INICIADA. TIENES ESTRICTAMENTE PROHIBIDO USAR accion='iniciar'. USA ÚNICAMENTE accion='actualizar' para añadir la respuesta del usuario.
+"
+            if ya_iniciada else
+            "- DEBES INICIAR LA ENTREVISTA AHORA MISMO usando `tool_gestionar_entrevista` con accion='iniciar'.
+"
+        )
+
+        instruccion_entrevista = (
+            "\n\n[🛑 HARD-STOP: ESTÁS EN MODO ENTREVISTADOR 🛑]\n"
+            "TIENES ESTRICTAMENTE PROHIBIDO CREAR TICKETS O DELEGAR.\n"
+            "TU ÚNICO TRABAJO ES ANALIZAR LA IDEA DEL USUARIO, DESCARTAR LO INNECESARIO Y HACER PREGUNTAS CLAVE PARA DARLE FORMA AL PROYECTO.\n"
+            "ESTE ES EL ESTADO ACTUAL DEL DOCUMENTO DE CONTEXTO (Fíjate cuáles tienen [x] y cuáles tienen [ ]):\n"
+            "==================================================\n"
+            f"{contenido_ctx}\n"
+            "==================================================\n"
+            "REGLAS DEL BUCLE LÓGICO ESTRICTO:\n"
+            f"{regla_iniciar}"
+            "- Si ya inició, evalúa qué dimensiones faltan. ¡ADVERTENCIA! NO TODAS LAS DIMENSIONES APLICAN SIEMPRE. Si una dimensión es irrelevante para este tipo de proyecto, SIMPLEMENTE IGNÓRALA asumiendo que está completa y NO la incluyas en tu lista de 'dimensiones_faltantes'. NO hagas preguntas inútiles sobre dimensiones que no aplican.\n"
+            "- EN CADA TURNO, antes de preguntar, DEBES invocar OBLIGATORIAMENTE `tool_gestionar_entrevista` con accion='actualizar'.\n"
+            "  *ARGUMENTOS DE LA TOOL*: Pasa un resumen de la respuesta del usuario en 'contenido'. Pasa SOLO los números de las dimensiones que SON RELEVANTES y que AÚN FALTAN por preguntar en 'dimensiones_faltantes'.\n"
+            "- HAZ EXACTAMENTE 2 PREGUNTAS A LA VEZ AL USUARIO usando `tool_enviar_telegram` (no uses la Pizarra). \n"
+            "  *REGLA DE HIERRO SOBRE LAS PREGUNTAS*: TIENES PROHIBIDO hacer más de 2 preguntas por turno. Oblígate a preguntar solo 2 cosas específicas y espera la respuesta.\n"
+            "- ⚠️ LÍMITE DE PREGUNTAS: Tienes un límite máximo absoluto de 5 o 6 preguntas a lo largo de toda la entrevista. Si sientes que ya hiciste suficientes preguntas o ya se alcanzó este límite, DETENTE OBLIGATORIAMENTE. No intentes cubrir todo a la fuerza.\n"
+            "- Cuando consideres que ya tienes una idea sólida (o si se alcanzó el límite de preguntas, o si el usuario te ordena avanzar), DETENTE. Usa accion='cerrar' en la herramienta y despídete.\n"
+            "NO DEVUELVAS UN JSON CON TICKET. RESPONDE COMO UN HUMANO PARA SEGUIR LA ENTREVISTA.\n"
+        )
+        if mensajes_langgraph:
+            mensajes_langgraph[-1].content += instruccion_entrevista
+
+    # ── CHECK MODO CREADOR DE PLANES ──
+    gatillos_plan = ["crea un plan", "crear un plan", "crea el plan", "crear el plan", "preparemos un plan", "haz un plan", "prepara un plan", "armemos un plan", "actualiza el plan", "actualizar el plan", "modifica el plan"]
+    if any(g in ultimo_texto for g in gatillos_plan) and not entrevista_activa:
+        print("[Luffy] Gatillo de Creador de Planes detectado.")
+        
+        # Intentar cargar el último CTX para inyectarlo en el prompt
+        ctx_texto_plan = ""
+        try:
+            ctx_dir = Path("/app/contexto") if Path("/app/contexto").exists() else Path("C:/Users/admin/Documents/Agentes/contexto")
+            ctx_files = list(ctx_dir.glob("CTX-*.md"))
+            if ctx_files:
+                ctx_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                ultimo_ctx = ctx_files[0]
+                ctx_texto_plan = f"\n[DOCUMENTO DE CONTEXTO DE LA ENTREVISTA ({ultimo_ctx.name})]\n{ultimo_ctx.read_text('utf-8')}\n"
+        except Exception as e:
+            print(f"[Luffy] Error cargando CTX para el plan: {e}")
+
+        # Leer perfiles de los agentes para inyectar en el plan
+        capacidades_agentes = "\n[PERFILES Y CAPACIDADES DE LA TRIPULACIÓN]\n"
+        try:
+            base_dir = Path("/app") if Path("/app").exists() else Path("C:/Users/admin/Documents/Agentes")
+            for agente in ["Zoro", "Nami", "Robin", "Sanji"]:
+                perfil_file = base_dir / agente / f"Perfil_{agente}.md"
+                if perfil_file.exists():
+                    perfil_texto = perfil_file.read_text(encoding="utf-8").strip()
+                    capacidades_agentes += f"\n--- {agente} ---\n{perfil_texto}\n"
+        except Exception as e:
+            print(f"[Luffy] Error leyendo perfiles: {e}")
+
+        instruccion_plan = (
+            "\n\n[🛑 HARD-STOP: ESTÁS EN MODO CREADOR DE PLANES 🛑]\n"
+            "El usuario ha solicitado explícitamente crear un plan.\n"
+            "TIENES ESTRICTAMENTE PROHIBIDO DELEGAR A ZORO, NAMI O CUALQUIER OTRO AGENTE. NO DEBES CONSTRUIR NADA TODAVÍA.\n"
+            "DEBES invocar EXCLUSIVAMENTE la herramienta `tool_crear_plan` para generar el documento Markdown.\n"
+            f"{ctx_texto_plan}"
+            f"{capacidades_agentes}\n"
+            "Analiza el documento de contexto previo y la conversación para extraer las fases y dependencias.\n"
+            "⚠️ CRITERIO DE ASIGNACIÓN: Asigna las responsabilidades basándote ESTRICTAMENTE en los [PERFILES Y CAPACIDADES DE LA TRIPULACIÓN] listados arriba. Por ejemplo, si el plan requiere n8n, verifica qué agente menciona n8n en su perfil y asígnale el diseño/construcción a ESE agente. Si ningún agente tiene el rol adecuado, asigna la fase como '(Responsabilidad del Capitán / Manual)'.\n"
+            "Siéntete libre de inferir las fases técnicas necesarias si el usuario no las dio explícitamente, pero mantén un orden lógico.\n"
+            "Al terminar, avísale al usuario que el plan está listo."
+        )
+        if mensajes_langgraph:
+            mensajes_langgraph[-1].content += instruccion_plan
+
+    # 2. Preparar LLM con herramientas
+    llm = crear_llm(temperatura=0.2, agente="LUFFY")
+    
+    # [MODO ORQUESTADOR]: Luffy asume control total
+    es_tkt_msg = any("TKT-MSG" in str(m.content) for m in mensajes_langgraph if hasattr(m, "content"))
+    
+    herramientas_activas = HERRAMIENTAS_LUFFY
+    
+    if es_tkt_msg and not entrevista_activa:
+        print("[Luffy] 🛡️ MODO ORQUESTADOR ACTIVO: Analizando mensajes y Pizarra con plena libertad.")
+        instruccion_hard_stop = (
+            "\n\n[INSTRUCCIÓN DE MODO ORQUESTADOR]:\n"
+            "Estás procesando un TKT-MSG. Eres el Supervisor Supremo.\n"
+            "Tienes acceso a TODAS tus herramientas. Puedes leer la pizarra, auditar scripts de los agentes (.py), y verificar si una tarea ya se hizo ANTES de crear un ticket.\n"
+            "DEBES devolver ESTRICTAMENTE un objeto JSON al final. No escribas texto introductorio, empieza directamente con la llave '{'.\n"
+            "Analiza el pedido y elige como Responsable al agente de la tripulación más capacitado para la tarea (Luffy, Zoro, Nami, Robin o Sanji).\n"
+            "REGLA ANTI-DUPLICIDAD DE TICKETS: Antes de delegar o crear un ticket, REVISA LA PIZARRA. Si el usuario pide una tarea (ej: 'lee mi último correo') y notas que YA EXISTE un ticket para eso o acabas de crear uno, NO CREES OTRO. Ignora la redundancia o actualiza el existente.\n"
+            "REGLA CRÍTICA DE NOMBRE: El campo 'Responsable:' DEBE contener EXACTAMENTE UN SOLO NOMBRE OFICIAL en minúsculas o Capitalizado (Luffy, Zoro, Nami, Robin, Sanji). PROHIBIDO escribir nombres compuestos como 'Luffy / Zoro' o descripciones. Si un ticket requiere dos agentes, crea DOS tickets separados.\n"
+            "REGLA DE ORO DE DELEGACIÓN: TODO lo que tenga que ver con correos (Gmail), leer emails, documentos (Google Docs), calendario o Drive es territorio EXCLUSIVO de Sanji. SIEMPRE debes crear un ticket delegando estas tareas a Sanji. JAMÁS intentes resolverlas tú mismo o asignarlas a Zoro/Nami.\n"
+            "REGLA DE SUPERVISIÓN: Si el usuario reporta que un agente falló o se bugueó, TIENES PERMISO TOTAL para usar tus herramientas y leer el código fuente de ese agente (ej: 'Nami/nami_agent.py') para encontrar y corregir el error.\n"
+            "REGLA SOBRE FALLOS CRITICOS Y ABORTOS: Si un subagente colapsa o un auditor rechaza su trabajo de forma definitiva, TU deber es USAR la herramienta `tool_reportar_fallo_critico` para documentarlo. Luego, SIEMPRE cambia el ticket a estado ABORTADO en la Pizarra y avísale al usuario.\n"
+            "REGLA ESTRICTA SOBRE FALLOS Y TKT-MSG: Si el ticket TKT-MSG dice 'Analizar fallo y notificar al usuario', NO DEBES CREAR NINGUN TICKET NUEVO DE DELEGACIÓN PARA NINGUN AGENTE. Solo lee el motivo del fallo y comunícaselo al usuario enviando un mensaje usando tu `tool_enviar_telegram`. Cierra tu ticket como COMPLETADO.\n"
+            "REGLA ANTI-SPAM (MUY IMPORTANTE): NO ENVÍES NOTIFICACIONES DUPLICADAS AL USUARIO. Si la tarea ya se asignó, o si ya enviaste un telegram en este turno, DEBES dejar el campo `notificacion_telegram` del JSON final vacío (\"\").\n"
+            "{\n"
+            "  \"ticket_actualizado\": \"## TKT-MSG...\\n- **Estado:** COMPLETADO\\n...\\n\\n## TKT-[INICIALES_DEL_AGENTE]\\n- **Tarea:** [Nombre de la Tarea]\\n- **Responsable:** [AGENTE SELECCIONADO]\\n- **Estado:** PENDIENTE\\n- **Evidencia_Fisica:** N/A\\n- **Contexto:** [COPIA EXACTA DEL MENSAJE DEL USUARIO]\\n- **Historial:**\\n  - [Luffy - Fecha]: Creado por petición del usuario.\",\n"
+            "  \"Evidencia_Fisica\": \"N/A\",\n"
+            "  \"evidencia_hallazgo\": \"Resumen detallado de los hallazgos o resultados de la tarea.\",\n"
+            
+            "}\n"
+            "Si no devuelves este JSON exacto, el sistema colapsará."
+        )
+        if mensajes_langgraph:
+            mensajes_langgraph[-1].content += instruccion_hard_stop
+
+    llm_con_tools = llm.bind_tools(herramientas_activas) if herramientas_activas else llm
+    es_chat = any("mensaje de Telegram del usuario" in str(m.content) for m in mensajes_langgraph if hasattr(m, "content"))
+    modo_actual = "chat" if es_chat else "pizarra"
+    prompt = construir_prompt_supervisor(["Zoro", "Robin", "Nami", "Sanji"], modo=modo_actual)
+    cadena = prompt | llm_con_tools
+
+    # 3. Invocar LLM
+    respuesta = cadena.invoke({"messages": mensajes_langgraph})
+
+    # 4. Bucle de ejecución de herramientas
+    MAX_ROUNDS = 50
+    ronda = 0
+    historial_tools = []
+
+    while (hasattr(respuesta, "tool_calls") and respuesta.tool_calls and ronda < MAX_ROUNDS):
+        ronda += 1
+        print(f"[Luffy] Ronda {ronda}: ejecutando {len(respuesta.tool_calls)} herramienta(s)...")
+
+        # 🛡️ HARD-STOP (ERR-010): Anti-Looping (Alucinación de herramientas repetidas)
+        firma_ronda_actual = tuple(
+            (tc["name"], json.dumps(tc["args"], sort_keys=True)) for tc in respuesta.tool_calls
+        )
+        historial_tools.append(firma_ronda_actual)
+
+        # Si las últimas 3 rondas son exactamente iguales (misma herramienta, mismos argumentos)
+        if len(historial_tools) >= 3 and historial_tools[-1] == historial_tools[-2] == historial_tools[-3]:
+            error_msg = f"SISTEMA (ERR-010): Bucle infinito detectado al ejecutar la herramienta '{firma_ronda_actual[0]}' repetidamente."
+            print(f"[Luffy] 🛡️ HARD-STOP: {error_msg}")
+            # Lanzamos la excepción para que el listener (base_listener.py) la capture y active al Curador
+            raise AgentLoopError(error_msg)
+
+        mensajes_langgraph.append(respuesta)
+
+        for tool_call in respuesta.tool_calls:
+            nombre_tool = tool_call["name"]
+            args_tool   = tool_call["args"]
+            tool_id     = tool_call.get("id", f"tool_{ronda}")
+
+            print(f"[Luffy] → Ejecutando: {nombre_tool}({list(args_tool.keys())})")
+
+            herramienta_encontrada = next((h for h in HERRAMIENTAS_LUFFY if h.name == nombre_tool), None)
+            if herramienta_encontrada:
+                resultado_tool = herramienta_encontrada.invoke(args_tool)
+                print(f"[Luffy] ← Resultado: {str(resultado_tool)[:120]}...")
+            else:
+                resultado_tool = json.dumps({"status": "error", "mensaje": f"Herramienta '{nombre_tool}' no encontrada."})
+
+            mensajes_langgraph.append(
+                ToolMessage(content=str(resultado_tool) + "\n\n⚠️ MUY IMPORTANTE: Acción completada. AHORA DEBES TERMINAR TU TURNO DEVOLVIENDO ÚNICAMENTE UN JSON MINIMALISTA DE CIERRE.", tool_call_id=tool_id)
+            )
+
+        respuesta = cadena.invoke({"messages": mensajes_langgraph})
+
+
+    if hasattr(respuesta, "tool_calls") and respuesta.tool_calls:
+        print(f"[Luffy] Máximo de rondas alcanzado. Forzando respuesta final.")
+        mensajes_langgraph.append(respuesta)
+        for tc in respuesta.tool_calls:
+            mensajes_langgraph.append(
+                ToolMessage(
+                    content="SISTEMA: Ejecución cancelada. Límite de rondas alcanzado. Por favor emite tu respuesta final.",
+                    tool_call_id=tc.get("id", "dummy")
+                )
+            )
+        respuesta_final = (prompt | llm).invoke({"messages": mensajes_langgraph})
+        texto_respuesta = respuesta_final.content if hasattr(respuesta_final, "content") else str(respuesta_final)
+    else:
+        texto_respuesta = respuesta.content if hasattr(respuesta, "content") else str(respuesta)
+    
+    # 5. Parsear JSON con Escudo Robusto (4 pasos)
+    print(f"[DEBUG LLM RAW OUTPUT]:\n{texto_respuesta}\n[END DEBUG]", flush=True)
+    # ── Paso 1: Limpieza de Markdown ────────────────────────────────────────
+    texto_limpio = re.sub(r"```(?:json)?", " ", texto_respuesta, flags=re.IGNORECASE)
+
+    # ── Paso 2: Extracción por índices ──────────────────────────────────────
+    pos_llave    = texto_limpio.find("{")
+    pos_corchete = texto_limpio.find("[")
+
+    if pos_llave == -1 and pos_corchete == -1:
+        inicio, char_inicio = -1, None
+    elif pos_llave == -1:
+        inicio, char_inicio = pos_corchete, "["
+    elif pos_corchete == -1:
+        inicio, char_inicio = pos_llave, "{"
+    elif pos_llave < pos_corchete:
+        inicio, char_inicio = pos_llave, "{"
+    else:
+        inicio, char_inicio = pos_corchete, "["
+
+    char_fin = "}" if char_inicio == "{" else "]"
+
+    # ── Paso 3: Validación (Try/Except) ──────────────────────────────────
+    try:
+        if inicio == -1:
+            raise ValueError("No se encontró ningún delimitador JSON en la respuesta.")
+
+        fin = texto_limpio.rfind(char_fin)
+        if fin == -1 or fin < inicio:
+            raise ValueError(f"No se encontró cierre '{char_fin}' válido.")
+
+        texto_extraido = texto_limpio[inicio : fin + 1]
+        datos_json = json.loads(texto_extraido)
+
+        if not isinstance(datos_json, (dict, list)):
+            raise ValueError("El JSON no es un objeto ni una lista válidos.")
+
+        print(f"[Luffy] ✅  Escudo JSON: Parseo exitoso.")
+        mensaje_salida = f"[Luffy -> Red]: {json.dumps(datos_json, ensure_ascii=False)}"
+
+    except (json.JSONDecodeError, ValueError) as e:
+        # ── Paso 4: Manejo de error — Interceptor de LLMs tercos ─────
+        print(f"[Luffy] ⚠️  Escudo JSON: Error al parsear — {e}. Auto-envolviendo texto.")
+        datos_json = {
+            "para": "Usuario",
+            "tipo": "conversacion",
+            "contenido": {
+                "texto": texto_respuesta.strip()
+            }
+        }
+        mensaje_salida = f"[Luffy -> Usuario]: {texto_respuesta.strip()}"
+
+    return {
+        "messages": [AIMessage(content=mensaje_salida)],
+        "ultimo_agente": "Luffy",
+        "datos_json": datos_json
+    }
+
+# Estado del Grafo
+# ══════════════════════════════════════════════════════════════════════════════
+
+class EstadoTripulacion(TypedDict):
+    """
+    Estado compartido entre todos los nodos del grafo durante una misión.
+
+    Campos:
+        messages:      Historial completo de mensajes (LangGraph lo acumula).
+        next:          Siguiente nodo ("luffy", nombre_agente, o "FINISH").
+        objetivo:      El objetivo original del usuario (sin enriquecer).
+        iteraciones:   Contador de ciclos para detectar loops.
+        ultimo_agente: Último agente que respondió (para logging y contexto).
+    """
+    messages:      Annotated[list[BaseMessage], add_messages]
+    next:          str
+    objetivo:      str
+    iteraciones:   int
+    ultimo_agente: str
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Clase Principal: TripulacionLuffy
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TripulacionLuffy:
+    """
+    Orquesta el sistema multi-agente con Luffy como supervisor.
+
+    Los agentes se registran dinámicamente con agregar_agente().
+    Cuando un agente se registra, se intenta cargar su perfil desde
+    memoria_compartida/<nombre>_perfil.json para que Luffy conozca
+    sus capacidades al construir el prompt.
+
+    Ejemplo de uso (cuando tengas los otros agentes):
+        tripulacion = TripulacionLuffy()
+        tripulacion.agregar_agente("Zoro", funcion_nodo_zoro)
+        tripulacion.agregar_agente("Nami", funcion_nodo_nami)
+        resultado = tripulacion.ejecutar_mision("Desarrollar la API REST")
+    """
+
+    def __init__(self):
+        self.llm             = crear_llm()
+        self._agentes:       dict[str, callable] = {}   # nombre → función de nodo
+        self._perfiles:      dict[str, dict]     = {}   # nombre → perfil JSON
+        self._grafo          = None
+        self._memory         = MemorySaver()             # Memoria de sesión en RAM
+        self._perfil_luffy   = cargar_perfil_luffy()     # Perfil de Luffy desde JSON
+        self._skills:        dict[str, Path] = {}        # Skills conectadas
+
+        print(f"[{CREW_NAME}] Capitan Luffy inicializado.")
+        print(f"[{CREW_NAME}] Perfil cargado: {bool(self._perfil_luffy)}")
+        print(f"[{CREW_NAME}] Memoria compartida: {SHARED_MEMORY_PATH}")
+        self._verificar_vault()
+        self.conectar_skills()
+
+    def conectar_skills(self) -> None:
+        """
+        Escanea y conecta dinámicamente todas las habilidades de Luffy
+        disponibles en la carpeta skills/.
+        """
+        skills_dir = Path(__file__).parent / "skills"
+        if skills_dir.exists() and str(skills_dir) not in sys.path:
+            sys.path.insert(0, str(skills_dir))
+
+        self._skills = {}
+        if skills_dir.exists():
+            for script in sorted(skills_dir.glob("*.py")):
+                if script.name.startswith("__"):
+                    continue
+                nombre_skill = script.stem.replace("skill_", "").replace("_luffy", "")
+                self._skills[nombre_skill] = script
+
+        print(f"[{CREW_NAME}] Skills conectadas ({len(self._skills)}): {', '.join(self._skills.keys())}")
+
+    def _verificar_vault(self) -> None:
+        """
+        Comprueba la integridad del vault de Obsidian (Memoria Compartida).
+        Revisa que todos los enlaces [[Nodo]] apunten a archivos reales.
+        """
+        print(f"[{CREW_NAME}] Verificando integridad del Vault Obsidian...")
+        nodos_md = list(SHARED_MEMORY_PATH.rglob("*.md"))
+        nombres_validos = {n.stem for n in nodos_md}
+        enlaces_rotos = []
+
+        patron = re.compile(r'\[\[(.*?)(?:\|.*?)?\]\]')
+        
+        for archivo in nodos_md:
+            try:
+                contenido = archivo.read_text(encoding="utf-8")
+                enlaces = patron.findall(contenido)
+                for enlace in enlaces:
+                    enlace_limpio = enlace.strip()
+                    if enlace_limpio not in nombres_validos:
+                        enlaces_rotos.append((archivo.name, enlace_limpio))
+            except Exception:
+                pass
+                
+        if enlaces_rotos:
+            print(f"[{CREW_NAME}] [!] Advertencia: Se encontraron {len(enlaces_rotos)} enlaces rotos en el vault:")
+            # Mostrar max 5 para no saturar la consola
+            for archivo, enlace in enlaces_rotos[:5]:
+                print(f"  - '{archivo}' apunta a '[[{enlace}]]' (No existe)")
+            if len(enlaces_rotos) > 5:
+                print(f"  - ... y {len(enlaces_rotos) - 5} mas.")
+        else:
+            print(f"[{CREW_NAME}] Vault OK ({len(nodos_md)} nodos conectados correctamente).")
+
+    # ── Gestión de agentes ─────────────────────────────────────────────────
+
+    def agregar_agente(self, nombre: str, funcion_nodo: callable) -> None:
+        """
+        Registra un agente en la tripulación y carga su perfil desde
+        memoria_compartida si existe (ej. zoro_perfil.json).
+
+        Args:
+            nombre:         Nombre del agente (ej. "Zoro"). Case-sensitive en el grafo.
+            funcion_nodo:   Callable con firma: (EstadoTripulacion) -> dict
+        """
+        self._agentes[nombre] = funcion_nodo
+        self._grafo = None   # Forzar reconstrucción del grafo
+
+        # Intentar cargar el perfil del agente desde memoria compartida
+        perfil = cargar_perfil_agente(nombre)
+        if perfil:
+            self._perfiles[nombre] = perfil
+            print(f"[{CREW_NAME}] Agente '{nombre}' registrado con perfil cargado.")
+        else:
+            print(f"[{CREW_NAME}] Agente '{nombre}' registrado (sin perfil en memoria_compartida).")
+
+    def agregar_agentes(self, agentes: dict[str, callable]) -> None:
+        """
+        Registra múltiples agentes de una vez.
+
+        Args:
+            agentes: {nombre: funcion_nodo}
+        """
+        for nombre, funcion in agentes.items():
+            self.agregar_agente(nombre, funcion)
+
+    def listar_agentes(self) -> list[str]:
+        """Retorna los nombres de los agentes registrados (sin Luffy)."""
+        return list(self._agentes.keys())
+
+    def estado_tripulacion(self) -> dict:
+        """Retorna un resumen del estado actual de la tripulación."""
+        return {
+            "capitan":         "Luffy",
+            "agentes_activos": self.listar_agentes(),
+            "perfiles_cargados": list(self._perfiles.keys()),
+            "memoria":         str(SHARED_MEMORY_PATH),
+        }
+
+    # ── Nodo Supervisor (Luffy) ────────────────────────────────────────────
+
+    def _nodo_luffy(self, estado: EstadoTripulacion) -> dict:
+        """
+        Nodo principal: Luffy analiza el estado de la conversación y decide:
+          a) Delegar una subtarea a un agente específico.
+          b) Responder directamente al usuario (FINISH).
+
+        Retorna campos actualizados del EstadoTripulacion.
+        """
+        iteraciones = estado.get("iteraciones", 0)
+        
+        # 1. Marcar automáticamente los mensajes en el canal como leídos
+        leer_mensajes("Luffy", solo_no_leidos=True)
+
+        # Salvaguarda: límite máximo de ciclos
+        if iteraciones >= MAX_ITERACIONES:
+            print(f"[Luffy] Limite de {MAX_ITERACIONES} iteraciones alcanzado. Forzando FINISH.")
+            return {
+                "messages":      [AIMessage(content=(
+                    "He alcanzado el limite de deliberaciones. "
+                    "Aqui esta mi mejor respuesta con la informacion disponible."
+                ))],
+                "next":          "FINISH",
+                "iteraciones":   iteraciones + 1,
+                "ultimo_agente": "Luffy",
+            }
+
+        # Construir prompt con perfil de Luffy y perfiles de agentes
+        prompt = construir_prompt_supervisor(
+            agentes_disponibles=self.listar_agentes(),
+            perfiles_agentes=self._perfiles,
+        )
+        cadena   = prompt | self.llm
+        respuesta = cadena.invoke({"messages": estado["messages"]})
+
+        texto = respuesta.content if hasattr(respuesta, "content") else str(respuesta)
+
+        # Parsear la decisión de Luffy
+        siguiente, payload = self._parsear_decision(texto)
+
+        print(f"\n[Luffy] Decision: '{siguiente}'")
+        if payload and siguiente != "FINISH":
+            print(f"[Luffy] Delegando a '{siguiente}': {str(payload)[:80]}...")
+            
+        # --- MOTOR DE ACCIONES DE MEMORIA (LUFFY) ---
+        if payload and isinstance(payload, dict):
+            acciones = payload.get("acciones_memoria", {})
+            if "registrar_bitacora" in acciones:
+                entrada = acciones["registrar_bitacora"]
+                print(f"[Luffy] Escribiendo en bitácora...")
+                registrar_bitacora("Luffy", entrada)
+                
+            if "guardar_cerebro" in acciones:
+                for cerebro_entry in acciones["guardar_cerebro"]:
+                    print(f"[Luffy] Guardando en cerebro: {cerebro_entry.get('tema')}")
+                    guardar_cerebro(
+                        agente="Luffy",
+                        tema=cerebro_entry.get("tema", "Sin título"),
+                        contenido=cerebro_entry.get("contenido", ""),
+                        ruta_local=cerebro_entry.get("ruta_local")
+                    )
+        # --------------------------------------------
+
+        # Construir mensaje de salida según la decisión
+        if siguiente != "FINISH" and payload:
+            tarea_str = payload.get("tarea", "")
+            contexto_str = payload.get("contexto", "")
+            
+            # --- INTERCEPTOR DE INMUNIZACIÓN (Luffy) ---
+            # Forzamos por código que cualquier tarea de corrección incluya el mandato estricto.
+            palabras_clave_bug = ["error", "fallo", "bug", "corrige", "arregla", "vulnerabilidad", "parche"]
+            if any(p in tarea_str.lower() for p in palabras_clave_bug):
+                contexto_str += (
+                    "\n\n[!] DIRECTIVA DE INMUNIZACIÓN OBLIGATORIA (Hard-Stop): Todo error debe parchearse "
+                    "añadiendo un interceptor lógico o validación de código en tu script `.py`. "
+                    "Prohibido intentar corregirlo solo con prompts. Cierra el ticket únicamente cuando "
+                    "el parche de código esté implementado y operativo."
+                )
+            # -------------------------------------------
+            
+            # Delegación: mensaje estructurado para el agente
+            contenido_delegacion = json.dumps({
+                "agente_destino": siguiente,
+                "tipo":           "delegacion",
+                "tarea":          tarea_str,
+                "contexto":       contexto_str,
+            }, ensure_ascii=False)
+            mensaje_salida = AIMessage(
+                content=f"[Luffy -> {siguiente}]: {contenido_delegacion}"
+            )
+            return {
+                "messages":      [mensaje_salida],
+                "next":          siguiente,
+                "iteraciones":   iteraciones + 1,
+                "ultimo_agente": "Luffy",
+            }
+        else:
+            # Respuesta final
+            respuesta_final = payload.get("respuesta", texto) if isinstance(payload, dict) else texto
+            return {
+                "messages":      [AIMessage(content=respuesta_final)],
+                "next":          "FINISH",
+                "iteraciones":   iteraciones + 1,
+                "ultimo_agente": "Luffy",
+            }
+
+    def _parsear_decision(self, texto: str) -> tuple[str, Optional[dict]]:
+        """
+        Extrae la decisión de Luffy del texto generado por el LLM.
+
+        Busca un bloque JSON con la clave "next". Si no encuentra JSON válido,
+        asume FINISH con el texto completo como respuesta.
+
+        Returns:
+            (siguiente_nodo, payload_dict_o_none)
+        """
+        # Buscar el primer bloque JSON que contenga "next"
+        patron = r'\{[^{}]*"next"\s*:\s*"([^"]+)"[^{}]*\}'
+        for match in re.finditer(patron, texto, re.DOTALL):
+            try:
+                inicio = texto.rfind("{", 0, match.start() + 1)
+                fin    = texto.find("}", match.start()) + 1
+                datos  = json.loads(texto[inicio:fin])
+                siguiente = datos.get("next", "FINISH")
+
+                # Validar que el agente existe
+                if siguiente not in self._agentes and siguiente != "FINISH":
+                    print(f"[Luffy] Agente '{siguiente}' no registrado. Redirigiendo a FINISH.")
+                    siguiente = "FINISH"
+
+                return siguiente, datos
+            except (json.JSONDecodeError, ValueError):
+                continue
+
+        # Fallback: respuesta libre → FINISH
+        return "FINISH", {"respuesta": texto}
+
+    # ── Construcción del Grafo ─────────────────────────────────────────────
+
+    def _construir_grafo(self) -> StateGraph:
+        """
+        Construye el grafo de estados LangGraph.
+
+        Topología: START → luffy ⇄ [agente_x]* → END
+        """
+        builder = StateGraph(EstadoTripulacion)
+
+        # Nodo supervisor (Luffy)
+        builder.add_node("luffy", self._nodo_luffy)
+        builder.set_entry_point("luffy")
+
+        # Nodos de la tripulación: cada agente vuelve a Luffy al terminar
+        for nombre, funcion in self._agentes.items():
+            builder.add_node(nombre, funcion)
+            builder.add_edge(nombre, "luffy")
+
+        # Routing condicional desde Luffy
+        destinos = {nombre: nombre for nombre in self._agentes}
+        destinos["FINISH"] = END
+
+        builder.add_conditional_edges(
+            "luffy",
+            lambda estado: estado.get("next", "FINISH"),
+            destinos,
+        )
+
+        return builder.compile(checkpointer=self._memory)
+
+    def _obtener_grafo(self):
+        """Retorna el grafo compilado (lo construye si es necesario)."""
+        if self._grafo is None:
+            self._grafo = self._construir_grafo()
+        return self._grafo
+
+    # ── Ejecución de Misiones ──────────────────────────────────────────────
+
+    def ejecutar_mision(
+        self,
+        objetivo: str,
+        thread_id: str = "sesion_principal",
+        contexto_extra: Optional[str] = None,
+    ) -> str:
+        """
+        Lanza una misión al sistema multi-agente.
+
+        Enriquece el mensaje con la memoria persistente (historial + contexto),
+        ejecuta el grafo y guarda el resultado en historial.json.
+
+        Args:
+            objetivo:       Objetivo o mensaje del usuario.
+            thread_id:      ID de hilo para mantener el historial de mensajes
+                            en RAM entre invocaciones del mismo hilo.
+            contexto_extra: Información adicional opcional.
+
+        Returns:
+            str: Respuesta final consolidada por Luffy.
+        """
+        # Enriquecer con memoria persistente entre sesiones
+        contexto_memoria = construir_contexto_para_agente()
+        contenido = objetivo
+        if contexto_memoria:
+            contenido += f"\n\n[Memoria de sesiones previas]\n{contexto_memoria}"
+        if contexto_extra:
+            contenido += f"\n\n[Contexto adicional]\n{contexto_extra}"
+
+        estado_inicial: EstadoTripulacion = {
+            "messages":      [HumanMessage(content=contenido)],
+            "next":          "luffy",
+            "objetivo":      objetivo,
+            "iteraciones":   0,
+            "ultimo_agente": "",
+        }
+
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+
+        # ── Log de inicio ────────────────────────────────────────────────────
+        sep = "=" * 62
+        agentes_str = ", ".join(self.listar_agentes()) if self.listar_agentes() else "Solo Luffy"
+        print(f"\n{sep}")
+        print(f"  MISION INICIADA — {CREW_NAME}")
+        print(f"  Agentes activos : {agentes_str}")
+        print(f"  Objetivo        : {objetivo[:60]}...")
+        print(f"{sep}\n")
+
+        # ── Invocar el grafo ─────────────────────────────────────────────────
+        grafo        = self._obtener_grafo()
+        estado_final = grafo.invoke(estado_inicial, config=config)
+
+        # ── Extraer la última respuesta de Luffy ─────────────────────────────
+        resultado = ""
+        for msg in reversed(estado_final["messages"]):
+            if isinstance(msg, AIMessage):
+                contenido_msg = msg.content if hasattr(msg, "content") else str(msg)
+                # Si viene con formato JSON de delegación, extraer la respuesta
+                try:
+                    datos = json.loads(contenido_msg)
+                    resultado = datos.get("respuesta", contenido_msg)
+                except (json.JSONDecodeError, ValueError):
+                    resultado = contenido_msg
+                break
+
+        if not resultado:
+            resultado = str(estado_final["messages"][-1])
+
+        # ── Guardar en historial persistente ─────────────────────────────────
+        guardar_en_historial(
+            objetivo,
+            resultado,
+            ["Luffy"] + self.listar_agentes(),
+        )
+
+        return resultado
+
+    def chat(self, mensaje: str, thread_id: str = "sesion_principal") -> str:
+        """
+        Modo conversacional: envía un mensaje y obtiene respuesta de Luffy.
+        Mantiene el contexto del hilo entre llamadas consecutivas.
+
+        Args:
+            mensaje:   Mensaje del usuario.
+            thread_id: ID del hilo de conversación.
+
+        Returns:
+            str: Respuesta de Luffy.
+        """
+        return self.ejecutar_mision(mensaje, thread_id=thread_id)
+# ─── Consola ──────────────────────────────────────────────────────────────────
+console = Console()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Helpers de UI
+# ══════════════════════════════════════════════════════════════════════════════
+
+BANNER = """[bold red]
+  ██╗     ██╗   ██╗███████╗███████╗██╗   ██╗
+  ██║     ██║   ██║██╔════╝██╔════╝╚██╗ ██╔╝
+  ██║     ██║   ██║█████╗  █████╗   ╚████╔╝
+  ██║     ██║   ██║██╔══╝  ██╔══╝    ╚██╔╝
+  ███████╗╚██████╔╝██║     ██║        ██║
+  ╚══════╝ ╚═════╝ ╚═╝     ╚═╝        ╚═╝[/bold red]
+[bold yellow]      Capitan de los Piratas Sombrero de Paja — Agente Director[/bold yellow]
+[dim]      Sistema multi-agente | LangGraph + Ollama | Python 3.14[/dim]
+"""
+
+AYUDA = """[bold cyan]Comandos disponibles:[/bold cyan]
+
+  [bold green]mision[/bold green]      Lanzar una nueva mision a la tripulacion
+  [bold green]historial[/bold green]   Ver el registro de misiones anteriores
+  [bold green]estado[/bold green]      Ver agentes activos y estado del sistema
+  [bold green]perfil[/bold green]      Ver la presentacion completa de Luffy
+  [bold green]ayuda[/bold green]       Mostrar esta ayuda
+  [bold green]salir[/bold green]       Cerrar el sistema
+
+[dim]O escribe directamente para conversar con Luffy.[/dim]
+"""
+
+
+def mostrar_presentacion_luffy() -> None:
+    """
+    Lee luffy_perfil.json y muestra la presentacion de Luffy en pantalla.
+    Este es el panel que Luffy mostraria al presentarse a otros agentes.
+    """
+    if not LUFFY_PERFIL_FILE.exists():
+        console.print("[yellow]Perfil de Luffy no encontrado.[/yellow]")
+        return
+
+    try:
+        perfil = json.loads(LUFFY_PERFIL_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, IOError) as e:
+        console.print(f"[red]Error al leer perfil: {e}[/red]")
+        return
+
+    nombre    = perfil.get("nombre_completo", "Monkey D. Luffy")
+    titulo    = perfil.get("titulo", "")
+    version   = perfil.get("version", "")
+    pres      = perfil.get("presentacion", "")
+    caps      = perfil.get("capacidades", {})
+    limits    = perfil.get("limitaciones", [])
+    llm_info  = perfil.get("llm", {})
+    mem_info  = perfil.get("memoria_compartida", {})
+
+    # ── Panel de identidad ────────────────────────────────────────────────
+    console.print(Rule(f"[bold red]{nombre}[/bold red]", style="red"))
+    console.print(f"[bold]{titulo}[/bold]  [dim]v{version}[/dim]\n")
+    console.print(Panel(pres, title="Presentacion", border_style="yellow", padding=(0, 2)))
+
+    # ── Capacidades ───────────────────────────────────────────────────────
+    console.print("\n[bold cyan]Capacidades:[/bold cyan]")
+    tabla_caps = Table(show_header=True, header_style="bold magenta", show_lines=True)
+    tabla_caps.add_column("Capacidad",   style="cyan",  width=25)
+    tabla_caps.add_column("Nivel",       style="green", width=8)
+    tabla_caps.add_column("Descripcion", style="white", width=55)
+    for cap, info in caps.items():
+        nivel_color = "green" if info.get("nivel") == "alto" else "yellow"
+        tabla_caps.add_row(
+            cap,
+            f"[{nivel_color}]{info.get('nivel', '').upper()}[/{nivel_color}]",
+            info.get("descripcion", ""),
+        )
+    console.print(tabla_caps)
+
+    # ── LLM y Memoria ─────────────────────────────────────────────────────
+    console.print("\n[bold cyan]Configuracion tecnica:[/bold cyan]")
+    console.print(
+        f"  LLM      : [green]{llm_info.get('proveedor', 'Ollama')}[/green] / "
+        f"[bold]{llm_info.get('modelo', 'llama3')}[/bold] @ "
+        f"{llm_info.get('url_base', 'localhost:11434')}"
+    )
+    console.print(f"  Memoria  : [green]{mem_info.get('ruta', str(SHARED_MEMORY_PATH))}[/green]")
+    archivos = mem_info.get("archivos", {})
+    for k, v in archivos.items():
+        console.print(f"             [dim]{k}:[/dim] {v}")
+
+    # ── Limitaciones ──────────────────────────────────────────────────────
+    if limits:
+        console.print("\n[bold yellow]Limitaciones conocidas:[/bold yellow]")
+        for lim in limits:
+            console.print(f"  [dim]- {lim}[/dim]")
+
+    # ── Protocolo ─────────────────────────────────────────────────────────
+    proto = perfil.get("protocolo_comunicacion", {})
+    if proto:
+        console.print("\n[bold cyan]Protocolo de comunicacion inter-agente:[/bold cyan]")
+        fmt_in  = proto.get("formato_mensaje_a_luffy", {})
+        fmt_out = proto.get("formato_delegacion_de_luffy", {})
+        console.print(Panel(
+            "[bold]Mensaje hacia Luffy:[/bold]\n"
+            + json.dumps(fmt_in, ensure_ascii=False, indent=2)
+            + "\n\n[bold]Delegacion de Luffy:[/bold]\n"
+            + json.dumps(fmt_out, ensure_ascii=False, indent=2),
+            title="Protocolo JSON",
+            border_style="dim",
+        ))
+
+    console.print()
+
+
+def mostrar_historial_ui() -> None:
+    """Muestra una tabla con las ultimas misiones del historial."""
+    historial = cargar_historial()
+    if not historial:
+        console.print("[yellow]El historial esta vacio. Aun no se han ejecutado misiones.[/yellow]")
+        return
+
+    tabla = Table(title="Historial de Misiones", show_lines=True)
+    tabla.add_column("#",                 style="cyan",  width=3)
+    tabla.add_column("Fecha",            style="green", width=20)
+    tabla.add_column("Agentes",          style="magenta", width=20)
+    tabla.add_column("Objetivo",         style="white", width=40)
+    tabla.add_column("Resultado (breve)",style="dim",   width=35)
+
+    for i, entrada in enumerate(historial[-10:], 1):
+        agentes_str = ", ".join(entrada.get("agentes", ["Luffy"]))
+        tabla.add_row(
+            str(i),
+            entrada.get("timestamp", "")[:19],
+            agentes_str[:18],
+            entrada.get("objetivo", "")[:38],
+            entrada.get("resultado", "")[:33],
+        )
+    console.print(tabla)
+
+
+def mostrar_estado_ui(tripulacion: TripulacionLuffy) -> None:
+    """Muestra el estado actual de la tripulacion y la memoria compartida."""
+    estado = tripulacion.estado_tripulacion()
+    agentes     = estado["agentes_activos"]
+    perfiles    = estado["perfiles_cargados"]
+    perfiles_disco = listar_perfiles_disponibles()
+
+    cuerpo = (
+        f"[bold]Capitan       :[/bold] Monkey D. Luffy\n"
+        f"[bold]Agentes activos:[/bold] {', '.join(agentes) if agentes else '[dim]ninguno aun[/dim]'}\n"
+        f"[bold]Perfiles cargados:[/bold] {', '.join(perfiles) if perfiles else '[dim]ninguno[/dim]'}\n"
+        f"[bold]Perfiles en disco:[/bold] {', '.join(perfiles_disco)}\n"
+        f"[bold]LLM           :[/bold] [green]Ollama[/green] — listo\n"
+        f"[bold]Memoria       :[/bold] [green]{estado['memoria']}[/green]\n"
+        f"[bold]Historial     :[/bold] {len(cargar_historial())} misiones registradas"
+    )
+    console.print(Panel(cuerpo, title="Estado de la Tripulacion", border_style="blue"))
+
+
+def solicitar_mision() -> tuple[str, str]:
+    """Solicita objetivo y contexto de la mision al usuario."""
+    console.print(Panel(
+        "[bold]Define la mision que quieres que Luffy y su tripulacion ejecuten.[/bold]",
+        border_style="yellow",
+    ))
+    objetivo = Prompt.ask("\n[bold yellow]Objetivo principal[/bold yellow]")
+    contexto = Prompt.ask(
+        "[dim]Contexto adicional (opcional — Enter para omitir)[/dim]",
+        default="",
+    )
+    return objetivo, contexto
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Punto de Entrada
+# ══════════════════════════════════════════════════════════════════════════════
+
+def main() -> None:
+    """Bucle principal de interaccion con el usuario."""
+    console.clear()
+    console.print(BANNER)
+
+    # ── Inicializar tripulacion ─────────────────────────────────────────────
+    console.print(Panel("[bold]Iniciando sistema...[/bold]", border_style="dim"))
+    try:
+        tripulacion = TripulacionLuffy()
+        
+        # Registrar agentes dinamicamente
+        # Importamos a Nami desde su ruta
+        sys.path.insert(0, str(_APP_ROOT / "Nami"))
+        from nami_agent import funcion_nodo_nami
+        tripulacion.agregar_agente("Nami", funcion_nodo_nami)
+
+        # Importamos a Zoro desde su ruta
+        sys.path.insert(0, str(_APP_ROOT / "Zoro"))
+        from zoro_agent import funcion_nodo_zoro
+        tripulacion.agregar_agente("Zoro", funcion_nodo_zoro)
+
+        # Importamos a Robin desde su ruta
+        sys.path.insert(0, str(_APP_ROOT / "Robin"))
+        from robin_agent import funcion_nodo_robin
+        tripulacion.agregar_agente("Robin", funcion_nodo_robin)
+
+        # Importamos a Sanji desde su ruta
+        sys.path.insert(0, str(_APP_ROOT / "Sanji"))
+        from sanji_agent import funcion_nodo_sanji
+        tripulacion.agregar_agente("Sanji", funcion_nodo_sanji)
+
+        
+    except Exception as e:
+        console.print(f"[bold red]Error al inicializar la tripulacion:[/bold red] {e}")
+        console.print(
+            "[yellow]Asegurate de que Ollama esta corriendo: [bold]ollama serve[/bold][/yellow]"
+        )
+        sys.exit(1)
+
+    # ── Presentacion de Luffy al arrancar ───────────────────────────────────
+    console.print(Rule("[bold red]Presentacion del Capitan[/bold red]", style="red"))
+    mostrar_presentacion_luffy()
+
+    console.print(Panel(
+        "[bold green]Sistema listo.[/bold green] Puedes hablar con Luffy o usar los comandos.",
+        border_style="green",
+    ))
+    console.print(AYUDA)
+
+    # ── Hilo de conversacion activo ─────────────────────────────────────────
+    # Cada sesion tiene un thread_id basado en la fecha para separar el historial
+    # de mensajes en RAM. La memoria persistente (JSON) es siempre la misma.
+    thread_id = f"sesion_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+    # ── Bucle de conversacion ───────────────────────────────────────────────
+    while True:
+        try:
+            entrada = Prompt.ask("\n[bold red]Tu[/bold red]").strip()
+        except (KeyboardInterrupt, EOFError):
+            console.print("\n[dim]Hasta la proxima, nakama![/dim]")
+            break
+
+        if not entrada:
+            continue
+
+        comando = entrada.lower()
+
+        # ── Comandos del sistema ────────────────────────────────────────────
+        if comando in ("salir", "exit", "quit"):
+            console.print("[dim]Hasta la proxima, nakama![/dim]")
+            break
+
+        elif comando == "ayuda":
+            console.print(AYUDA)
+
+        elif comando == "historial":
+            mostrar_historial_ui()
+
+        elif comando == "estado":
+            mostrar_estado_ui(tripulacion)
+
+        elif comando == "perfil":
+            mostrar_presentacion_luffy()
+
+        elif comando == "mision":
+            objetivo, contexto = solicitar_mision()
+            if not objetivo:
+                console.print("[yellow]No se especifico un objetivo. Mision cancelada.[/yellow]")
+                continue
+            console.print("\n[bold]Luffy esta analizando la mision...[/bold]\n")
+            try:
+                resultado = tripulacion.ejecutar_mision(
+                    objetivo,
+                    thread_id=thread_id,
+                    contexto_extra=contexto or None,
+                )
+                console.print(Panel(
+                    resultado,
+                    title="[bold green]Resultado de la Mision[/bold green]",
+                    border_style="green",
+                ))
+            except Exception as e:
+                console.print(f"[bold red]Error durante la mision:[/bold red] {e}")
+
+        # ── Conversacion directa con Luffy ──────────────────────────────────
+        else:
+            console.print("\n[bold yellow]Luffy[/bold yellow] esta pensando...\n")
+            try:
+                resultado = tripulacion.chat(entrada, thread_id=thread_id)
+                console.print(Panel(
+                    resultado,
+                    title="[bold yellow]Luffy[/bold yellow]",
+                    border_style="yellow",
+                ))
+            except Exception as e:
+                console.print(f"[bold red]Error:[/bold red] {e}")
+                console.print(
+                    "[yellow]Asegurate de que Ollama esta corriendo: "
+                    "[bold]ollama serve[/bold][/yellow]"
+                )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+

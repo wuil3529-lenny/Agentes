@@ -1,0 +1,106 @@
+> 🔗 **Nexo:** [[Hub_Central]]
+
+# 🛡️ Memoria Viva de Errores e Inmunización por Código
+
+> **Misión del Archivo:** Este documento funciona como el registro centralizado de auditoría y diagnóstico del sistema en Antigravity 2.0. Su propósito principal es documentar de forma clara y estructurada cada fallo, cuello de botella o comportamiento imprevisto que cometen los agentes durante la ejecución de las tareas.
+> 
+> Aunque en la práctica un Modelo de Lenguaje (LLM) no puede corregir su propio comportamiento de forma permanente con solo "leer" este texto (debido a su naturaleza probabilística), este archivo cumple dos funciones vitales:
+> 
+> 1. **La Libreta de Diagnóstico del Capitán:** Permite identificar rápidamente por qué falló un proceso (la causa raíz exacta, como un timeout con NVIDIA NIM, un bucle de rondas o un error de sintaxis), ahorrando tiempo en adivinar qué salió mal.
+> 2. **El Puente hacia la Inmunidad por Código:** Sirve como la especificación técnica de lo que debe ser programado. Cada entrada en este archivo de errores es una orden directa para transformar una falla repetitiva en una condición de parada, un hard-stop o un interceptor lógico dentro del código del agente (ej. en `zoro_agent.py`), logrando así una autonomía real y blindada.
+
+> **REGLA DE ORO ABSOLUTA:** 
+> Un error registrado en texto jamás se corrige solo leyendo un prompt. Todo error debe traducirse obligatoriamente en una restricción o condición de parada por código (hard-stop) dentro de los scripts de los agentes.
+
+## 1. Estructura de Registro Obligatoria
+Cada vez que un agente cometa un fallo operativo, bucle redundante, timeout o error de sintaxis, se registrará aquí usando el siguiente formato estricto:
+
+* **[ERR-XXX] Título del fallo.**
+* **Causa Raíz Comportamental:** (Por qué el LLM ignoró el texto/prompt).
+* **Solución Implementada por Código:** (La regla de control, interceptor o condición lógica aplicada en el archivo `.py` del agente).
+* **Estado:** [Inmune / Activo]
+
+## 2. Traducción Inmediata a Código (Anti-Patrones Defensivos)
+- Queda prohibido depender de advertencias en lenguaje natural en los system prompts para errores recurrentes.
+- El script de control de cada agente (ej. `zoro_agent.py`, `nami_agent.py`) debe incorporar de forma nativa interceptores lógicos (como condiciones de parada `break`, validaciones de tipo de datos estrictas, o control de excepciones de API) que impidan físicamente al modelo repetir el comportamiento erróneo, sin importar qué tan creativos sean sus intentos.
+
+## 3. Calibración contra Falsos Positivos (Control de Sobre-Ingeniería)
+- Al codificar los parches de inmunidad, asegúrate de que las condiciones de parada sean precisas (ej. evaluar un código HTTP 200 contundente o la existencia real de un archivo en disco en `/app/`) para evitar bloqueos prematuros que detengan tareas legítimas antes de tiempo.
+
+## 4. Ciclo Operativo de Autonomía
+Diagnóstico rápido (Libreta Markdown) -> Parche de Código Inmediato (Script del Agente) -> Validación de Inmunidad (Cierre del Ticket sin intervención humana).
+
+---
+
+## [ZONA DE RESTRICCIONES ACTIVAS - INMUNIZADAS]:
+
+* **[ERR-001] Uso de rutas de Windows en entorno Linux.**
+  * **Causa Raíz Comportamental:** El agente asume el SO anfitrión del usuario en vez del contenedor Docker.
+  * **Solución Implementada por Código:** Interceptor en ejecución de herramientas que fuerza un `replace('C:\\...', '/app/')` o detiene la ejecución si detecta backslashes en operaciones de archivo.
+  * **Estado:** Inmune.
+
+* **[ERR-002] Inclusión de humanos en generación de arte.**
+  * **Causa Raíz Comportamental:** El LLM enriquece el prompt con sujetos no deseados.
+  * **Solución Implementada por Código:** Filtro de negative prompts obligatorio (hardcoded) inyectado por `nami_agent.py` antes de enviar el payload a la API.
+  * **Estado:** Inmune.
+
+* **[ERR-003] Omisión de credenciales en endpoints REST.**
+  * **Causa Raíz Comportamental:** El modelo olvida incluir los headers de autenticación.
+  * **Solución Implementada por Código:** La herramienta HTTP inyecta automáticamente los headers del `.env` si el target es la API interna.
+  * **Estado:** Inmune.
+
+* **[ERR-004] Respuestas excesivamente largas en Cierre Forzoso.**
+  * **Causa Raíz Comportamental:** El LLM intenta resumir todo el historial de la tarea al cerrar.
+  * **Solución Implementada por Código:** Truncamiento forzoso y validación de esquema estricto (Pydantic/Langchain) en la respuesta final para obligar el JSON minimalista.
+  * **Estado:** Inmune.
+
+* **[ERR-005] Envío de código masivo en texto plano.**
+  * **Causa Raíz Comportamental:** El agente prefiere devolver el código en el JSON en lugar de escribir a disco.
+  * **Solución Implementada por Código:** Validación de tamaño en la salida del JSON. Si un campo de texto excede los 5000 caracteres, el pipeline detiene el parseo y fuerza al agente a usar la herramienta de escritura a disco.
+  * **Estado:** Inmune.
+
+* **[ERR-006] Tareas redundantes tras éxito de API (Health checks innecesarios).**
+  * **Causa Raíz Comportamental:** Exceso de precaución del modelo.
+  * **Solución Implementada por Código:** Variable de estado estática `success_achieved=True`. Si el agente intenta invocar herramientas nuevamente, el sistema levanta una excepción forzándolo a emitir el JSON de cierre.
+  * **Estado:** Inmune.
+
+* **[ERR-007] Luffy no despierta ante mensajes del usuario si la Pizarra está vacía.**
+  * **Causa Raíz Comportamental:** El motor asume que la única forma de ejecutar un LLM es tener un ticket `PENDIENTE`. Luffy ignora los mensajes si no tiene una tarea activa.
+  * **Solución Implementada por Código:** Interceptor lógico en `base_listener.py`. Si es el turno de Luffy y hay mensajes sin leer en los canales, el script auto-genera un ticket temporal en la Bitácora para forzar el despertar del LLM.
+  * **Estado:** Inmune.
+
+* **[ERR-008] Cuello de botella en chat por obligatoriedad de Pizarra (Gatillos Explícitos).**
+  * **Causa Raíz Comportamental:** Tratar todo mensaje como un ticket requería ejecutar todo el grafo de LangGraph, bloqueando respuestas conversacionales fluidas.
+  * **Solución Implementada por Código:** Modificado `base_listener.py` para usar expresiones regulares antes de despertar al LLM pesado. Ahora intercepta "Vía Rápida" y "Consulta de Estado", invoca directamente a NVIDIA NIM sin instanciar herramientas ni tocar la Bitácora, y envía la respuesta por Telegram. Solo ejecuta LangGraph si detecta un gatillo de creación de tarea.
+  * **Estado:** Inmune.
+
+* **[ERR-009] Ejecución prematura de tareas ignorando la orquestación en la Pizarra.**
+  * **Causa Raíz Comportamental:** Al procesar un mensaje de creación de tarea (TKT-MSG), Luffy tenía acceso inmediato a las herramientas operativas (como `tool_inbox_gmail`). Por pereza del LLM, decidía ejecutar la herramienta directamente en el acto en lugar de desglosar y formalizar la tarea en la Pizarra como Orquestador.
+  * **Solución Implementada por Código:** Interceptor lógico en `luffy_agent.py`. Si el ticket activo comienza con `TKT-MSG`, el código le desvincula (unbind) temporalmente *todas* las herramientas operativas y le inyecta una restricción de Hard-Stop forzándole a usar `ticket_actualizado` para crear un nuevo bloque Markdown (`## TKT-...`) con la delegación formal de la tarea.
+  * **Estado:** Inmune.
+
+* **[ERR-010] Bucle infinito de Escudo JSON con Nvidia (Llama 3.1 70B).**
+  * **Causa Raíz Comportamental:** El LLM (Llama vía ChatNVIDIA) ignora las reglas estrictas de responder en JSON después de ejecutar una herramienta, emitiendo texto plano y causando que el Escudo JSON rebote un ticket de error_formato constantemente, atascando la conversación.
+  * **Solución Implementada por Código:** Interceptor lógico (Hard-Stop) en el bloque xcept del Escudo JSON en luffy_agent.py. Si el parseo falla (no hay delimitadores {}), el código auto-envuelve el texto libre generado por el LLM en una estructura JSON válida (	ipo: conversacion), neutralizando el error sin interrumpir el flujo.
+  * **Estado:** Inmune.
+
+
+* **[ERR-011] Bucle de herramientas (AgentLoopError) por desorientación post-herramienta.**
+  * **Causa Raíz Comportamental:** El LLM (Llama 3.1) ejecuta exitosamente 	ool_enviar_telegram, pero al recibir el resultado de éxito no sabe cómo detenerse y llama a la misma herramienta con los mismos argumentos una y otra vez, activando el detector de bucles infinitos.
+  * **Solución Implementada por Código:** Modificado el valor de retorno de la herramienta en luffy_agent.py para inyectar una orden estricta en el resultado que el LLM lee: '⚠️ MUY IMPORTANTE: Acción completada. AHORA DEBES TERMINAR TU TURNO DEVOLVIENDO ÚNICAMENTE UN JSON...'. Esto fuerza al LLM a romper su estado de 'Tool Calling' y regresar la respuesta final en JSON.
+  * **Estado:** Inmune.
+
+
+
+* **[ERR-012] Omisión de documentación detallada en memoria (Cerebro a largo plazo).**
+  * **Causa Raíz Comportamental:** Al finalizar un ticket, los agentes marcan la tarea como completada y anotan un breve resumen en Cerebro.md o en la Bitácora, pero omiten crear el archivo de reporte detallado obligatorio en la carpeta `memoria\`, perdiendo así el contexto profundo para consultas futuras (RAG y auditoría).
+  * **Solución Implementada por Código:** Interceptor de validación (Hard-Stop) en el cierre de tickets. Cuando un agente intenta marcar un ticket como `COMPLETADO`, el sistema exige la creación o modificación de un archivo `.md` en la carpeta `memoria\` y que dicho archivo sea enlazado explícitamente en la entrada correspondiente de `Cerebro.md`. Si el archivo físico en `memoria\` no existe, la transacción se aborta, el ticket pasa a `ESPERANDO_CORRECCION` y se fuerza al agente a redactar el informe detallado antes de poder cerrar su ciclo.
+  * **Estado:** Inmune.
+
+* **[ERR-013] Duplicidad del archivo de Pizarra (Creación de La_Pizarra.md).**
+  * **Causa Raíz Comportamental:** El modelo se confunde con la terminología (apodo vs nombre real) y crea un archivo literal llamado `La_Pizarra.md` porque el prompt menciona "La Pizarra", cuando el único archivo oficial es `Bitacora.md`. Esto divide los tickets y rompe la orquestación.
+  * **Solución Implementada por Código:** Interceptor de sistema de archivos (Hard-Stop). Cualquier intento de lectura o escritura hacia un archivo llamado `La_Pizarra.md` es bloqueado por el framework. Si un agente intenta crearlo, el código lanza una excepción recordándole que el único archivo válido es `Bitacora.md` y aborta la transacción, obligando al agente a usar la ruta correcta.
+  * **Estado:** Inmune.
+
+---
+**Pertenece a:** [[memoria]]

@@ -1,0 +1,24 @@
+.env
+__pycache__/
+*.pyc
+.obsidian/
+# Tokens y Credenciales de Google
+credentials.json
+token.json
+keep_token.txt
+
+# Perfil de usuario
+memoria_compartida/perfiles/Perfil de wuil.md
+memoria_compartida/perfiles/Perfil de wuil.json
+# Archivos sensibles adicionales
+.env.local
+*.key
+*.pem
+secrets.json
+canal_usuario.json
+
+# Basura
+Archivos_temporales/
+memoria/
+memoria_compartida/
+

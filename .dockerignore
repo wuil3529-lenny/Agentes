@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — Archivos excluidos del contexto de build de Docker
+#
+# Docker solo necesita el código fuente + requirements.txt para construir
+# la imagen. Los archivos grandes, secretos o temporales se excluyen aquí
+# para acelerar el build y no filtrar datos sensibles.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Secretos (NUNCA dentro de la imagen) ─────────────────────────────────────
+.env
+*.env
+credentials.json
+token.json
+keep_token.txt
+
+# ── Datos de memoria compartida (se montan como volumen, no se copian) ────────
+memoria_compartida/
+
+# ── Caché de Python ───────────────────────────────────────────────────────────
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.Python
+
+# ── Entornos virtuales ────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Obsidian (solo para el usuario, no para el contenedor) ───────────────────
+.obsidian/
+
+# ── Logs y archivos temporales ────────────────────────────────────────────────
+*.log
+Archivos_temporales/
+**/data/*.txt
+**/data/*.csv
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo

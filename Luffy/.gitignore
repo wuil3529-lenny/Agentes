@@ -1,0 +1,6 @@
+# Ignorar tokens de Google Workspace por recomendación de auditoría (Robin)
+credentials.json
+token.json
+data/credentials.json
+data/token.json
+*.json

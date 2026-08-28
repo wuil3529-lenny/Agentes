@@ -1,0 +1,25 @@
+{
+  "ticket_id": "TKT-ZORO-SEC-002",
+  "tarea": "[PDF-02] Agregar validación de tamaño máximo de archivo PDF (50MB) en la función _obtener_reader() de skill_leer_pdf_sanji.py",
+  "estado": "PENDIENTE_REVISION",
+  "fecha_verificacion": "2026-08-25",
+  "archivo_modificado": "/app/Sanji/skills/skill_leer_pdf_sanji.py",
+  "hallazgo_original": "PDF-02: No hay límite de tamaño de archivo PDF. Un PDF extremadamente grande podría causar agotamiento de memoria.",
+  "solucion_implementada": "La validación de tamaño máximo de 50MB ya está implementada en _obtener_reader(). Se verificó su correcto funcionamiento.",
+  "detalles_validacion": {
+    "constante_tamano_maximo": 52428800,
+    "constante_tamano_maximo_mb": 50,
+    "mensaje_error": "No se pudo procesar el PDF: el archivo supera el tamaño máximo permitido de 50 MB.",
+    "metodo_validacion": "ruta.stat().st_size > _TAMANO_MAXIMO_PDF_BYTES",
+    "excepcion_lanzada": "ValueError",
+    "validacion_antes_de_reader": true
+  },
+  "resultados_pruebas": {
+    "verificacion_constantes": "PASS",
+    "verificacion_funcion_reader": "PASS",
+    "verificacion_archivo_grande_51mb": "PASS - Se rechazó correctamente con ValueError",
+    "verificacion_archivo_pequeno": "PASS - Pasó la validación de tamaño",
+    "exit_code": 0
+  },
+  "script_verificacion": "/app/Zoro/proyectos/verificar_validacion_tamano_pdf.py"
+}

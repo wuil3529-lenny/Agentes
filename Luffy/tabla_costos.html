@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estructura de Costos y Fases de Complejidad</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <style>
+        body { padding: 40px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; }
+        .table-container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        h2, h3 { color: #2c3e50; }
+        .section-title { margin-bottom: 1.5rem; border-bottom: 2px solid #3498db; padding-bottom: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="container table-container">
+    <h2 class="section-title">2. Estructura de Costos y Fases de Complejidad</h2>
+    <table id="costosTable" class="table table-striped table-hover table-bordered align-middle" style="width:100%">
+        <thead class="table-dark">
+            <tr>
+                <th>Complejidad / Fase</th>
+                <th>Descripción de Alcance</th>
+                <th>Inversión Inicial Aproximada</th>
+                <th>Manutención / Suscripción Mensual</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Fácil</strong><br><span class="badge bg-success">Nivel Base</span></td>
+                <td>Despliegue de agentes multiagente para administración, asistentes de marketing y reportes básicos basados en planillas actuales.</td>
+                <td data-order="3000">$3,000 - $6,000</td>
+                <td data-order="600">$600 - $900 / mes</td>
+            </tr>
+            <tr>
+                <td><strong>Medio</strong><br><span class="badge bg-warning text-dark">Nivel Intermedio</span></td>
+                <td>Integración de dashboards interactivos, registro de producción web y automatización de métricas de rentabilidad e inventario.</td>
+                <td data-order="7000">$7,000 - $12,000</td>
+                <td data-order="1000">$1,000 - $1,600 / mes</td>
+            </tr>
+            <tr>
+                <td><strong>Difícil</strong><br><span class="badge bg-danger">Nivel Avanzado</span></td>
+                <td>Monitoreo IoT de maquinaria mediante PLCs, visión artificial para EPP y sustitución completa del software legado por una solución moderna.</td>
+                <td data-order="15000">$15,000 - $28,000+</td>
+                <td data-order="2000">$2,000 - $3,500 / mes</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mt-5">
+        <h3 class="section-title">3. Servicios Especiales y Costos por Separado</h3>
+        <p class="text-muted"><em>Sección reservada para el detalle de los servicios especiales. (Se puede expandir según sea necesario).</em></p>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        $('#costosTable').DataTable({
+            "language": {
+                "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json"
+            },
+            "ordering": true,
+            "searching": true,
+            "paging": false,
+            "info": false
+        });
+    });
+</script>
+</body>
+</html>

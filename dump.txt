@@ -1,0 +1,45 @@
+                            texto_actualizado += f"\n  - [Auditor - {datetime.now().isoformat()[:19]}]: RECHAZADO: {motivo_rechazo}"
+                        else:
+                            # Auditoría exitosa
+                            if nuevo_ticket['estado'] in ['CERRADO', 'COMPLETADO']:
+                                from pathlib import Path
+                                import re
+                                
+                                cerebro_index_path = (_APP_ROOT / "Cerebro.md")
+                                cerebro_dir = (_APP_ROOT / "memoria")
+                                cerebro_dir.mkdir(parents=True, exist_ok=True)
+                                
+                                siguiente_numero = 0
+                                if cerebro_index_path.exists():
+                                    index_content = cerebro_index_path.read_text(encoding="utf-8")
+                                    numeros = re.findall(r"- \*\*\[(\d+)\]\*\*", index_content)
+                                    if numeros:
+                                        siguiente_numero = max([int(n) for n in numeros]) + 1
+                                else:
+                                    cerebro_index_path.write_text("# 🧠 Cerebro (Largo Plazo)\n", encoding="utf-8")
+                                
+                                num_str = str(siguiente_numero).zfill(2)
+                                id_ticket = nuevo_ticket['id_bloque'].replace('## ', '').strip()
+                                descripcion_corta = nuevo_ticket['tarea']
+                                
+                                nombre_corto = re.sub(r'[^a-zA-Z0-9]+', '_', descripcion_corta).strip('_')[:30]
+                                nuevo_nombre_archivo = f"{num_str}_{nombre_corto}.md"
+                                new_file_path = cerebro_dir / nuevo_nombre_archivo
+                                
+                                contexto = nuevo_ticket['contexto']
+                                evidencia = nuevo_ticket['evidencia']
+                                fecha_hora_actual = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                
+                                nuevo_contenido = f"# {descripcion_corta}\n\n**Agente:** {agente_nombre}\n**Ticket:** {id_ticket}\n**Fecha y Hora:** {fecha_hora_actual}\n\n## 1. Problema/Objetivo\n{contexto}\n\n## 2. Herramientas/Comandos Utilizados\n(Registro autogenerado por el sistema de auditoría)\n\n## 3. Resultado Final\nEvidencia física generada: {evidencia}\n"
+                                new_file_path.write_text(nuevo_contenido, encoding="utf-8")
+                                
+                                linea_indice = f"- **[{num_str}]** | **Fecha:** {fecha_hora_actual} | **Ticket:** {id_ticket} | **Descripción:** {descripcion_corta} | **Ruta:** `C:\\Users\\admin\\Documents\\Agentes\\memoria\\{nuevo_nombre_archivo}`\n"
+                                with open(cerebro_index_path, "a", encoding="utf-8") as f:
+                                    f.write(linea_indice)
+                                
+                                print(f"[{agente_nombre} Listener] ✅ Conocimiento archivado en Cerebro.md y guardado en memoria/: {nuevo_nombre_archivo}")
+                                # Limpiar la pizarra: remover solo este ticket completado de la cadena a inyectar
+                                if len(sub_tickets) > 1:
+                                    pass
+
+                    # Enviar mensaje de telegram sin importar el estado del ticket
