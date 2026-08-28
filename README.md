@@ -11,6 +11,7 @@ Este ecosistema ya no opera mediante llamadas aisladas; ha evolucionado a la **A
 1. **Orquestador Asíncrono**: Ejecutado en Docker (`tripulacion_ia_v3`), gestionando grafos conversacionales asíncronos mediante LangGraph.
 2. **Memoria Fractal (Obsidian RAG)**: Los agentes se comunican de forma asíncrona leyendo y escribiendo en archivos `.md`. Obsidian actúa como una red neuronal visual donde los agentes conectan nodos conceptuales, bitácoras de errores e informes.
 3. **Punteros Lógicos**: Para sortear los límites de tokens, los agentes no se envían el código entero. Se pasan rutas locales de archivos ("punteros") y modifican el código directamente en el disco.
+4. **Pruebas y QA**: El sistema utiliza Gherkin para las validaciones y pruebas de calidad (QA).
 
 ## 👥 Miembros de la Tripulación
 
@@ -60,4 +61,4 @@ Los siguientes elementos **JAMÁS** deben subirse a este repositorio:
 * Bases de datos locales de los agentes.
 
 ---
-*Este repositorio es mantenido de forma conjunta por el usuario humano (Capitán Wuilfredo) y el sistema Antigravity / Ygris.*
+*Este repositorio es mantenido de forma conjunta por el usuario y el sistema Antigravity 2.0.*
