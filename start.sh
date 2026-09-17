@@ -93,10 +93,13 @@ cleanup() {
 }
 trap cleanup SIGTERM SIGINT
 
+# Asegurar que exista la carpeta de logs
+mkdir -p /app/logs
+
 # 🚀 Lanzar base_listener.py (Luffy como Daemon principal) 🚀
 log "Iniciando motor principal: base_listener.py para Luffy..."
-python /app/Luffy/base_listener.py luffy \
-    2>&1 | while IFS= read -r line; do echo "[Luffy] $line"; done &
+python -u /app/Luffy/base_listener.py luffy \
+    2>&1 | while IFS= read -r line; do echo "[Luffy] $line" | tee -a /app/logs/Luffy.log; done &
 PID_LUFFY=$!
 ok "Luffy (Daemon) iniciado con PID $PID_LUFFY"
 
@@ -106,8 +109,8 @@ sleep 2
 # ── Lanzar telegram_bridge.py ─────────────────────────────────────────────────
 if [[ "$BRIDGE_DISABLED" == "false" ]]; then
     log "Iniciando puente Telegram: telegram_bridge.py ..."
-    python /app/Luffy/telegram_bridge.py \
-        2>&1 | while IFS= read -r line; do echo "[telegram_bridge] $line"; done &
+    python -u /app/Luffy/telegram_bridge.py \
+        2>&1 | while IFS= read -r line; do echo "[telegram_bridge] $line" | tee -a /app/logs/Luffy.log; done &
     BRIDGE_PID=$!
     ok "telegram_bridge.py iniciado con PID $BRIDGE_PID"
 else

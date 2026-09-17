@@ -1,0 +1,14 @@
+[
+  {
+    "titulo": "Creación de Dashboard Interactivo",
+    "tarea": "Implementar Kanban y Tareas en tiempo real.",
+    "responsable": "Zoro",
+    "estado": "Ejecutando"
+  },
+  {
+    "titulo": "Auditoría de Tokens",
+    "tarea": "Revisar interceptores de langsmith en los agentes.",
+    "responsable": "Sanji",
+    "estado": "En Proceso"
+  }
+]

@@ -730,29 +730,40 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         from memory import _cargar_canal
                         cu = _cargar_canal("usuario").get("mensajes", [])
                         ci = _cargar_canal("interno").get("mensajes", [])
-                        if any("Luffy" not in m.get("leido_por", []) for m in cu) or \
-                           any("Luffy" not in m.get("leido_por", []) and str(m.get("para", "")).lower() in ("luffy", "todos", "tripulacion") for m in ci):
+                        if any("luffy" not in [str(x).lower() for x in m.get("leido_por", [])] for m in cu) or \
+                           any("luffy" not in [str(x).lower() for x in m.get("leido_por", [])] and str(m.get("para", "")).lower() in ("luffy", "todos", "tripulacion") for m in ci):
                             forzar_despertar = True
                     except Exception as e_msg:
                         print(f"[{agente_nombre} Listener] Error verificando mensajes: {e_msg}")
                 
                 if forzar_despertar:
-                    # Si es tarea (Gatillo 1) u otro caso (mensajes internos)
                     print(f"\n[{agente_nombre} Listener] 🚨 Mensaje entrante detectado. Invocando la consciencia de {agente_nombre}...")
                     try:
                         from memory import _cargar_canal, _guardar_canal
                         canal_u = _cargar_canal("usuario")
-                        cu_nuevos = [m for m in canal_u.get("mensajes", []) if "Luffy" not in m.get("leido_por", [])]
-                        texto_completo = " ".join([str(m.get("contenido", "")) for m in cu_nuevos])
-                    except Exception:
-                        pass
+                        cu_nuevos = [m for m in canal_u.get("mensajes", []) if "luffy" not in [str(x).lower() for x in m.get("leido_por", [])]]
+                        
+                        texto_piezas = []
+                        for m in cu_nuevos:
+                            c = m.get("contenido", {})
+                            if isinstance(c, dict):
+                                t = c.get("texto", "")
+                            else:
+                                t = str(c)
+                            if t:
+                                texto_piezas.append(t)
+                        texto_completo = "\n".join(texto_piezas)
+                        
+                        historial_reciente = ""
+                        for m in canal_u.get("mensajes", [])[-8:]:
+                            emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
+                            c = m.get("contenido", {})
+                            t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
+                            historial_reciente += f"{emisor}: {t}\n"
 
-                    if texto_completo:
-                            # Si es tarea (Gatillo 1) u otro caso (mensajes internos)
-                        print(f"\n[{agente_nombre} Listener] 🚨 Mensaje entrante detectado. Invocando la consciencia de {agente_nombre}...")
-                        try:
+                        if texto_completo:
                             texto_bitacora_actual = BITACORA_MD.read_text(encoding="utf-8") if BITACORA_MD.exists() else "La pizarra está vacía."
-                            estado_inicial = {"messages": [HumanMessage(content=f"Has recibido el siguiente mensaje de Telegram del usuario:\n\n{texto_completo}\n\n=== ESTADO ACTUAL DE LA PIZARRA ===\n{texto_bitacora_actual}\n====================================\n\n[MODO ORQUESTADOR ACTIVO]: Tienes total libertad para utilizar todas tus herramientas.\nREGLA ANTI-DUPLICADOS: Si la tarea pedida YA EXISTE (mismo objetivo) y está PENDIENTE o EN_PROGRESO, NO CREES NINGÚN TICKET NUEVO, solo avisa al usuario.\nREGLA DE REFINAMIENTO (BLAST): Si la orden del usuario es muy vaga, ambigua o le falta precisión quirúrgica, ESTÁ ESTRICTAMENTE PROHIBIDO CREAR UN TICKET O INVENTAR REQUISITOS. Debes invocar inmediatamente la herramienta 'tool_validar_objetivo' para devolver el turno al usuario con una pregunta aclaratoria y detenerte.\nSi necesitas auditar algo, investigar un bug de los agentes, o buscar contexto adicional, USA TUS HERRAMIENTAS (leer_archivo, grep_search, tool_buscar_soluciones, etc.) antes de responder.\nSi debes delegar, genera un bloque Markdown que empiece obligatoriamente por `## TKT-` con Estado y Responsable al final.")]}
+                            estado_inicial = {"messages": [HumanMessage(content=f"=== HISTORIAL DE CONVERSACIÓN RECIENTE ===\n{historial_reciente}\n====================================\n\nHas recibido el siguiente mensaje NUEVO del usuario:\n\n{texto_completo}\n\n=== ESTADO ACTUAL DE LA PIZARRA ===\n{texto_bitacora_actual}\n====================================\n\n[MODO ORQUESTADOR ACTIVO]: Tienes total libertad para utilizar todas tus herramientas.\nREGLA ANTI-DUPLICADOS: Si la tarea pedida YA EXISTE (mismo objetivo) y está PENDIENTE o EN_PROGRESO, NO CREES NINGÚN TICKET NUEVO, solo avisa al usuario.\nREGLA DE REFINAMIENTO (BLAST): Si la orden del usuario es muy vaga, ambigua o le falta precisión quirúrgica, ESTÁ ESTRICTAMENTE PROHIBIDO CREAR UN TICKET O INVENTAR REQUISITOS. Debes invocar inmediatamente la herramienta 'tool_validar_objetivo' para devolver el turno al usuario con una pregunta aclaratoria y detenerte.\nSi necesitas auditar algo, investigar un bug de los agentes, o buscar contexto adicional, USA TUS HERRAMIENTAS (leer_archivo, grep_search, tool_buscar_soluciones, etc.) antes de responder.\nSi debes delegar, genera un bloque Markdown que empiece obligatoriamente por `## TKT-` con Estado y Responsable al final.")]}
                         
                             print(f"[{agente_nombre} Listener] Llamando a funcion_nodo_luffy directamente en memoria...")
                             resultado = _ejecutar_nodo_con_reintento_429(funcion_nodo, estado_inicial, agente_nombre)
@@ -763,11 +774,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                 bloques = re.split(r"(?i)(?=## TKT-[a-z0-9\-]+)", respuesta_ai)
                                 for bloque_nuevo in bloques:
                                     bloque_nuevo = bloque_nuevo.strip()
-                                    # Extraer solo el bloque del ticket si está envuelto en JSON string
                                     if bloque_nuevo.startswith("## TKT-"):
-                                        # Limpiar caracteres de cierre de JSON si el string termina ahí
                                         bloque_nuevo = re.sub(r'["\}]+$', '', bloque_nuevo).strip()
-                                        # Convertir literales \n a saltos de línea reales
                                         bloque_nuevo = bloque_nuevo.replace('\\n', '\n')
                                         texto_bitacora = BITACORA_MD.read_text(encoding="utf-8") if BITACORA_MD.exists() else "La pizarra está vacía."
                                         texto_bitacora += "\n\n" + bloque_nuevo
@@ -775,25 +783,58 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                         print(f"[{agente_nombre} Listener] ✅ Ticket inyectado desde la mente de {agente_nombre}: {bloque_nuevo.splitlines()[0]}")
                             else:
                                 print(f"[{agente_nombre} Listener] 💬 {agente_nombre} conversó o no generó ticket. Pizarra limpia.")
-                                if "datos_json" in resultado and "contenido" in resultado["datos_json"]:
-                                    texto = resultado["datos_json"]["contenido"].get("texto", "")
-                                    if texto:
-                                        try:
-                                            sys.path.append(str(_APP_ROOT / "Luffy"))
-                                            from telegram_bridge import enviar_mensaje_telegram
-                                            enviar_mensaje_telegram(texto)
-                                            print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram.")
-                                        except Exception as e:
-                                            print(f"[{agente_nombre} Listener] Error enviando a telegram: {e}")
                             
-                            # Marcar como leídos
+                            # Obtener texto de respuesta para usuario
+                            texto_resp = ""
+                            if "datos_json" in resultado and isinstance(resultado["datos_json"], dict):
+                                texto_resp = resultado["datos_json"].get("contenido", {}).get("texto", "")
+                            if not texto_resp and respuesta_ai and not respuesta_ai.strip().startswith("{"):
+                                texto_resp = respuesta_ai
+                                
+                            if texto_resp:
+                                try:
+                                    sys.path.append(str(_APP_ROOT / "Luffy"))
+                                    from telegram_bridge import enviar_mensaje_telegram
+                                    enviar_mensaje_telegram(texto_resp)
+                                    print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram.")
+                                except Exception as e:
+                                    pass
+                                try:
+                                    from memory import publicar_mensaje
+                                    publicar_mensaje(
+                                        de="Luffy",
+                                        para="usuario",
+                                        tipo="mensaje_dashboard",
+                                        contenido={"texto": texto_resp},
+                                        canal_tipo="usuario"
+                                    )
+                                    print(f"[{agente_nombre} Listener] Mensaje publicado en canal_usuario para el Dashboard.")
+                                except Exception as e_pub:
+                                    print(f"[{agente_nombre} Listener] Error publicando en canal_usuario: {e_pub}")
+
+                        # Marcar SIEMPRE como leídos para evitar bucle
+                        for m in canal_u.get("mensajes", []):
+                            leidos = [str(x).lower() for x in m.get("leido_por", [])]
+                            if "luffy" not in leidos:
+                                m.setdefault("leido_por", []).append("Luffy")
+                        _guardar_canal(canal_u, "usuario")
+
+                    except Exception as e_del:
+                        print(f"[{agente_nombre} Listener] ❌ Error ejecutando la consciencia de {agente_nombre}: {e_del}")
+                        import traceback
+                        traceback.print_exc()
+                        try:
+                            canal_u = _cargar_canal("usuario")
                             for m in canal_u.get("mensajes", []):
-                                if "Luffy" not in m.get("leido_por", []): m.setdefault("leido_por", []).append("Luffy")
+                                leidos = [str(x).lower() for x in m.get("leido_por", [])]
+                                if "luffy" not in leidos:
+                                    m.setdefault("leido_por", []).append("Luffy")
                             _guardar_canal(canal_u, "usuario")
-                        except Exception as e_del:
-                            print(f"[{agente_nombre} Listener] ❌ Error ejecutando la consciencia de {agente_nombre}: {e_del}")
-                            import traceback
-                            traceback.print_exc()
+                        except Exception:
+                            pass
+                    
+                    time.sleep(2)
+                    continue
                 else:
                     avanzar_turno(agente_nombre)
                     time.sleep(2)
@@ -864,7 +905,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         skills_path = Path(__file__).parent / "skills"
                         if str(skills_path) not in sys.path:
                             sys.path.insert(0, str(skills_path))
-                        from skill_curador import HERRAMIENTAS_CURADOR
+                        from curador.skill_curador import HERRAMIENTAS_CURADOR
                         
                         llm_curador = crear_llm(agente="LUFFY").bind_tools(HERRAMIENTAS_CURADOR)
                         prompt_curador = SystemMessage(
@@ -1129,7 +1170,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 skills_path = Path(__file__).parent / "skills"
                 if str(skills_path) not in sys.path:
                     sys.path.insert(0, str(skills_path))
-                from skill_curador import HERRAMIENTAS_CURADOR
+                from curador.skill_curador import HERRAMIENTAS_CURADOR
                 
                 llm_curador = crear_llm(agente="LUFFY").bind_tools(HERRAMIENTAS_CURADOR)
                 prompt_curador = SystemMessage(
@@ -1172,7 +1213,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
 
         if agente_nombre == "Luffy":
             try:
-                import skill_supervisor
+                from supervisor import skill_supervisor
                 skill_supervisor.ejecutar_supervision(api_key, "deepseek-chat", "deepseek-chat")
             except Exception as sup_e:
                 pass # Silencioso, no rompe el flujo

@@ -30,7 +30,7 @@ ROOT_ENV_PATH = _APP_ROOT / ".env"
 load_dotenv(dotenv_path=ROOT_ENV_PATH)
 
 SHARED_MEMORY_PATH = Path(
-    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / "memoria_compartida"))
+    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / ".memoria_compartida"))
 )
 SHARED_MEMORY_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -96,9 +96,11 @@ def leer_mensajes(agente: str) -> list[dict]:
         canal = _cargar_canal(tipo_c)
         mensajes = canal.get("mensajes", [])
         resultado = []
+        agente_lower = agente.lower()
         for msg in mensajes:
             para_str = str(msg.get("para", "")).lower()
-            if para_str in (agente.lower(), "todos", "tripulación", "tripulacion") and agente not in msg.get("leido_por", []):
+            leido_por = [str(x).lower() for x in msg.get("leido_por", [])]
+            if para_str in (agente_lower, "todos", "tripulación", "tripulacion") and agente_lower not in leido_por:
                 msg["leido_por"].append(agente)
                 resultado.append(msg)
                 
@@ -108,7 +110,7 @@ def leer_mensajes(agente: str) -> list[dict]:
         return resultado
 
     mensajes_finales = leer_de_canal("interno")
-    if agente == "Luffy":
+    if agente.lower() == "luffy":
         mensajes_finales.extend(leer_de_canal("usuario"))
         
     return mensajes_finales
@@ -303,7 +305,7 @@ def guardar_cerebro(agente: str, tema: str, contenido: str, ruta_local: str = No
         skills_path = _APP_ROOT / "Luffy" / "skills"
         if str(skills_path) not in sys.path:
             sys.path.insert(0, str(skills_path))
-        from skill_memoria_vectorial import _get_collection
+        from memoria_vectorial.skill_memoria_vectorial import _get_collection
         
         collection = _get_collection()
         ticket_id_virt = f"TKT-MEM-{new_id:02d}"

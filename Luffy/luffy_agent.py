@@ -76,7 +76,7 @@ ARCHIVOS_TEMPORALES_PATH = (_APP_ROOT / "Archivos_temporales")
 ARCHIVOS_TEMPORALES_DOCKER = "/app/Archivos_temporales"
 
 MEMORIA_PATH = Path(
-    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / "memoria_compartida"))
+    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / ".memoria_compartida"))
 )
 LUFFY_PERFIL_FILE = Path(__file__).parent / ".agents" / "luffy_perfil.json"
 CREW_NAME       = os.getenv("CREW_NAME", "SombrerosDePaja")
@@ -296,7 +296,7 @@ def tool_limpiar_habitacion() -> str:
     """Ejecuta la rutina de limpieza para mantener solo las 4 carpetas oficiales y 6 archivos raíz en Luffy."""
     print(f"\n[Luffy Herramienta] Ejecutando: tool_limpiar_habitacion...")
     try:
-        from skill_limpiar_luffy import limpiar_habitacion_luffy
+        from limpiar_luffy.skill_limpiar_luffy import limpiar_habitacion_luffy
         res = limpiar_habitacion_luffy()
         return f"Limpieza completada: {res}"
     except Exception as e:
@@ -307,7 +307,7 @@ def tool_limpiar_carpeta_raiz() -> str:
     """Ejecuta la rutina de limpieza general para organizar la carpeta raíz del proyecto y mantener las 10 carpetas y 9 archivos oficiales."""
     print(f"\n[Luffy Herramienta] Ejecutando: tool_limpiar_carpeta_raiz...")
     try:
-        from skill_limpiar_carpeta_raiz import limpiar_carpeta_raiz_luffy
+        from limpiar_carpeta_raiz.skill_limpiar_carpeta_raiz import limpiar_carpeta_raiz_luffy
         res = limpiar_carpeta_raiz_luffy()
         return f"Limpieza de carpeta raíz completada: {res}"
     except Exception as e:
@@ -318,7 +318,7 @@ def tool_auditar_ssot() -> str:
     """Audita y supervisa la coherencia de la Bitácora oficial (SSOT)."""
     print(f"\n[Luffy Herramienta] Ejecutando: tool_auditar_ssot...")
     try:
-        from skill_supervisor import auditar_consistencia_ssot
+        from supervisor.skill_supervisor import auditar_consistencia_ssot
         res = auditar_consistencia_ssot()
         return f"Auditoría SSOT completada: {res}"
     except Exception as e:
@@ -356,7 +356,7 @@ def tool_registrar_agente(nombre_agente: str, descripcion_rol: str = "") -> str:
     """Registra un nuevo agente en la tripulación."""
     print(f"\n[Luffy Herramienta] Ejecutando: tool_registrar_agente...")
     try:
-        from skill_registrar_agente_luffy import registrar_nuevo_agente_luffy
+        from registrar_agente_luffy.skill_registrar_agente_luffy import registrar_nuevo_agente_luffy
         res = registrar_nuevo_agente_luffy(nombre_agente, descripcion_rol)
         return f"Agente registrado: {res}"
     except Exception as e:
@@ -437,7 +437,7 @@ def tool_limpiar_pizarra(id_ticket: str) -> str:
         skills_path = Path(__file__).parent / "skills"
         if str(skills_path) not in sys.path:
             sys.path.insert(0, str(skills_path))
-        from skill_limpiar_pizarra_luffy import limpiar_pizarra_luffy
+        from limpiar_pizarra_luffy.skill_limpiar_pizarra_luffy import limpiar_pizarra_luffy
         res = limpiar_pizarra_luffy(id_ticket)
         return f"Resultado de limpieza: {res}"
     except Exception as e:
@@ -452,7 +452,7 @@ def tool_crear_skill_tripulacion(agente: str, nombre_skill: str, objetivo: str, 
     """
     print(f"\n[Luffy Herramienta] Ejecutando: tool_crear_skill_tripulacion para {agente}...")
     try:
-        from skill_crear_herramienta import iniciar_creacion_skill
+        from crear_herramienta.skill_crear_herramienta import iniciar_creacion_skill
         return iniciar_creacion_skill(agente, nombre_skill, objetivo, entradas_salidas, hard_stops, codigo_python)
     except Exception as e:
         return f"Error al crear habilidad: {e}"
@@ -463,13 +463,13 @@ from pathlib import Path
 skills_path_local = Path(__file__).parent / "skills"
 if str(skills_path_local) not in sys.path:
     sys.path.insert(0, str(skills_path_local))
-from skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
-from skill_refinador import tool_validar_objetivo
-from skill_entrevistador import tool_gestionar_entrevista
-from skill_crear_plan import tool_crear_plan
-from skill_memoria_vectorial import tool_guardar_solucion, tool_buscar_soluciones, consultar_estado_ticket
-from skill_sentry import consultar_sentry_errores, registrar_solucion_error, tool_reportar_fallo_critico
-from skill_buscar_internet_luffy import tool_buscar_internet_luffy
+from base.skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
+from refinador.skill_refinador import tool_validar_objetivo
+from entrevistador.skill_entrevistador import tool_gestionar_entrevista
+from crear_plan.skill_crear_plan import tool_crear_plan
+from memoria_vectorial.skill_memoria_vectorial import tool_guardar_solucion, tool_buscar_soluciones, consultar_estado_ticket
+from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error, tool_reportar_fallo_critico
+from buscar_internet_luffy.skill_buscar_internet_luffy import tool_buscar_internet_luffy
 
 HERRAMIENTAS_LUFFY = [
     crear_archivo,
@@ -512,14 +512,23 @@ def funcion_nodo_luffy(estado: dict) -> dict:
         ultimo_contenido = mensajes_langgraph[-1].content
         mensajes_langgraph[-1].content = ultimo_contenido + contexto_mensajes
 
+    # ── LEER MODO DE OPERACIÓN SELECCIONADO (Auto, Entrevista, Plan) ──
+    modo_file = _APP_ROOT / "modo_agente.json"
+    modo_seleccionado = "auto"
+    if modo_file.exists():
+        try:
+            modo_seleccionado = json.loads(modo_file.read_text(encoding="utf-8")).get("modo", "auto").lower()
+        except Exception:
+            pass
+
     # ── CHECK MODO ENTREVISTADOR ──
     estado_entrevista_file = Path(__file__).resolve().parent / "estado_entrevista.json"
     entrevista_activa = estado_entrevista_file.exists()
     
-        ultimo_texto = mensajes_langgraph[-1].content.lower() if mensajes_langgraph and hasattr(mensajes_langgraph[-1], 'content') else ""
+    ultimo_texto = mensajes_langgraph[-1].content.lower() if mensajes_langgraph and hasattr(mensajes_langgraph[-1], 'content') else ""
     gatillos = ["vamos a platicar sobre este proyecto", "vamos a aclarar ideas", "tengo una idea, ¿me ayudas a darle forma?"]
-    if any(g in ultimo_texto for g in gatillos) and not entrevista_activa:
-        print("[Luffy] Gatillo de Entrevistador detectado.")
+    if (modo_seleccionado == "entrevista" or any(g in ultimo_texto for g in gatillos)) and not entrevista_activa:
+        print("[Luffy] 🎙️ Modo Entrevistador activado (selector o gatillo).")
         entrevista_activa = True
 
     if entrevista_activa:
@@ -542,11 +551,9 @@ def funcion_nodo_luffy(estado: dict) -> dict:
             pass
 
         regla_iniciar = (
-            "- LA ENTREVISTA YA ESTÁ INICIADA. TIENES ESTRICTAMENTE PROHIBIDO USAR accion='iniciar'. USA ÚNICAMENTE accion='actualizar' para añadir la respuesta del usuario.
-"
+            "- LA ENTREVISTA YA ESTÁ INICIADA. TIENES ESTRICTAMENTE PROHIBIDO USAR accion='iniciar'. USA ÚNICAMENTE accion='actualizar' para añadir la respuesta del usuario.\n"
             if ya_iniciada else
-            "- DEBES INICIAR LA ENTREVISTA AHORA MISMO usando `tool_gestionar_entrevista` con accion='iniciar'.
-"
+            "- DEBES INICIAR LA ENTREVISTA AHORA MISMO usando `tool_gestionar_entrevista` con accion='iniciar'.\n"
         )
 
         instruccion_entrevista = (
@@ -573,8 +580,9 @@ def funcion_nodo_luffy(estado: dict) -> dict:
 
     # ── CHECK MODO CREADOR DE PLANES ──
     gatillos_plan = ["crea un plan", "crear un plan", "crea el plan", "crear el plan", "preparemos un plan", "haz un plan", "prepara un plan", "armemos un plan", "actualiza el plan", "actualizar el plan", "modifica el plan"]
-    if any(g in ultimo_texto for g in gatillos_plan) and not entrevista_activa:
-        print("[Luffy] Gatillo de Creador de Planes detectado.")
+    es_modo_plan = (modo_seleccionado == "plan") or any(g in ultimo_texto for g in gatillos_plan)
+    if es_modo_plan and not entrevista_activa:
+        print("[Luffy] 📋 Modo Creador de Planes activado (selector o gatillo).")
         
         # Intentar cargar el último CTX para inyectarlo en el prompt
         ctx_texto_plan = ""

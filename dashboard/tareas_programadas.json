@@ -1,0 +1,26 @@
+{
+  "diarias": [
+    {
+      "titulo": "Sincronización de Base Vectorial",
+      "tarea": "Sincronizar base de datos vectorial de la tripulación.",
+      "responsable": "Robin",
+      "estado": "Programado"
+    }
+  ],
+  "semanales": [
+    {
+      "titulo": "Generación de Reporte Semanal",
+      "tarea": "Reporte de métricas y tareas completadas de la semana.",
+      "responsable": "Nami",
+      "estado": "Programado"
+    }
+  ],
+  "mensuales": [
+    {
+      "titulo": "Limpieza de Logs y Respaldos",
+      "tarea": "Hacer backup de config.db y purgar logs antiguos.",
+      "responsable": "Zoro",
+      "estado": "Programado"
+    }
+  ]
+}

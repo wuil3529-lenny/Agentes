@@ -1,0 +1,114 @@
+import os
+import re
+
+svg_content = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="100%" height="100%">
+  <defs>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur1" />
+      <feGaussianBlur stdDeviation="4" result="blur2" />
+      <feGaussianBlur stdDeviation="8" result="blur3" />
+      <feMerge>
+        <feMergeNode in="blur3" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="blur1" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <style>
+    .base-line {
+      fill: none;
+      stroke: #ff2d78;
+      stroke-width: 2.5;
+      opacity: 0.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .energy-line {
+      fill: none;
+      stroke: #ffb3c6; /* bright pinkish white core */
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: url(#neon-glow);
+      animation: flow linear infinite;
+    }
+    
+    @keyframes flow {
+      to {
+        stroke-dashoffset: -300;
+      }
+    }
+    
+    /* Config for each circuit */
+    .c1 { stroke-dasharray: 20 280; stroke-dashoffset: 0; animation-duration: 2.5s; }
+    .c2 { stroke-dasharray: 15 285; stroke-dashoffset: 0; animation-duration: 3s; animation-delay: 0.5s; }
+    .c3 { stroke-dasharray: 25 275; stroke-dashoffset: 0; animation-duration: 2s; animation-delay: 1s; }
+    .c4 { stroke-dasharray: 15 285; stroke-dashoffset: 0; animation-duration: 2.8s; animation-delay: 0.2s; }
+    .c-brim { stroke-dasharray: 60 440; stroke-dashoffset: 0; animation-duration: 4s; }
+    .c-dome { stroke-dasharray: 40 260; stroke-dashoffset: 0; animation-duration: 3.5s; }
+    
+    .node {
+      fill: #ff2d78;
+      filter: url(#neon-glow);
+    }
+    .glow-core {
+      fill: none;
+      stroke: #ff2d78;
+      stroke-width: 2.5;
+      filter: url(#neon-glow);
+    }
+  </style>
+
+  <!-- Base structural outline with glow -->
+  <g class="glow-core" opacity="0.6">
+    <ellipse cx="100" cy="85" rx="80" ry="20" />
+    <ellipse cx="100" cy="85" rx="70" ry="14" />
+    <path d="M 45 80 C 45 25 155 25 155 80" />
+    <path d="M 45 80 C 45 95 155 95 155 80" />
+  </g>
+
+  <!-- Circuit Base Paths -->
+  <path id="path1" d="M 60 75 L 60 60 L 80 40 L 80 25" class="base-line" />
+  <circle cx="80" cy="25" r="3" class="node" />
+
+  <path id="path2" d="M 140 75 L 140 55 L 115 45 L 115 30 L 125 20" class="base-line" />
+  <circle cx="125" cy="20" r="3" class="node" />
+  
+  <path id="path3" d="M 30 85 L 45 95 L 70 95 L 85 101" class="base-line" />
+  <circle cx="85" cy="101" r="3" class="node" />
+
+  <path id="path4" d="M 170 85 L 155 95 L 125 95 L 115 101" class="base-line" />
+  <circle cx="115" cy="101" r="3" class="node" />
+
+  <!-- Flowing Energy on Circuits -->
+  <use href="#path1" class="energy-line c1" />
+  <use href="#path2" class="energy-line c2" />
+  <use href="#path3" class="energy-line c3" />
+  <use href="#path4" class="energy-line c4" />
+
+  <!-- Flowing Energy on Hat Outline -->
+  <path d="M 45 80 C 45 25 155 25 155 80" class="energy-line c-dome" />
+  <ellipse cx="100" cy="85" rx="80" ry="20" class="energy-line c-brim" />
+</svg>
+"""
+
+with open(r'C:\Users\admin\Documents\Agentes\dashboard\static\hat.svg', 'w', encoding='utf-8') as f:
+    f.write(svg_content)
+
+with open(r'C:\Users\admin\Documents\Agentes\dashboard\static\index.html', 'r', encoding='utf-8') as f:
+    html = f.read()
+
+# Replace the img tag with our new SVG
+html = re.sub(
+    r'<img alt="Logo Sombrero".*?>',
+    r'<img alt="Logo Sombrero SVG" class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(255,45,120,0.3)]" src="/static/hat.svg">',
+    html
+)
+
+# Strip out the circuit-container CSS class and any other remaining mask stuff
+html = html.replace(' circuit-container', '')
+
+with open(r'C:\Users\admin\Documents\Agentes\dashboard\static\index.html', 'w', encoding='utf-8') as f:
+    f.write(html)

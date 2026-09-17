@@ -1,0 +1,862 @@
+<!DOCTYPE html><html class="dark" lang="es" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>AgenticOS - Vista General</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Sora:wght@400;600;700&amp;family=Space+Grotesk:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                "on-secondary-fixed": "#001a1a",
+                "surface-container-high": "#1e1e30",
+                "surface-container": "#141422",
+                "inverse-primary": "#8c0038",
+                "on-tertiary-container": "#fff0c0",
+                "on-secondary-fixed-variant": "#004d4d",
+                "tertiary-container": "#665200",
+                "surface-variant": "#1e1e30",
+                "on-error-container": "#ffa0a0",
+                "tertiary-fixed-dim": "#ffe04a",
+                "outline": "#5a5068",
+                "secondary": "#00ffcc",
+                "primary-fixed": "#ffe0ec",
+                "surface-bright": "#1a1a2e",
+                "primary": "#ff2d78",
+                "primary-container": "#b3004e",
+                "on-surface-variant": "#a098b0",
+                "on-tertiary-fixed-variant": "#665200",
+                "secondary-fixed": "#c0fff4",
+                "error": "#ff4444",
+                "on-error": "#1a0000",
+                "on-background": "#e8e0f0",
+                "surface-tint": "#ff2d78",
+                "inverse-on-surface": "#0a0a12",
+                "on-primary": "#1a0010",
+                "primary-fixed-dim": "#ff80aa",
+                "on-tertiary-fixed": "#1a1000",
+                "error-container": "#3d0f0f",
+                "on-primary-container": "#ffe0ec",
+                "on-secondary": "#001a1a",
+                "surface-container-low": "#111118",
+                "secondary-fixed-dim": "#00e6b8",
+                "on-secondary-container": "#c0fff4",
+                "on-primary-fixed": "#3d0020",
+                "background": "#0a0a12",
+                "outline-variant": "#302840",
+                "on-primary-fixed-variant": "#8c0038",
+                "secondary-container": "#004d3d",
+                "surface-container-highest": "#28283e",
+                "surface-container-lowest": "#0a0a12",
+                "on-tertiary": "#1a1000",
+                "inverse-surface": "#e8e0f0",
+                "surface-dim": "#0f0f1a",
+                "tertiary-fixed": "#fff0c0",
+                "surface": "#0f0f1a",
+                "tertiary": "#ffe04a",
+                "on-surface": "#e8e0f0"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "container-max": "1440px",
+                      "margin-desktop": "32px",
+                      "margin-mobile": "16px",
+                      "gutter": "16px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "headline-md": [
+                              "Sora"
+                      ],
+                      "headline-sm": [
+                              "Sora"
+                      ],
+                      "display-lg": [
+                              "Sora"
+                      ],
+                      "data-mono": [
+                              "Space Grotesk"
+                      ],
+                      "body-md": [
+                              "Inter"
+                      ],
+                      "body-sm": [
+                              "Inter"
+                      ],
+                      "label-caps": [
+                              "Space Grotesk"
+                      ]
+              },
+              "fontSize": {
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "letterSpacing": "-0.01em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-sm": [
+                              "18px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "display-lg": [
+                              "48px",
+                              {
+                                      "lineHeight": "56px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "700"
+                              }
+                      ],
+                      "data-mono": [
+                              "13px",
+                              {
+                                      "lineHeight": "18px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "400"
+                              }
+                      ],
+                      "label-caps": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+<style>
+        body {
+            background-color: #0a0a12;
+            color: #e8e0f0;
+        }
+        
+        .glass-panel {
+            background: rgba(15, 15, 26, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 0.5px solid #302840;
+        }
+        
+        .metric-glow {
+            text-shadow: 0 0 10px rgba(255, 45, 120, 0.4);
+        }
+        
+        /* Custom scrollbar for dark tech theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a12; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e1e30; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #302840; 
+        }
+    
+        
+        
+
+        
+
+
+        
+
+
+        
+        @keyframes circuitSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .circuit-container {
+            position: relative;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border-radius: 50%;
+        }
+        
+        .circuit-container::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; right: -50%; bottom: -50%;
+            background: conic-gradient(from 0deg, 
+                transparent 0%, 
+                rgba(255, 255, 255, 1) 5%, 
+                transparent 15%);
+            animation: circuitSpin 3s linear infinite;
+            mix-blend-mode: color-dodge;
+            -webkit-mask-image: url(/static/logo_mask.png);
+            mask-image: url(/static/logo_mask.png);
+            -webkit-mask-size: contain;
+            -webkit-mask-repeat: no-repeat;
+            -webkit-mask-position: center;
+            pointer-events: none;
+        }
+
+
+
+        /* Futuristic Minimalist Nav Items */
+        .nav-item {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.875rem;
+            padding: 0.875rem 1rem;
+            border-radius: 0.75rem;
+            color: #a098b0;
+            background: rgba(20, 20, 35, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+            text-decoration: none;
+        }
+        .nav-item::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 22%;
+            height: 56%;
+            width: 3.5px;
+            border-radius: 0 4px 4px 0;
+            background: #ff2d78;
+            box-shadow: 0 0 10px #ff2d78, 0 0 4px #ff2d78;
+            opacity: 0;
+            transform: scaleY(0.3);
+            transition: all 0.25s ease;
+        }
+        .nav-item:hover {
+            color: #ffffff;
+            background: rgba(32, 28, 52, 0.85);
+            border-color: rgba(255, 45, 120, 0.6);
+            transform: translateX(6px) scale(1.03);
+            box-shadow: 0 0 25px rgba(255, 45, 120, 0.4), 0 0 45px rgba(255, 45, 120, 0.15), inset 0 0 15px rgba(255, 45, 120, 0.2);
+            z-index: 10;
+        }
+        .nav-item:hover::before {
+            opacity: 1;
+            transform: scaleY(0.9);
+            box-shadow: 0 0 15px #ff2d78, 0 0 8px #ff2d78;
+        }
+        .nav-item.active {
+            color: #ffffff;
+            background: linear-gradient(90deg, rgba(255, 45, 120, 0.16) 0%, rgba(255, 45, 120, 0.03) 70%, transparent 100%);
+            border: 1px solid rgba(255, 45, 120, 0.35);
+            box-shadow: inset 0 0 16px rgba(255, 45, 120, 0.08), 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .nav-item.active::before {
+            opacity: 1;
+            height: 65%;
+            top: 17.5%;
+            transform: scaleY(1);
+        }
+        .nav-item .icon-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 2.25rem;
+            height: 2.25rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #a098b0;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            flex-shrink: 0;
+        }
+        .nav-item:hover .icon-box {
+            background: rgba(255, 45, 120, 0.2);
+            border-color: rgba(255, 45, 120, 0.5);
+            color: #ffffff;
+            text-shadow: 0 0 10px #ff2d78;
+            transform: rotate(-10deg) scale(1.15);
+            box-shadow: 0 0 15px rgba(255, 45, 120, 0.4);
+        }
+        .nav-item.active .icon-box {
+            background: rgba(255, 45, 120, 0.22);
+            border-color: rgba(255, 45, 120, 0.55);
+            color: #ff4d8d;
+            box-shadow: 0 0 12px rgba(255, 45, 120, 0.35);
+        }
+
+
+</style>
+</head>
+<body class="font-body-md text-on-surface antialiased flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface dark:bg-surface fixed left-0 top-0 h-full w-[260px] bg-surface-container-low border-r border-outline-variant flex flex-col h-screen py-6 z-40">
+<!-- Header / Brand -->
+<div class="px-6 mb-8 flex items-center justify-center" style="margin-top: -40px;">
+<div class="w-32 flex items-center justify-center shrink-0">
+<img alt="Logo Sombrero" class="w-full h-auto object-contain drop-shadow-[0_0_10px_rgba(255,45,120,0.3)]" src="/static/logo_transparent.png">
+</div>
+</div>
+<!-- Main Navigation -->
+<div class="flex flex-col gap-2 px-3 flex-grow">
+<!-- Active: Vista General -->
+<a class="nav-item active" href="#">
+<span class="icon-box"><span class="material-symbols-outlined text-[20px]">dashboard</span></span>
+<span class="font-medium tracking-wide text-sm">Vista General</span>
+</a>
+<a class="nav-item" href="#">
+<span class="icon-box"><span class="material-symbols-outlined text-[20px]">smart_toy</span></span>
+<span class="font-medium tracking-wide text-sm">Monitor de Agentes</span>
+</a>
+<a class="nav-item" href="#">
+<span class="icon-box"><span class="material-symbols-outlined text-[20px]">trolley</span></span>
+<span class="font-medium tracking-wide text-sm">Control de Tareas</span>
+</a>
+<a class="nav-item" href="#">
+<span class="icon-box"><span class="material-symbols-outlined text-[20px]">insights</span></span>
+<span class="font-medium tracking-wide text-sm">Analítica</span>
+</a>
+</div>
+<!-- CTA Action -->
+<div class="px-6 mb-6">
+
+</div>
+<!-- Footer Navigation -->
+<div class="flex flex-col gap-1.5 px-3 mt-auto pt-4 border-t border-outline-variant/20">
+<a class="nav-item !py-2.5 !text-xs text-on-surface-variant hover:text-on-surface" href="#">
+<span class="icon-box !w-7 !h-7"><span class="material-symbols-outlined text-[17px]">settings</span></span>
+<span>Configuración</span>
+</a>
+<a class="nav-item !py-2.5 !text-xs text-on-surface-variant hover:text-on-surface" href="#">
+<span class="icon-box !w-7 !h-7"><span class="material-symbols-outlined text-[17px]">help</span></span>
+<span>Contacto</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-[260px] relative h-full">
+<!-- TopAppBar -->
+<header class="bg-surface/80 backdrop-blur-xl bg-surface-container border-b border-outline-variant/50 flex justify-between items-center h-16 px-8 sticky top-0 z-50">
+<!-- Left: Brand / Title -->
+<div class="flex items-center gap-4">
+</div>
+<!-- Middle: Search (on_left logic handled by flexing) -->
+<div class="flex-1 max-w-md mx-8">
+<div class="relative group">
+</div>
+</div>
+<!-- Right: Actions & Profile -->
+<div class="flex items-center gap-3">
+  <!-- Crew Status Indicator Badge (ACTIVO / APAGADO) -->
+  <div id="crew-status-badge" class="flex items-center gap-2 py-1.5 px-3 rounded-lg border text-xs font-bold tracking-wider uppercase transition-all duration-300 bg-error/10 border-error/40 text-error shadow-[0_0_10px_rgba(255,68,68,0.2)]">
+    <span id="crew-status-dot" class="w-2 h-2 rounded-full bg-error animate-pulse shadow-[0_0_8px_#ff4444]"></span>
+    <span id="crew-status-text">APAGADO</span>
+  </div>
+
+  <!-- Live Clock & Date in one horizontal line (12h format without seconds) -->
+  <div class="flex items-center gap-2 py-1.5 px-3 rounded-lg bg-surface-container/60 border border-outline-variant/30 text-data-mono shadow-sm">
+    <span class="material-symbols-outlined text-[16px] text-secondary">schedule</span>
+    <span id="header-time" class="text-sm font-bold text-on-surface tracking-wider">--:-- --</span>
+    <span class="text-xs text-outline-variant/60 mx-0.5">/</span>
+    <span id="header-date" class="text-xs text-secondary tracking-wider font-semibold">--/--/--</span>
+  </div>
+
+  <!-- Profile Menu Container with Dropdown -->
+  <div class="relative" id="profile-menu-container">
+    <button id="profile-toggle-btn" onclick="toggleProfileDropdown(event)" class="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-surface-container/50 border border-outline-variant/40 hover:border-primary/50 hover:bg-surface-container transition-all duration-200 cursor-pointer group">
+      <div class="w-8 h-8 rounded-lg overflow-hidden border border-primary/40 group-hover:border-primary group-hover:shadow-[0_0_10px_rgba(255,45,120,0.5)] transition-all relative">
+        <img alt="Capitán" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=LuffyCaptain&backgroundColor=0f0f1a">
+      </div>
+      <div class="flex flex-col text-left">
+        <span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors leading-tight">Capitán</span>
+        <span class="text-[10px] font-label-caps text-on-surface-variant/70 leading-none">En Línea</span>
+      </div>
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px] group-hover:text-on-surface transition-transform group-hover:rotate-180 duration-200">expand_more</span>
+    </button>
+
+    <!-- Profile Dropdown Panel (Simple & Minimal) -->
+    <div id="profile-dropdown" class="hidden absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#12111d]/95 backdrop-blur-xl border border-outline-variant/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)] p-3.5 z-[100] transition-all">
+      <!-- User Info -->
+      <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/30">
+        <div class="w-10 h-10 rounded-xl overflow-hidden border border-primary/50 shrink-0">
+          <img alt="Avatar" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=LuffyCaptain&backgroundColor=0f0f1a">
+        </div>
+        <div class="flex flex-col min-w-0">
+          <span class="text-sm font-bold text-on-surface truncate">Capitán</span>
+          <span class="text-xs text-on-surface-variant font-mono truncate">admin@tripulacion.os</span>
+        </div>
+      </div>
+
+      <!-- Logout Action -->
+      <div class="pt-2.5">
+        <button id="logout-btn" onclick="alert('Cerrando sesión de la consola...')" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-error/10 border border-error/30 text-error hover:bg-error hover:text-white hover:border-error transition-all duration-200 text-xs font-bold shadow-sm cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">logout</span>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+</header>
+<main id="main-canvas" class="flex-1 overflow-y-auto p-6 lg:p-8 transition-[margin] duration-75 flex flex-col gap-6" style="margin-right: 320px;">
+  
+  <!-- 4 METRICS CARDS ROW -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+    
+    <!-- Metric 1: Consumo de Tokens -->
+    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-primary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Consumo de Tokens</span>
+        <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-[18px]">pie_chart</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-tokens">0</div>
+        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-tokens-sub">
+          <span class="material-symbols-outlined text-[14px]">trending_up</span>
+          <span>0 tokens totales</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metric 2: Gasto en $ de los Tokens -->
+    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Gasto en $ Tokens</span>
+        <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-[18px]">payments</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-cost">$0.00</div>
+        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant" id="metric-cost-sub">
+          <span>Presupuesto ($10): 0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metric 3: Monitor de Hardware -->
+    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-tertiary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Monitor de Hardware</span>
+        <div class="w-8 h-8 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-[18px]">memory</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-baseline gap-3">
+          <div class="text-xl lg:text-2xl font-bold font-data-mono text-on-surface tracking-tight">RAM <span id="hw-ram-val" class="text-tertiary">0%</span></div>
+          <div class="text-sm font-bold font-data-mono text-secondary tracking-tight">CPU <span id="hw-cpu-val">0%</span></div>
+        </div>
+        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="hw-status-sub">
+          <span class="material-symbols-outlined text-[14px]">check_circle</span>
+          <span id="hw-status-text">Carga de sistema estable</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metric 4: Precisión de Tareas -->
+    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-purple-400/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Precisión de Tareas</span>
+        <div class="w-8 h-8 rounded-xl bg-purple-400/10 border border-purple-400/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+          <span class="material-symbols-outlined text-[18px]">task_alt</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-precision">99.4%</div>
+        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-precision-sub">
+          <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+          <span>+2.4% vs día de ayer</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- VOICE VISUALIZER & VOICE-TO-VOICE HUB -->
+  <div class="glass-panel rounded-2xl p-6 border border-outline-variant/40 shadow-2xl flex-1 flex flex-col min-h-[360px] relative overflow-hidden">
+    
+    <!-- Top Header of Voice Hub -->
+    <div class="flex items-center justify-between pb-4 border-b border-outline-variant/30 shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-[#141426] border border-outline-variant/60 flex items-center justify-center shadow-inner">
+          <span id="voice-agent-icon" class="material-symbols-outlined text-primary text-[22px]">graphic_eq</span>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <h3 id="voice-agent-title" class="font-bold text-base text-on-surface tracking-wide">Canal de Voz con Luffy</h3>
+            <span id="voice-speaker-badge" class="py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant">En Reposo</span>
+          </div>
+          <span id="voice-agent-desc" class="text-xs text-on-surface-variant/70">Enlace de comunicación bidireccional directa y continua con Luffy</span>
+        </div>
+      </div>
+      
+      <!-- Direct Channel Status Badge -->
+      <div class="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-primary/10 border border-primary/30 text-xs font-mono text-primary font-bold shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#ff2d78]"></span>
+        <span>Enlace Directo • Luffy</span>
+      </div>
+    </div>
+
+    <!-- Sound Wave Canvas Area -->
+    <div class="flex-1 w-full my-4 relative flex items-center justify-center rounded-xl bg-[#0a0a14]/90 border border-outline-variant/30 overflow-hidden min-h-[180px]">
+      <canvas id="voice-wave-canvas" class="w-full h-full block"></canvas>
+      
+      <!-- Ambient Center Radial Glow -->
+      <div id="voice-glow" class="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(ellipse_at_center,rgba(255,45,120,0.3)_0%,transparent_70%)] transition-all duration-700"></div>
+
+      <!-- Live Voice Subtitle / Feedback Overlay -->
+      <div id="voice-feedback" class="absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none">
+        Canal de audio en espera. Pulsa el botón inferior para activar la transmisión voz a voz.
+      </div>
+    </div>
+
+    <!-- Bottom Action: Voice-to-Voice Activation Button -->
+    <div class="pt-2 flex flex-col items-center justify-center shrink-0">
+      <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgba(0,255,204,0.3)] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
+        <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#ff2d78]"></span>
+        <span class="material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all" id="voice-btn-icon">mic</span>
+        <span id="voice-btn-text">Iniciar Comunicación Voz a Voz</span>
+      </button>
+      <span id="voice-btn-sub" class="text-[11px] text-on-surface-variant/60 mt-2 font-mono">Conexión bidireccional continua • Voz Usuario &lt;-&gt; Voz Agente</span>
+    </div>
+
+  </div>
+
+</main>
+<aside id="right-sidebar" class="fixed right-0 top-16 bottom-0 bg-surface-container-low/20 backdrop-blur-md border-l border-outline-variant/50 flex flex-col p-3 z-20 transition-transform duration-300 ease-in-out" style="width: 320px;">
+  <!-- Drag Handle for Resizing Width -->
+  <div id="right-resizer" class="absolute left-0 top-0 bottom-0 w-3 -ml-1.5 cursor-col-resize z-30 group flex items-center justify-center hover:bg-primary/20 transition-colors select-none" title="Arrastra para cambiar el ancho">
+    <div class="w-1 h-12 rounded-full bg-outline-variant/60 group-hover:bg-primary group-hover:shadow-[0_0_10px_#ff2d78] transition-all"></div>
+  </div>
+
+  <!-- Unified Console Panel (Chat + Logs) in one single block -->
+  <div id="console-unified-card" class="glass-panel rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0 border border-outline-variant/40 shadow-2xl">
+    
+    <!-- TOP SECTION: Terminal de Comunicación (Chat) -->
+    <div id="chat-section" class="flex flex-col min-h-0 overflow-hidden" style="height: 52%;">
+      <!-- Chat Header -->
+      <div class="px-4 py-2.5 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low/60 select-none shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary">chat</span>
+          <h4 class="font-label-caps text-label-caps text-on-surface font-bold tracking-wider">Chat</h4>
+        </div>
+        <!-- Collapse Button Inside Panel -->
+        <button onclick="toggleRightSidebar()" class="p-1 rounded-lg text-on-surface-variant hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center" title="Replegar panel hacia la derecha">
+          <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+        </button>
+      </div>
+      <!-- Chat Messages -->
+      <div id="chat-messages" class="flex-1 overflow-y-auto p-3.5 space-y-3 flex flex-col text-sm"></div>
+      <!-- Chat Input with Mode Selector -->
+      <div class="p-2.5 border-t border-outline-variant/30 bg-surface-container-low/50 shrink-0">
+        <div class="relative flex items-center gap-1.5">
+          <!-- Mode Selector Button (Compact Icon Only) -->
+          <div class="relative shrink-0">
+            <button id="chat-mode-btn" onclick="toggleChatModeMenu(event)" type="button" class="w-8 h-8 flex items-center justify-center rounded-xl bg-surface-container-highest/90 border border-secondary/50 text-secondary hover:bg-surface-container transition-all cursor-pointer shrink-0 shadow-sm select-none" title="Modo Auto (Click para cambiar)">
+              <span class="material-symbols-outlined text-[20px]">keyboard_arrow_up</span>
+            </button>
+            
+            <!-- Mode Popover Menu (opens upward) -->
+            <div id="chat-mode-menu" class="hidden absolute left-0 bottom-full mb-2 w-52 rounded-2xl bg-[#12111d]/95 backdrop-blur-xl border border-outline-variant/50 shadow-[0_10px_35px_rgba(0,0,0,0.85)] p-1.5 z-50 flex flex-col gap-1 select-none">
+              <button onclick="selectChatMode('auto')" type="button" class="mode-opt flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-secondary/15 transition-all text-xs font-semibold cursor-pointer text-on-surface group w-full" data-mode="auto">
+                <span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_6px_#00ffcc] shrink-0"></span>
+                <div class="flex flex-col">
+                  <span class="text-secondary font-bold">Modo Auto</span>
+                  <span class="text-[10px] text-on-surface-variant/70">Orquesta y crea tickets</span>
+                </div>
+              </button>
+              <button onclick="selectChatMode('entrevista')" type="button" class="mode-opt flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-purple-400/15 transition-all text-xs font-semibold cursor-pointer text-on-surface group w-full" data-mode="entrevista">
+                <span class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_#c084fc] shrink-0"></span>
+                <div class="flex flex-col">
+                  <span class="text-purple-400 font-bold">Modo Entrevista</span>
+                  <span class="text-[10px] text-on-surface-variant/70">Preguntas para documento CTX</span>
+                </div>
+              </button>
+              <button onclick="selectChatMode('plan')" type="button" class="mode-opt flex items-center gap-2.5 p-2 rounded-xl text-left hover:bg-amber-400/15 transition-all text-xs font-semibold cursor-pointer text-on-surface group w-full" data-mode="plan">
+                <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24] shrink-0"></span>
+                <div class="flex flex-col">
+                  <span class="text-amber-400 font-bold">Modo Plan</span>
+                  <span class="text-[10px] text-on-surface-variant/70">Crea hoja de ruta previa</span>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Text & Send Button -->
+          <div class="relative flex-1 flex items-center min-w-0">
+            <input class="w-full bg-surface-container-highest/80 border border-outline-variant/50 rounded-xl py-2 pl-3 pr-9 text-body-sm focus:outline-none focus:border-primary/60 transition-colors placeholder:text-on-surface-variant/40 text-on-surface" id="chat-input" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}" placeholder="Escribe un comando a la tripulación..." type="text">
+            <button id="send-btn" onclick="sendChatMessage()" class="absolute right-1.5 text-primary hover:text-primary-fixed p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer" title="Enviar mensaje">
+              <span class="material-symbols-outlined text-[18px]">send</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HORIZONTAL SPLITTER (Drag up/down to adjust heights) -->
+    <div id="horizontal-resizer" class="h-3 bg-surface-container/80 border-y border-outline-variant/40 cursor-row-resize flex items-center justify-center hover:bg-primary/25 transition-colors group select-none shrink-0" title="Arrastra hacia arriba o abajo para ajustar">
+      <div class="w-12 h-1 rounded-full bg-outline-variant/70 group-hover:bg-primary group-hover:shadow-[0_0_8px_#ff2d78] transition-all"></div>
+    </div>
+
+    <!-- BOTTOM SECTION: Logs del Sistema -->
+    <div id="logs-section" class="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <!-- Logs Header -->
+      <div class="px-4 py-2 border-b border-outline-variant/30 flex justify-between items-center bg-surface-container-low/60 select-none shrink-0">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-[18px] text-primary">terminal</span>
+          <h4 class="font-label-caps text-label-caps text-on-surface font-semibold tracking-wider">Logs del Sistema</h4>
+        </div>
+        <div class="flex gap-1.5 items-center">
+          <div class="w-2 h-2 rounded-full bg-error/60"></div>
+          <div class="w-2 h-2 rounded-full bg-tertiary/60"></div>
+          <div class="w-2 h-2 rounded-full bg-secondary/60"></div>
+        </div>
+      </div>
+      <!-- Logs Stream -->
+      <div id="logs-container" class="flex-1 overflow-y-auto p-3 space-y-1.5 font-data-mono text-[11px] bg-[#0c0c16]/70 leading-relaxed">
+        <div class="text-on-surface-variant/40 italic flex items-center gap-2 py-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-outline-variant/60 animate-pulse"></span>
+          <span>A la espera de actividad o eventos de la tripulación...</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</aside>
+
+<!-- Floating Tab/Button on Right Edge to Open Sidebar -->
+<button id="floating-open-sidebar-btn" onclick="toggleRightSidebar()" class="hidden fixed right-0 top-20 z-30 py-3.5 px-2 rounded-l-2xl bg-[#141422]/95 backdrop-blur-md border-y border-l border-primary/50 text-primary hover:border-primary hover:shadow-[0_0_20px_rgba(255,45,120,0.6)] hover:pr-3.5 transition-all duration-300 cursor-pointer group shadow-2xl" title="Desplegar terminal de comunicación y logs">
+  <div class="flex flex-col items-center gap-1.5">
+    <span class="material-symbols-outlined text-[20px] group-hover:scale-125 transition-transform">chevron_left</span>
+    <span class="text-[9px] font-label-caps uppercase tracking-widest text-primary font-bold [writing-mode:vertical-rl] rotate-180">Chat</span>
+  </div>
+</button>
+</div>
+
+<script>
+function updateLiveClock() {
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = String(now.getFullYear()).slice(-2);
+    
+    let hours = now.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const hoursStr = String(hours).padStart(2, '0');
+    const minutesStr = String(now.getMinutes()).padStart(2, '0');
+    
+    const timeFormatted = `${hoursStr}:${minutesStr} ${ampm}`;
+    const dateFormatted = `${day}/${month}/${year}`;
+    
+    const timeEl = document.getElementById('header-time');
+    if (timeEl) timeEl.innerText = timeFormatted;
+    const dateEl = document.getElementById('header-date');
+    if (dateEl) dateEl.innerText = dateFormatted;
+    
+    const display = document.getElementById('datetime-display');
+    if (display) display.innerText = `${timeFormatted} ${dateFormatted}`;
+}
+setInterval(updateLiveClock, 1000);
+updateLiveClock();
+
+function setCrewStatus(isActive) {
+    const badge = document.getElementById('crew-status-badge');
+    const dot = document.getElementById('crew-status-dot');
+    const text = document.getElementById('crew-status-text');
+    if (!badge || !dot || !text) return;
+    
+    if (isActive) {
+        badge.className = 'flex items-center gap-2 py-1.5 px-3 rounded-lg border text-xs font-bold tracking-wider uppercase transition-all duration-300 bg-secondary/10 border-secondary/40 text-secondary shadow-[0_0_12px_rgba(0,255,204,0.25)]';
+        dot.className = 'w-2 h-2 rounded-full bg-secondary animate-pulse shadow-[0_0_8px_#00ffcc]';
+        text.innerText = 'ACTIVO';
+    } else {
+        badge.className = 'flex items-center gap-2 py-1.5 px-3 rounded-lg border text-xs font-bold tracking-wider uppercase transition-all duration-300 bg-error/10 border-error/40 text-error shadow-[0_0_10px_rgba(255,68,68,0.2)]';
+        dot.className = 'w-2 h-2 rounded-full bg-error animate-pulse shadow-[0_0_8px_#ff4444]';
+        text.innerText = 'APAGADO';
+    }
+}
+window.setCrewStatus = setCrewStatus;
+
+function toggleProfileDropdown(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('hidden');
+    }
+}
+
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('profile-menu-container');
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown && container && !container.contains(e.target)) {
+        dropdown.classList.add('hidden');
+    }
+});
+
+// Toggle Right Sidebar (Expand / Collapse to the right)
+function toggleRightSidebar() {
+    const sidebar = document.getElementById('right-sidebar');
+    const mainCanvas = document.getElementById('main-canvas');
+    const floatingBtn = document.getElementById('floating-open-sidebar-btn');
+    if (!sidebar || !mainCanvas) return;
+
+    const isCollapsed = sidebar.classList.toggle('translate-x-full');
+    if (isCollapsed) {
+        mainCanvas.style.marginRight = '0px';
+        if (floatingBtn) floatingBtn.classList.remove('hidden');
+        localStorage.setItem('rightSidebarCollapsed', 'true');
+    } else {
+        const currentWidth = sidebar.style.width || '320px';
+        mainCanvas.style.marginRight = currentWidth;
+        if (floatingBtn) floatingBtn.classList.add('hidden');
+        localStorage.setItem('rightSidebarCollapsed', 'false');
+    }
+}
+window.toggleRightSidebar = toggleRightSidebar;
+
+// Draggable Vertical Resizer for Right Sidebar Width
+(function() {
+    const sidebar = document.getElementById('right-sidebar');
+    const resizer = document.getElementById('right-resizer');
+    const mainCanvas = document.getElementById('main-canvas');
+    const floatingBtn = document.getElementById('floating-open-sidebar-btn');
+    if (!sidebar || !resizer) return;
+
+    // Restore saved width from localStorage
+    const savedWidth = localStorage.getItem('rightSidebarWidth');
+    if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (w >= 260 && w <= 850) {
+            sidebar.style.width = w + 'px';
+            if (mainCanvas) mainCanvas.style.marginRight = w + 'px';
+        }
+    }
+
+    // Restore collapsed state
+    if (localStorage.getItem('rightSidebarCollapsed') === 'true') {
+        sidebar.classList.add('translate-x-full');
+        if (mainCanvas) mainCanvas.style.marginRight = '0px';
+        if (floatingBtn) floatingBtn.classList.remove('hidden');
+    }
+
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        isResizing = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!isResizing) return;
+        const newWidth = window.innerWidth - e.clientX;
+        const maxWidth = Math.min(850, Math.floor(window.innerWidth * 0.65));
+        if (newWidth >= 260 && newWidth <= maxWidth) {
+            sidebar.style.width = newWidth + 'px';
+            if (mainCanvas) mainCanvas.style.marginRight = newWidth + 'px';
+            localStorage.setItem('rightSidebarWidth', newWidth);
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        }
+    });
+})();
+
+// Draggable Horizontal Splitter (Chat vs Logs height)
+(function() {
+    const splitter = document.getElementById('horizontal-resizer');
+    const chatSection = document.getElementById('chat-section');
+    const container = document.getElementById('console-unified-card');
+    if (!splitter || !chatSection || !container) return;
+
+    // Restore saved chat height
+    const savedChatHeight = localStorage.getItem('chatSectionHeight');
+    if (savedChatHeight) {
+        const h = parseInt(savedChatHeight, 10);
+        if (h >= 120 && h <= 700) {
+            chatSection.style.height = h + 'px';
+        }
+    }
+
+    let isDragging = false;
+    let startY = 0;
+    let startHeight = 0;
+
+    splitter.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging = true;
+        startY = e.clientY;
+        startHeight = chatSection.getBoundingClientRect().height;
+        document.body.style.cursor = 'row-resize';
+        document.body.style.userSelect = 'none';
+        splitter.classList.add('bg-primary/40');
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const delta = e.clientY - startY;
+        const containerHeight = container.getBoundingClientRect().height;
+        const newHeight = startHeight + delta;
+        const minHeight = 130;
+        const maxHeight = containerHeight - 110;
+
+        if (newHeight >= minHeight && newHeight <= maxHeight) {
+            chatSection.style.height = newHeight + 'px';
+            localStorage.setItem('chatSectionHeight', newHeight);
+        }
+    });
+
+    document.addEventListener('mouseup', function() {
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            splitter.classList.remove('bg-primary/40');
+        }
+    });
+})();
+</script>
+<script src="/static/script.js?v=14"></script>
+</body>
+</html>
