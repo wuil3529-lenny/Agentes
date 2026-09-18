@@ -29,7 +29,7 @@ def consultar_sentry_errores(mensaje_error: str) -> str:
         skills_path = Path(__file__).parent
         if str(skills_path) not in sys.path:
             sys.path.insert(0, str(skills_path))
-        from skill_memoria_vectorial import tool_buscar_soluciones
+        from memoria_vectorial.skill_memoria_vectorial import tool_buscar_soluciones
         
         # Consultamos el RAG interno usando la misma semantica
         rag_result = tool_buscar_soluciones.invoke({"query_semantica": mensaje_error, "n_resultados": 2})
@@ -68,7 +68,7 @@ def registrar_solucion_error(error_log: str, como_se_soluciono: str) -> str:
         skills_path = Path(__file__).parent
         if str(skills_path) not in sys.path:
             sys.path.insert(0, str(skills_path))
-        from skill_memoria_vectorial import tool_guardar_solucion
+        from memoria_vectorial.skill_memoria_vectorial import tool_guardar_solucion
         
         ticket_virtual = f"HOTFIX-{str(uuid.uuid4())[:8].upper()}"
         contenido = f"ERROR ORIGINAL:\n{error_log}\n\nSOLUCION APLICADA:\n{como_se_soluciono}"

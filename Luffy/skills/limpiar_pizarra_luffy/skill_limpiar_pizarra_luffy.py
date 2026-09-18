@@ -47,7 +47,7 @@ def limpiar_pizarra_luffy(id_ticket: str) -> str:
                 skills_path = Path(__file__).parent
                 if str(skills_path) not in sys.path:
                     sys.path.insert(0, str(skills_path))
-                from skill_memoria_vectorial import tool_guardar_solucion
+                from memoria_vectorial.skill_memoria_vectorial import tool_guardar_solucion
                 
                 desc = "Ticket archivado: " + id_ticket
                 match_obj = re.search(r'\*\*Objetivo:\*\*\s*(.+)', ticket_borrado_contenido)

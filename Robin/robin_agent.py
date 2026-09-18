@@ -71,8 +71,8 @@ from pathlib import Path
 skills_path_local = Path(__file__).parent / "skills"
 if str(skills_path_local) not in sys.path:
     sys.path.insert(0, str(skills_path_local))
-from skill_sentry import consultar_sentry_errores, registrar_solucion_error
-from skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
+from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from base.skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
 
 HERRAMIENTAS_ROBIN = [
     consultar_sentry_errores,

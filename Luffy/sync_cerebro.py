@@ -11,7 +11,7 @@ if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
 
 try:
-    from skill_memoria_vectorial import _get_collection
+    from memoria_vectorial.skill_memoria_vectorial import _get_collection
 except ImportError:
     print("[Sync] Error: No se pudo importar skill_memoria_vectorial.")
     _get_collection = None

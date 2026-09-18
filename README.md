@@ -63,3 +63,7 @@ Los siguientes elementos **JAMÁS** deben subirse a este repositorio:
 
 ---
 *Este repositorio es mantenido de forma conjunta por el usuario y el sistema Antigravity 2.0.*
+
+
+---
+**Pertenece a:** [[Perfil_Luffy]]

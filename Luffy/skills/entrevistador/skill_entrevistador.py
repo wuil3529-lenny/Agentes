@@ -13,12 +13,12 @@ def asegurar_directorios():
     CONTEXTO_DIR.mkdir(exist_ok=True, parents=True)
 
 @tool
-def tool_gestionar_entrevista(accion: str, dimensiones_faltantes: str = "", contenido: str = "") -> str:
+def tool_gestionar_entrevista(accion: str, contenido: str = "") -> str:
     """
     Herramienta OBLIGATORIA para gestionar el modo Entrevistador cuando el Capitán pide planear o descubrir una tarea.
     Acciones permitidas:
     - 'iniciar': Crea un nuevo archivo CTX y activa el estado de entrevista.
-    - 'actualizar': Agrega la información recolectada del Capitán al archivo CTX actual. DEBES incluir un resumen detallado en `contenido`. Las `dimensiones_faltantes` son los números de las dimensiones que AÚN faltan por preguntar.
+    - 'actualizar': Agrega la información recolectada del Capitán al archivo CTX actual. DEBES incluir un resumen detallado en `contenido`.
     - 'cerrar': Finaliza el modo entrevista, borra el candado y permite continuar con la orquestación normal.
     - 'abortar': Cancela la entrevista y borra el candado.
     """
@@ -34,17 +34,10 @@ def tool_gestionar_entrevista(accion: str, dimensiones_faltantes: str = "", cont
             
             plantilla = """# CTX-{}: Documento de Descubrimiento
 
-## Checklist de Suficiencia (10 Dimensiones)
-- [ ] 1. Identidad Visual y Diseño (UI)
-- [ ] 2. Experiencia de Usuario (UX / Animaciones)
-- [ ] 3. Objetivo y Propósito de Negocio
-- [ ] 4. Entregables Físicos
-- [ ] 5. Pila Tecnológica
-- [ ] 6. Comportamiento y Casos Borde
-- [ ] 7. Restricciones
-- [ ] 8. Notificaciones
-- [ ] 9. Pruebas y Auditoría
-- [ ] 10. Criterios de Aceptación
+## Objetivos Clave
+- [ ] Conocer Propósito y Alcance
+- [ ] Conocer Tecnología y Restricciones
+- [ ] Conocer Interfaz y Entregables
 
 ## Información Recolectada
 """.format(id_ctx)
@@ -53,11 +46,12 @@ def tool_gestionar_entrevista(accion: str, dimensiones_faltantes: str = "", cont
             estado = {
                 "activa": True,
                 "ctx_path": str(ctx_path),
+                "rondas_entrevista": 0,
                 "fecha_inicio": datetime.now().isoformat()
             }
             ESTADO_ENTREVISTA.write_text(json.dumps(estado), encoding="utf-8")
             
-            return f"Entrevista iniciada. Archivo de contexto creado en {ctx_path.name}. El sistema ahora está en MODO ENTREVISTADOR."
+            return f"Entrevista iniciada. Archivo de contexto creado en {ctx_path.name}. MODO ENTREVISTADOR activo."
             
         elif accion == "actualizar":
             if not ESTADO_ENTREVISTA.exists():
@@ -68,18 +62,17 @@ def tool_gestionar_entrevista(accion: str, dimensiones_faltantes: str = "", cont
             if not ctx_path.exists():
                 return "Error: El archivo de contexto no existe."
                 
+            estado["rondas_entrevista"] += 1
+            ESTADO_ENTREVISTA.write_text(json.dumps(estado), encoding="utf-8")
+
             texto_actual = ctx_path.read_text(encoding="utf-8")
-            texto_actual += f"\n\n### Actualización {datetime.now().strftime('%H:%M:%S')}\n{contenido}"
-            
-            # Actualizar checklist rudimentariamente
-            import re
-            numeros_faltantes = [n.strip() for n in re.split(r'[, ]+', dimensiones_faltantes) if n.strip()]
-            for i in range(1, 11):
-                if str(i) not in numeros_faltantes:
-                    texto_actual = texto_actual.replace(f"- [ ] {i}.", f"- [x] {i}.")
-                    
+            texto_actual += f"\n\n### Actualización Ronda {estado['rondas_entrevista']} - {datetime.now().strftime('%H:%M:%S')}\n{contenido}"
             ctx_path.write_text(texto_actual, encoding="utf-8")
-            return f"Contexto actualizado correctamente en {ctx_path.name}."
+
+            if estado["rondas_entrevista"] >= 3:
+                return f"SISTEMA (AVISO): Has alcanzado el límite máximo de 3 rondas de preguntas. El contexto fue actualizado en {ctx_path.name}. DEBES usar 'cerrar' inmediatamente para finalizar la entrevista y continuar con el siguiente paso del proyecto."
+
+            return f"Contexto actualizado correctamente en {ctx_path.name}. Ronda actual: {estado['rondas_entrevista']}/3."
             
         elif accion == "cerrar":
             if not ESTADO_ENTREVISTA.exists():

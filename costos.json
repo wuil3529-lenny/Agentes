@@ -1,0 +1,26 @@
+{
+  "tokens": 0,
+  "costo": 0.0,
+  "agentes": {
+    "luffy": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "zoro": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "sanji": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "robin": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "nami": {
+      "tokens": 0,
+      "costo": 0.0
+    }
+  }
+}

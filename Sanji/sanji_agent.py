@@ -82,8 +82,8 @@ from skill_limpiar_sanji import tool_limpiar_habitacion_sanji
 skills_path_local = Path(__file__).parent / "skills"
 if str(skills_path_local) not in sys.path:
     sys.path.insert(0, str(skills_path_local))
-from skill_sentry import consultar_sentry_errores, registrar_solucion_error
-from skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
+from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from base.skill_base import crear_archivo, leer_archivo, listar_directorio, ejecutar_comando
 
 HERRAMIENTAS_SANJI = [
     consultar_sentry_errores,
@@ -108,10 +108,11 @@ if tool_buscar_internet: HERRAMIENTAS_SANJI.append(tool_buscar_internet)
 NOMBRE_AGENTE = "Sanji"
 
 # ─── Configuración DeepSeek ─────────────────────────────────────────────────────
-_NIM_API_KEY     = os.getenv("DEEPSEEK_API_KEY", "")
-_NIM_BASE_URL    = "https://api.deepseek.com"
-_NIM_MODEL_1     = "deepseek-chat"
-_NIM_MODEL_2     = "deepseek-chat"
+_DEFAULT_PROV    = os.getenv("DEFAULT_PROVIDER", "deepseek").lower()
+_NIM_API_KEY     = os.getenv(f"{_DEFAULT_PROV.upper()}_API_KEY", "")
+_NIM_BASE_URL    = "https://api.deepseek.com" if _DEFAULT_PROV == "deepseek" else None
+_NIM_MODEL_1     = os.getenv("DEFAULT_MODEL", "deepseek-chat")
+_NIM_MODEL_2     = _NIM_MODEL_1
 _NIM_TEMPERATURE = 0.1
 _NIM_MAX_TOKENS  = 4096
 

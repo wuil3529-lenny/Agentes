@@ -89,24 +89,40 @@ MAX_ITERACIONES = 50
 
 def crear_llm(temperatura: float = 0.2, agente: str = "LUFFY"):
     """
-    Crea y retorna una instancia del LLM conectado a NVIDIA NIM vía ChatNVIDIA.
-
-    Args:
-        temperatura: Controla la creatividad del modelo (0.0-1.0).
-        agente: Nombre del agente para buscar su API key en el .env
-
-    Returns:
-        ChatNVIDIA: Modelo de lenguaje listo para usar, con soporte nativo de bind_tools para NIM.
+    Crea y retorna una instancia del LLM configurado dinámicamente en el .env.
+    Soporta DeepSeek, OpenAI, Gemini, Ollama o NVIDIA NIM.
     """
     from langchain_openai import ChatOpenAI
     
-    api_key = os.getenv("DEEPSEEK_API_KEY")
-    model_name = "deepseek-chat"
+    agente_upper = (agente or "LUFFY").upper()
+    model_name = os.getenv(f"MODEL_{agente_upper}") or os.getenv("DEFAULT_MODEL") or "deepseek-chat"
+    provider = os.getenv(f"PROVIDER_{agente_upper}") or os.getenv("DEFAULT_PROVIDER", "").lower()
+    
+    # Auto-detección inteligente de endpoint y API key según el modelo o proveedor
+    low_model = model_name.lower()
+    if "deepseek" in low_model or provider == "deepseek":
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        base_url = "https://api.deepseek.com"
+    elif "gpt" in low_model or "o1" in low_model or "o3" in low_model or provider == "openai":
+        api_key = os.getenv("OPENAI_API_KEY")
+        base_url = "https://api.openai.com/v1"
+    elif "gemini" in low_model or provider == "google" or provider == "gemini":
+        api_key = os.getenv("GEMINI_API_KEY")
+        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+    elif "llama" in low_model or provider == "ollama":
+        api_key = "ollama"
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    elif os.getenv(f"NVIDIA_API_KEY_{agente_upper}"):
+        api_key = os.getenv(f"NVIDIA_API_KEY_{agente_upper}")
+        base_url = "https://integrate.api.nvidia.com/v1"
+    else:
+        api_key = os.getenv("DEEPSEEK_API_KEY")
+        base_url = "https://api.deepseek.com"
 
     return ChatOpenAI(
         model=model_name,
         api_key=api_key,
-        base_url="https://api.deepseek.com",
+        base_url=base_url,
         temperature=temperatura,
         max_tokens=4096,
         timeout=120.0,

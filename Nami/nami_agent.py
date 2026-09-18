@@ -58,9 +58,9 @@ from skill_presentaciones import HERRAMIENTAS_PRESENTACIONES
 from skill_video import HERRAMIENTAS_VIDEO
 from skill_imagenes_locales import HERRAMIENTAS_IMAGENES
 from skill_ia_creativa import HERRAMIENTAS_IA_CREATIVA
-from skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
 from skill_buscar_internet_nami import tool_buscar_internet_nami
-from skill_base import HERRAMIENTAS_BASE
+from base.skill_base import HERRAMIENTAS_BASE
 
 @tool
 def publicar_post_redes(plataforma: str, texto_post: str, imagenes: list = []) -> str:

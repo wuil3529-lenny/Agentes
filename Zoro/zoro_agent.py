@@ -57,7 +57,7 @@ from memory import (
 )
 
 # ─── Importar todos los Skills ────────────────────────────────────────────────
-from skill_base     import HERRAMIENTAS_BASE
+from base.skill_base import HERRAMIENTAS_BASE
 from skill_web      import HERRAMIENTAS_WEB
 from skill_mobile   import HERRAMIENTAS_MOBILE
 from skill_software import HERRAMIENTAS_SOFTWARE
@@ -69,7 +69,7 @@ from skill_ngrok import HERRAMIENTAS_NGROK
 from skill_git        import HERRAMIENTAS_GIT
 from skill_frontend_design import HERRAMIENTAS_FRONTEND_DESIGN
 from skill_limpiar_zoro import tool_limpiar_habitacion_zoro
-from skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
 
 HERRAMIENTAS_ZORO = [
     consultar_sentry_errores,

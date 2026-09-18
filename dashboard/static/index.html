@@ -3,6 +3,7 @@
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>AgenticOS - Vista General</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Sora:wght@400;600;700&amp;family=Space+Grotesk:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
 <script id="tailwind-config">
@@ -230,87 +231,105 @@
 
 
 
-        /* Futuristic Minimalist Nav Items */
+        /* Dynamic Meniscus SVG Dock & Bead */
+        #nav-container {
+            position: relative;
+            user-select: none;
+        }
+        #meniscus-svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+            overflow: visible;
+        }
+        #meniscus-bead {
+            position: absolute;
+            width: 42px;
+            height: 42px;
+            left: calc(0.75rem + 13px);
+            top: 0px;
+            z-index: 25;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: none;
+            will-change: top, transform;
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #meniscus-bead:active {
+            cursor: grabbing;
+            transform: scale(1.1);
+        }
+        #meniscus-bead .bead-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 0.85rem;
+            background: radial-gradient(circle at 35% 35%, #ff6da4 0%, #ff2d78 70%, #d81458 100%);
+            border: 1.5px solid #ffffff;
+            box-shadow: 0 0 20px rgba(255, 45, 120, 0.85), 0 0 35px rgba(255, 45, 120, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
         .nav-item {
             position: relative;
             display: flex;
             align-items: center;
             gap: 0.875rem;
-            padding: 0.875rem 1rem;
-            border-radius: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            border-radius: 0.85rem;
             color: #a098b0;
-            background: rgba(20, 20, 35, 0.45);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(8px);
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-            overflow: hidden;
-            text-decoration: none;
-        }
-        .nav-item::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 22%;
-            height: 56%;
-            width: 3.5px;
-            border-radius: 0 4px 4px 0;
-            background: #ff2d78;
-            box-shadow: 0 0 10px #ff2d78, 0 0 4px #ff2d78;
-            opacity: 0;
-            transform: scaleY(0.3);
+            background: transparent;
+            border: 1px solid transparent;
             transition: all 0.25s ease;
+            text-decoration: none;
+            cursor: pointer;
+            z-index: 10;
         }
         .nav-item:hover {
             color: #ffffff;
-            background: rgba(32, 28, 52, 0.85);
-            border-color: rgba(255, 45, 120, 0.6);
-            transform: translateX(6px) scale(1.03);
-            box-shadow: 0 0 25px rgba(255, 45, 120, 0.4), 0 0 45px rgba(255, 45, 120, 0.15), inset 0 0 15px rgba(255, 45, 120, 0.2);
-            z-index: 10;
-        }
-        .nav-item:hover::before {
-            opacity: 1;
-            transform: scaleY(0.9);
-            box-shadow: 0 0 15px #ff2d78, 0 0 8px #ff2d78;
         }
         .nav-item.active {
             color: #ffffff;
-            background: linear-gradient(90deg, rgba(255, 45, 120, 0.16) 0%, rgba(255, 45, 120, 0.03) 70%, transparent 100%);
-            border: 1px solid rgba(255, 45, 120, 0.35);
-            box-shadow: inset 0 0 16px rgba(255, 45, 120, 0.08), 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-        .nav-item.active::before {
-            opacity: 1;
-            height: 65%;
-            top: 17.5%;
-            transform: scaleY(1);
         }
         .nav-item .icon-box {
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 2.25rem;
-            height: 2.25rem;
-            border-radius: 0.5rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            color: #a098b0;
-            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: 0.75rem;
+            background: rgba(18, 18, 30, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #9b93af;
+            transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
             flex-shrink: 0;
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.05), 0 2px 6px rgba(0, 0, 0, 0.4);
         }
         .nav-item:hover .icon-box {
-            background: rgba(255, 45, 120, 0.2);
+            background: rgba(255, 45, 120, 0.15);
             border-color: rgba(255, 45, 120, 0.5);
             color: #ffffff;
-            text-shadow: 0 0 10px #ff2d78;
-            transform: rotate(-10deg) scale(1.15);
-            box-shadow: 0 0 15px rgba(255, 45, 120, 0.4);
+            transform: scale(1.06);
+            box-shadow: 0 0 16px rgba(255, 45, 120, 0.35);
         }
         .nav-item.active .icon-box {
-            background: rgba(255, 45, 120, 0.22);
-            border-color: rgba(255, 45, 120, 0.55);
-            color: #ff4d8d;
-            box-shadow: 0 0 12px rgba(255, 45, 120, 0.35);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .nav-item .nav-label {
+            transition: color 0.25s ease, text-shadow 0.25s ease, font-weight 0.2s ease;
+        }
+        .nav-item.active .nav-label {
+            color: #ffffff;
+            font-weight: 700;
+            text-shadow: 0 0 12px rgba(255, 45, 120, 0.6);
         }
 
 
@@ -326,24 +345,52 @@
 </div>
 </div>
 <!-- Main Navigation -->
-<div class="flex flex-col gap-2 px-3 flex-grow">
-<!-- Active: Vista General -->
-<a class="nav-item active" href="#">
-<span class="icon-box"><span class="material-symbols-outlined text-[20px]">dashboard</span></span>
-<span class="font-medium tracking-wide text-sm">Vista General</span>
-</a>
-<a class="nav-item" href="#">
-<span class="icon-box"><span class="material-symbols-outlined text-[20px]">smart_toy</span></span>
-<span class="font-medium tracking-wide text-sm">Monitor de Agentes</span>
-</a>
-<a class="nav-item" href="#">
-<span class="icon-box"><span class="material-symbols-outlined text-[20px]">trolley</span></span>
-<span class="font-medium tracking-wide text-sm">Control de Tareas</span>
-</a>
-<a class="nav-item" href="#">
-<span class="icon-box"><span class="material-symbols-outlined text-[20px]">insights</span></span>
-<span class="font-medium tracking-wide text-sm">Analítica</span>
-</a>
+<div id="nav-container" class="relative flex flex-col gap-2 pl-3 pr-0 flex-grow select-none">
+  <!-- Dynamic Parametric Meniscus SVG Dock -->
+  <svg id="meniscus-svg">
+    <defs>
+      <filter id="meniscusGlowFilter" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="3.5" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+    <!-- Background Plate Path with Dynamic Meniscus Socket -->
+    <path id="meniscus-plate-path" d="" fill="rgba(18, 16, 30, 0.82)" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1.2" />
+    <!-- Glowing Neon Rim along the Meniscus Socket -->
+    <path id="meniscus-rim-glow" d="" fill="none" stroke="#ff2d78" stroke-width="2.5" filter="url(#meniscusGlowFilter)" opacity="0.9" />
+  </svg>
+
+  <!-- Floating Glowing Meniscus Bead -->
+  <div id="meniscus-bead" title="Toca una opción o arrastra la esfera con el ratón">
+    <div class="bead-inner">
+      <span id="bead-icon" class="material-symbols-outlined text-[20px] text-white select-none">home</span>
+    </div>
+  </div>
+
+  <!-- Navigation Items -->
+  <a class="nav-item active mr-3" data-view="vista-general" data-icon="home" href="javascript:void(0)" onclick="selectMeniscusTab('vista-general', this)">
+    <span class="icon-box"><span class="material-symbols-outlined text-[20px]">home</span></span>
+    <span class="nav-label font-medium tracking-wide text-sm">Inicio</span>
+  </a>
+  <a class="nav-item mr-3" data-view="monitor-agentes" data-icon="robot_2" href="javascript:void(0)" onclick="selectMeniscusTab('monitor-agentes', this)">
+    <span class="icon-box"><span class="material-symbols-outlined text-[20px]">robot_2</span></span>
+    <span class="nav-label font-medium tracking-wide text-sm">Monitor de Agentes</span>
+  </a>
+  <a class="nav-item mr-3" data-view="control-tareas" data-icon="edit_note" href="javascript:void(0)" onclick="selectMeniscusTab('control-tareas', this)">
+    <span class="icon-box"><span class="material-symbols-outlined text-[20px]">edit_note</span></span>
+    <span class="nav-label font-medium tracking-wide text-sm">Control de Tareas</span>
+  </a>
+  <a class="nav-item mr-3" data-view="analitica" data-icon="insights" href="javascript:void(0)" onclick="selectMeniscusTab('analitica', this)">
+    <span class="icon-box"><span class="material-symbols-outlined text-[20px]">insights</span></span>
+    <span class="nav-label font-medium tracking-wide text-sm">Analítica</span>
+  </a>
+  <a class="nav-item mr-3" data-view="monitoreo" data-icon="monitoring" href="javascript:void(0)" onclick="selectMeniscusTab('monitoreo', this)">
+    <span class="icon-box"><span class="material-symbols-outlined text-[20px]">monitoring</span></span>
+    <span class="nav-label font-medium tracking-wide text-sm">Monitoreo</span>
+  </a>
 </div>
 <!-- CTA Action -->
 <div class="px-6 mb-6">
@@ -428,127 +475,734 @@
 </header>
 <main id="main-canvas" class="flex-1 overflow-y-auto p-6 lg:p-8 transition-[margin] duration-75 flex flex-col gap-6" style="margin-right: 320px;">
   
-  <!-- 4 METRICS CARDS ROW -->
-  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
-    
-    <!-- Metric 1: Consumo de Tokens -->
-    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-primary/50 transition-all flex flex-col justify-between group shadow-lg">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Consumo de Tokens</span>
-        <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-          <span class="material-symbols-outlined text-[18px]">pie_chart</span>
+  <!-- VIEW 1: VISTA GENERAL -->
+  <div id="view-vista-general" class="flex flex-col gap-6 w-full transition-all duration-300">
+    <!-- 4 METRICS CARDS ROW -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+      
+      <!-- Metric 1: Consumo de Tokens -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-primary/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Consumo de Tokens</span>
+          <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">pie_chart</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-tokens">0</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-tokens-sub">
+            <span class="material-symbols-outlined text-[14px]">trending_up</span>
+            <span>0 tokens totales</span>
+          </div>
         </div>
       </div>
-      <div>
-        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-tokens">0</div>
-        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-tokens-sub">
-          <span class="material-symbols-outlined text-[14px]">trending_up</span>
-          <span>0 tokens totales</span>
+
+      <!-- Metric 2: Gasto en $ de los Tokens -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Gasto en $ Tokens</span>
+          <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">payments</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-cost">$0.00</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant" id="metric-cost-sub">
+            <span>Presupuesto ($10): 0%</span>
+          </div>
         </div>
       </div>
+
+      <!-- Metric 3: Monitor de Hardware -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-tertiary/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Monitor de Hardware</span>
+          <div class="w-8 h-8 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">memory</span>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-baseline gap-3">
+            <div class="text-xl lg:text-2xl font-bold font-data-mono text-on-surface tracking-tight">RAM <span id="hw-ram-val" class="text-tertiary">0%</span></div>
+            <div class="text-sm font-bold font-data-mono text-secondary tracking-tight">CPU <span id="hw-cpu-val">0%</span></div>
+          </div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="hw-status-sub">
+            <span class="material-symbols-outlined text-[14px]">check_circle</span>
+            <span id="hw-status-text">Carga de sistema estable</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Metric 4: Precisión de Tareas -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-purple-400/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Precisión de Tareas</span>
+          <div class="w-8 h-8 rounded-xl bg-purple-400/10 border border-purple-400/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">task_alt</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-precision">99.4%</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-precision-sub">
+            <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+            <span>+2.4% vs día de ayer</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Metric 2: Gasto en $ de los Tokens -->
-    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/50 transition-all flex flex-col justify-between group shadow-lg">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Gasto en $ Tokens</span>
-        <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
-          <span class="material-symbols-outlined text-[18px]">payments</span>
+    <!-- VOICE VISUALIZER & VOICE-TO-VOICE HUB -->
+    <div class="glass-panel rounded-2xl p-6 border border-outline-variant/40 shadow-2xl flex-1 flex flex-col min-h-[360px] relative overflow-hidden">
+      
+      <!-- Top Header of Voice Hub -->
+      <div class="flex items-center justify-between pb-4 border-b border-outline-variant/30 shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-[#141426] border border-outline-variant/60 flex items-center justify-center shadow-inner">
+            <span id="voice-agent-icon" class="material-symbols-outlined text-primary text-[22px]">graphic_eq</span>
+          </div>
+          <div class="flex flex-col">
+            <div class="flex items-center gap-2">
+              <h3 id="voice-agent-title" class="font-bold text-base text-on-surface tracking-wide">Canal de Voz con Luffy</h3>
+              <span id="voice-speaker-badge" class="py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant">En Reposo</span>
+            </div>
+            <span id="voice-agent-desc" class="text-xs text-on-surface-variant/70">Enlace de comunicación bidireccional directa y continua con Luffy</span>
+          </div>
+        </div>
+        
+        <!-- Direct Channel Status Badge -->
+        <div class="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-primary/10 border border-primary/30 text-xs font-mono text-primary font-bold shadow-sm">
+          <span class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#ff2d78]"></span>
+          <span>Enlace Directo • Luffy</span>
         </div>
       </div>
-      <div>
-        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-cost">$0.00</div>
-        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant" id="metric-cost-sub">
-          <span>Presupuesto ($10): 0%</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Metric 3: Monitor de Hardware -->
-    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-tertiary/50 transition-all flex flex-col justify-between group shadow-lg">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Monitor de Hardware</span>
-        <div class="w-8 h-8 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
-          <span class="material-symbols-outlined text-[18px]">memory</span>
-        </div>
-      </div>
-      <div>
-        <div class="flex items-baseline gap-3">
-          <div class="text-xl lg:text-2xl font-bold font-data-mono text-on-surface tracking-tight">RAM <span id="hw-ram-val" class="text-tertiary">0%</span></div>
-          <div class="text-sm font-bold font-data-mono text-secondary tracking-tight">CPU <span id="hw-cpu-val">0%</span></div>
-        </div>
-        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="hw-status-sub">
-          <span class="material-symbols-outlined text-[14px]">check_circle</span>
-          <span id="hw-status-text">Carga de sistema estable</span>
-        </div>
-      </div>
-    </div>
+      <!-- Sound Wave Canvas Area -->
+      <div class="flex-1 w-full my-4 relative flex items-center justify-center rounded-xl bg-[#0a0a14]/90 border border-outline-variant/30 overflow-hidden min-h-[180px]">
+        <canvas id="voice-wave-canvas" class="w-full h-full block"></canvas>
+        
+        <!-- Ambient Center Radial Glow -->
+        <div id="voice-glow" class="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(ellipse_at_center,rgba(255,45,120,0.3)_0%,transparent_70%)] transition-all duration-700"></div>
 
-    <!-- Metric 4: Precisión de Tareas -->
-    <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-purple-400/50 transition-all flex flex-col justify-between group shadow-lg">
-      <div class="flex items-center justify-between mb-3">
-        <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Precisión de Tareas</span>
-        <div class="w-8 h-8 rounded-xl bg-purple-400/10 border border-purple-400/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
-          <span class="material-symbols-outlined text-[18px]">task_alt</span>
+        <!-- Live Voice Subtitle / Feedback Overlay -->
+        <div id="voice-feedback" class="absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none">
+          Canal de audio en espera. Pulsa el botón inferior para activar la transmisión voz a voz.
         </div>
       </div>
-      <div>
-        <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="metric-precision">99.4%</div>
-        <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary" id="metric-precision-sub">
-          <span class="material-symbols-outlined text-[14px]">arrow_upward</span>
-          <span>+2.4% vs día de ayer</span>
-        </div>
-      </div>
-    </div>
 
+      <!-- Bottom Action: Voice-to-Voice Activation Button -->
+      <div class="pt-2 flex flex-col items-center justify-center shrink-0">
+        <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgba(0,255,204,0.3)] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
+          <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#ff2d78]"></span>
+          <span class="material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all" id="voice-btn-icon">mic</span>
+          <span id="voice-btn-text">Iniciar Comunicación Voz a Voz</span>
+        </button>
+        <span id="voice-btn-sub" class="text-[11px] text-on-surface-variant/60 mt-2 font-mono">Conexión bidireccional continua • Voz Usuario &lt;-&gt; Voz Agente</span>
+      </div>
+
+    </div>
   </div>
 
-  <!-- VOICE VISUALIZER & VOICE-TO-VOICE HUB -->
-  <div class="glass-panel rounded-2xl p-6 border border-outline-variant/40 shadow-2xl flex-1 flex flex-col min-h-[360px] relative overflow-hidden">
+  <!-- VIEW 2: MONITOR DE AGENTES -->
+  <div id="view-monitor-agentes" class="hidden flex flex-col gap-5 w-full transition-all duration-300">
     
-    <!-- Top Header of Voice Hub -->
-    <div class="flex items-center justify-between pb-4 border-b border-outline-variant/30 shrink-0">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-[#141426] border border-outline-variant/60 flex items-center justify-center shadow-inner">
-          <span id="voice-agent-icon" class="material-symbols-outlined text-primary text-[22px]">graphic_eq</span>
+    <!-- Top Header Banner of Monitor -->
+    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-xl flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-primary/10 border border-primary/40 flex items-center justify-center text-primary shadow-[0_0_15px_rgba(255,45,120,0.25)] shrink-0">
+        <span class="material-symbols-outlined text-[22px]">robot_2</span>
+      </div>
+      <div>
+        <h2 class="text-base sm:text-lg font-bold text-on-surface tracking-wide">
+          <span>Agentes Activos</span>
+        </h2>
+      </div>
+    </div>
+
+    <!-- Table Header Columns -->
+    <div class="grid grid-cols-12 gap-4 px-6 py-1 text-[10px] font-mono tracking-widest uppercase text-on-surface-variant/70 select-none">
+      <div class="col-span-12 sm:col-span-4">NOMBRE DEL AGENTE</div>
+      <div class="col-span-6 sm:col-span-3">MODELO</div>
+      <div class="col-span-6 sm:col-span-2 text-center">ESTADO</div>
+      <div class="col-span-12 sm:col-span-3 text-right sm:text-left">CONSUMO DE TOKENS</div>
+    </div>
+
+    <!-- 5 AGENT ROWS CONTAINER -->
+    <div class="flex flex-col gap-3">
+      
+      <!-- ROW 1: LUFFY -->
+      <div id="agent-row-luffy" data-model="gemini" class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 hover:border-primary/40 transition-all duration-300 shadow-lg grid grid-cols-12 gap-4 items-center">
+        <!-- Col 1: Agent Name -->
+        <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
+          <div id="dot-luffy" class="w-2.5 h-2.5 rounded-full bg-secondary shadow-[0_0_8px_#00ffcc] shrink-0 animate-pulse"></div>
+          <span class="text-base font-bold text-on-surface tracking-wide">Luffy</span>
         </div>
-        <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <h3 id="voice-agent-title" class="font-bold text-base text-on-surface tracking-wide">Canal de Voz con Luffy</h3>
-            <span id="voice-speaker-badge" class="py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant">En Reposo</span>
+
+        <!-- Col 2: Model Badge -->
+        <div class="col-span-6 sm:col-span-3 flex items-center">
+          <div id="model-pill-luffy" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 w-fit">
+            <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
+            <div class="flex flex-col">
+              <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="luffy" data-leader="true">DeepSeek Chat</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Líder</span>
+            </div>
           </div>
-          <span id="voice-agent-desc" class="text-xs text-on-surface-variant/70">Enlace de comunicación bidireccional directa y continua con Luffy</span>
+        </div>
+
+        <!-- Col 3: Estado Badge -->
+        <div class="col-span-6 sm:col-span-2 flex justify-start sm:justify-center">
+          <div id="estado-luffy" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/40 bg-surface-container/50 text-on-surface-variant text-xs font-bold font-mono tracking-wider">
+            <span class="icon material-symbols-outlined text-[14px]">power_off</span>
+            <span class="text">APAGADO</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Consumo Individual de Tokens -->
+        <div class="col-span-12 sm:col-span-3 flex flex-col gap-1.5 w-full">
+          <div class="flex justify-between items-center text-xs font-mono text-on-surface-variant">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">toll</span>
+              <span id="tokens-luffy" class="text-on-surface font-semibold font-mono">0</span>
+              <span class="text-[10px] text-on-surface-variant/70">tokens</span>
+            </span>
+            <span class="text-xs font-mono text-on-surface-variant/80" id="costo-luffy">$0.000</span>
+          </div>
+          <div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-luffy" class="h-full rounded-full bg-gradient-to-r from-secondary to-cyan-400 shadow-[0_0_8px_rgba(0,255,204,0.3)] transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <span id="hw-cpu-luffy" class="hidden">0%</span>
+          <span id="hw-ram-luffy" class="hidden">0MB</span>
+          <div id="bar-cpu-luffy" class="hidden"></div>
         </div>
       </div>
-      
-      <!-- Direct Channel Status Badge -->
-      <div class="flex items-center gap-2 py-1.5 px-3 rounded-xl bg-primary/10 border border-primary/30 text-xs font-mono text-primary font-bold shadow-sm">
-        <span class="w-2 h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_#ff2d78]"></span>
-        <span>Enlace Directo • Luffy</span>
+
+      <!-- ROW 2: ZORO -->
+      <div id="agent-row-zoro" data-model="deepseek" class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 hover:border-cyan-400/40 transition-all duration-300 shadow-lg grid grid-cols-12 gap-4 items-center">
+        <!-- Col 1: Agent Name -->
+        <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
+          <div id="dot-zoro" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
+          <span class="text-base font-bold text-on-surface tracking-wide">Zoro</span>
+        </div>
+
+        <!-- Col 2: Model Badge -->
+        <div class="col-span-6 sm:col-span-3 flex items-center">
+          <div id="model-pill-zoro" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 w-fit">
+            <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
+            <div class="flex flex-col">
+              <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="zoro">DeepSeek Chat</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Código</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Estado Badge -->
+        <div class="col-span-6 sm:col-span-2 flex justify-start sm:justify-center">
+          <div id="estado-zoro" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/40 bg-surface-container/50 text-on-surface-variant text-xs font-bold font-mono tracking-wider">
+            <span class="icon material-symbols-outlined text-[14px]">power_off</span>
+            <span class="text">APAGADO</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Consumo Individual de Tokens -->
+        <div class="col-span-12 sm:col-span-3 flex flex-col gap-1.5 w-full">
+          <div class="flex justify-between items-center text-xs font-mono text-on-surface-variant">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">toll</span>
+              <span id="tokens-zoro" class="text-on-surface font-semibold font-mono">0</span>
+              <span class="text-[10px] text-on-surface-variant/70">tokens</span>
+            </span>
+            <span class="text-xs font-mono text-on-surface-variant/80" id="costo-zoro">$0.000</span>
+          </div>
+          <div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-zoro" class="h-full rounded-full bg-gradient-to-r from-secondary to-cyan-400 shadow-[0_0_8px_rgba(0,255,204,0.3)] transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <span id="hw-cpu-zoro" class="hidden">0%</span>
+          <span id="hw-ram-zoro" class="hidden">0MB</span>
+          <div id="bar-cpu-zoro" class="hidden"></div>
+        </div>
+      </div>
+
+      <!-- ROW 3: SANJI -->
+      <div id="agent-row-sanji" data-model="deepseek" class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 hover:border-cyan-400/40 transition-all duration-300 shadow-lg grid grid-cols-12 gap-4 items-center">
+        <!-- Col 1: Agent Name -->
+        <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
+          <div id="dot-sanji" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
+          <span class="text-base font-bold text-on-surface tracking-wide">Sanji</span>
+        </div>
+
+        <!-- Col 2: Model Badge -->
+        <div class="col-span-6 sm:col-span-3 flex items-center">
+          <div id="model-pill-sanji" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 w-fit">
+            <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
+            <div class="flex flex-col">
+              <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="sanji">DeepSeek Chat</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Diseño</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Estado Badge -->
+        <div class="col-span-6 sm:col-span-2 flex justify-start sm:justify-center">
+          <div id="estado-sanji" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/40 bg-surface-container/50 text-on-surface-variant text-xs font-bold font-mono tracking-wider">
+            <span class="icon material-symbols-outlined text-[14px]">power_off</span>
+            <span class="text">APAGADO</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Consumo Individual de Tokens -->
+        <div class="col-span-12 sm:col-span-3 flex flex-col gap-1.5 w-full">
+          <div class="flex justify-between items-center text-xs font-mono text-on-surface-variant">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">toll</span>
+              <span id="tokens-sanji" class="text-on-surface font-semibold font-mono">0</span>
+              <span class="text-[10px] text-on-surface-variant/70">tokens</span>
+            </span>
+            <span class="text-xs font-mono text-on-surface-variant/80" id="costo-sanji">$0.000</span>
+          </div>
+          <div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-sanji" class="h-full rounded-full bg-gradient-to-r from-secondary to-cyan-400 shadow-[0_0_8px_rgba(0,255,204,0.3)] transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <span id="hw-cpu-sanji" class="hidden">0%</span>
+          <span id="hw-ram-sanji" class="hidden">0MB</span>
+          <div id="bar-cpu-sanji" class="hidden"></div>
+        </div>
+      </div>
+
+      <!-- ROW 4: ROBIN -->
+      <div id="agent-row-robin" data-model="deepseek" class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 hover:border-cyan-400/40 transition-all duration-300 shadow-lg grid grid-cols-12 gap-4 items-center">
+        <!-- Col 1: Agent Name -->
+        <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
+          <div id="dot-robin" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
+          <span class="text-base font-bold text-on-surface tracking-wide">Robin</span>
+        </div>
+
+        <!-- Col 2: Model Badge -->
+        <div class="col-span-6 sm:col-span-3 flex items-center">
+          <div id="model-pill-robin" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 w-fit">
+            <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
+            <div class="flex flex-col">
+              <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="robin">DeepSeek Chat</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Auditoría</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Estado Badge -->
+        <div class="col-span-6 sm:col-span-2 flex justify-start sm:justify-center">
+          <div id="estado-robin" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/40 bg-surface-container/50 text-on-surface-variant text-xs font-bold font-mono tracking-wider">
+            <span class="icon material-symbols-outlined text-[14px]">power_off</span>
+            <span class="text">APAGADO</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Consumo Individual de Tokens -->
+        <div class="col-span-12 sm:col-span-3 flex flex-col gap-1.5 w-full">
+          <div class="flex justify-between items-center text-xs font-mono text-on-surface-variant">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">toll</span>
+              <span id="tokens-robin" class="text-on-surface font-semibold font-mono">0</span>
+              <span class="text-[10px] text-on-surface-variant/70">tokens</span>
+            </span>
+            <span class="text-xs font-mono text-on-surface-variant/80" id="costo-robin">$0.000</span>
+          </div>
+          <div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-robin" class="h-full rounded-full bg-gradient-to-r from-secondary to-cyan-400 shadow-[0_0_8px_rgba(0,255,204,0.3)] transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <span id="hw-cpu-robin" class="hidden">0%</span>
+          <span id="hw-ram-robin" class="hidden">0MB</span>
+          <div id="bar-cpu-robin" class="hidden"></div>
+        </div>
+      </div>
+
+      <!-- ROW 5: NAMI -->
+      <div id="agent-row-nami" data-model="deepseek" class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 hover:border-cyan-400/40 transition-all duration-300 shadow-lg grid grid-cols-12 gap-4 items-center">
+        <!-- Col 1: Agent Name -->
+        <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
+          <div id="dot-nami" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
+          <span class="text-base font-bold text-on-surface tracking-wide">Nami</span>
+        </div>
+
+        <!-- Col 2: Model Badge -->
+        <div class="col-span-6 sm:col-span-3 flex items-center">
+          <div id="model-pill-nami" class="inline-flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 w-fit">
+            <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
+            <div class="flex flex-col">
+              <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="nami">DeepSeek Chat</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Finanzas</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Col 3: Estado Badge -->
+        <div class="col-span-6 sm:col-span-2 flex justify-start sm:justify-center">
+          <div id="estado-nami" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline-variant/40 bg-surface-container/50 text-on-surface-variant text-xs font-bold font-mono tracking-wider">
+            <span class="icon material-symbols-outlined text-[14px]">power_off</span>
+            <span class="text">APAGADO</span>
+          </div>
+        </div>
+
+        <!-- Col 4: Consumo Individual de Tokens -->
+        <div class="col-span-12 sm:col-span-3 flex flex-col gap-1.5 w-full">
+          <div class="flex justify-between items-center text-xs font-mono text-on-surface-variant">
+            <span class="flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">toll</span>
+              <span id="tokens-nami" class="text-on-surface font-semibold font-mono">0</span>
+              <span class="text-[10px] text-on-surface-variant/70">tokens</span>
+            </span>
+            <span class="text-xs font-mono text-on-surface-variant/80" id="costo-nami">$0.000</span>
+          </div>
+          <div class="w-full bg-surface-container-highest/60 rounded-full h-1.5 overflow-hidden">
+            <div id="bar-nami" class="h-full rounded-full bg-gradient-to-r from-secondary to-cyan-400 shadow-[0_0_8px_rgba(0,255,204,0.3)] transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <span id="hw-cpu-nami" class="hidden">3%</span>
+          <span id="hw-ram-nami" class="hidden">290MB</span>
+          <div id="bar-cpu-nami" class="hidden"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- VIEW 3: CONTROL DE TAREAS -->
+  <div id="view-control-tareas" class="hidden flex flex-col gap-6 w-full transition-all duration-300">
+    <!-- Header of Control de Tareas -->
+    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-xl flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-secondary/10 border border-secondary/40 flex items-center justify-center text-secondary shadow-[0_0_15px_rgba(0,255,204,0.25)] shrink-0">
+        <span class="material-symbols-outlined text-[22px]">edit_note</span>
+      </div>
+      <div>
+        <h2 class="text-base sm:text-lg font-bold text-on-surface tracking-wide">
+          <span>Control de Tareas</span>
+        </h2>
       </div>
     </div>
 
-    <!-- Sound Wave Canvas Area -->
-    <div class="flex-1 w-full my-4 relative flex items-center justify-center rounded-xl bg-[#0a0a14]/90 border border-outline-variant/30 overflow-hidden min-h-[180px]">
-      <canvas id="voice-wave-canvas" class="w-full h-full block"></canvas>
-      
-      <!-- Ambient Center Radial Glow -->
-      <div id="voice-glow" class="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(ellipse_at_center,rgba(255,45,120,0.3)_0%,transparent_70%)] transition-all duration-700"></div>
+    <!-- 2 COLUMNS: ACTIVE TASKS & ARCHIVED -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="glass-panel rounded-2xl p-5 border border-outline-variant/40 shadow-lg flex flex-col">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/30">
+          <h3 class="font-bold text-sm text-on-surface flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+            <span>Tareas en Ejecución & Pendientes</span>
+          </h3>
+          <span id="count-activas" class="text-xs font-bold font-data-mono px-2.5 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/30 shadow-[0_0_8px_rgba(0,255,204,0.15)]">0</span>
+        </div>
+        <div id="pizarra-list" class="flex flex-col gap-3 flex-1 overflow-y-auto max-h-[600px] p-1">
+          <p class="text-on-surface-variant text-sm italic">Cargando tareas activas...</p>
+        </div>
+      </div>
 
-      <!-- Live Voice Subtitle / Feedback Overlay -->
-      <div id="voice-feedback" class="absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none">
-        Canal de audio en espera. Pulsa el botón inferior para activar la transmisión voz a voz.
+      <div class="glass-panel rounded-2xl p-5 border border-outline-variant/40 shadow-lg flex flex-col">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-outline-variant/30">
+          <h3 class="font-bold text-sm text-on-surface flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-primary/60"></span>
+            <span>Tickets Completados & Archivados</span>
+          </h3>
+          <span id="count-archivados" class="text-xs font-bold font-data-mono px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/30 shadow-[0_0_8px_rgba(255,45,120,0.15)]">0</span>
+        </div>
+        <div id="archivados-list" class="flex flex-col gap-3 flex-1 overflow-y-auto max-h-[600px] p-1">
+          <p class="text-on-surface-variant text-sm italic">No hay tickets archivados todavía...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 4: ANALÍTICA -->
+  <div id="view-analitica" class="hidden flex flex-col gap-6 w-full transition-all duration-300">
+    <!-- Header of Analitica -->
+    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-xl flex items-center gap-3.5">
+      <div class="w-10 h-10 rounded-xl bg-purple-400/10 border border-purple-400/40 flex items-center justify-center text-purple-400 shadow-[0_0_15px_rgba(192,132,252,0.25)] shrink-0">
+        <span class="material-symbols-outlined text-[22px]">insights</span>
+      </div>
+      <div>
+        <h2 class="text-base sm:text-lg font-bold text-on-surface tracking-wide">
+          <span>Analítica</span>
+        </h2>
       </div>
     </div>
 
-    <!-- Bottom Action: Voice-to-Voice Activation Button -->
-    <div class="pt-2 flex flex-col items-center justify-center shrink-0">
-      <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgba(0,255,204,0.3)] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
-        <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#ff2d78]"></span>
-        <span class="material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all" id="voice-btn-icon">mic</span>
-        <span id="voice-btn-text">Iniciar Comunicación Voz a Voz</span>
-      </button>
-      <span id="voice-btn-sub" class="text-[11px] text-on-surface-variant/60 mt-2 font-mono">Conexión bidireccional continua • Voz Usuario &lt;-&gt; Voz Agente</span>
+    <!-- 2 PANORAMIC SUMMARY METRICS CARDS -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Card 1: Tiempo de Trabajo de los Agentes -->
+      <div class="glass-panel rounded-2xl p-6 border border-outline-variant/40 hover:border-secondary/40 transition-all flex flex-col justify-between shadow-lg min-h-[160px]">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold uppercase tracking-wider">Tiempo de Trabajo de los Agentes</span>
+          <div class="w-9 h-9 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary shadow-[0_0_12px_rgba(0,255,204,0.15)]">
+            <span class="material-symbols-outlined text-[20px]">history_toggle_off</span>
+          </div>
+        </div>
+        <div class="my-2">
+          <div class="text-3xl lg:text-4xl font-bold font-data-mono text-secondary tracking-tight" id="analytics-work-time">0h 00m</div>
+        </div>
+        <div class="pt-3 border-t border-outline-variant/20 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="flex items-center gap-1.5 text-on-surface-variant/80">
+            <span class="material-symbols-outlined text-[15px] text-secondary">pace</span>
+            <span>Sesión activa: <strong id="analytics-session-time" class="text-on-surface font-mono font-semibold">0m</strong></span>
+          </div>
+          <div class="flex items-center gap-1.5 text-on-surface-variant/80">
+            <span class="w-2 h-2 rounded-full bg-outline-variant/60" id="analytics-work-dot"></span>
+            <span id="analytics-work-status" class="font-mono text-xs uppercase font-bold text-on-surface-variant">Desconectado</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Precisión y Seguimiento de Tickets -->
+      <div class="glass-panel rounded-2xl p-6 border border-outline-variant/40 hover:border-emerald-400/40 transition-all flex flex-col justify-between shadow-lg min-h-[160px]">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold uppercase tracking-wider">Precisión y Seguimiento de Tickets</span>
+        </div>
+        <div class="my-2 flex items-baseline justify-between gap-4">
+          <div class="flex items-baseline gap-2">
+            <div class="text-3xl lg:text-4xl font-bold font-data-mono text-emerald-400 tracking-tight" id="analytics-ticket-precision">100%</div>
+            <span class="text-[11px] font-semibold text-emerald-400/80 uppercase font-mono tracking-wider">Efectividad</span>
+          </div>
+          <!-- 4 status counters in a clean row -->
+          <div class="flex items-center gap-2">
+            <div class="flex flex-col items-center px-2 py-1 rounded-lg bg-secondary/10 border border-secondary/30" title="Tickets en Progreso">
+              <span class="text-[9px] font-bold text-secondary uppercase font-mono">Progreso</span>
+              <span id="stat-progreso" class="text-xs font-bold font-mono text-secondary">0</span>
+            </div>
+            <div class="flex flex-col items-center px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30" title="Tickets Pendientes">
+              <span class="text-[9px] font-bold text-amber-400 uppercase font-mono">Pendiente</span>
+              <span id="stat-pendientes" class="text-xs font-bold font-mono text-amber-400">0</span>
+            </div>
+            <div class="flex flex-col items-center px-2 py-1 rounded-lg bg-emerald-400/10 border border-emerald-400/30" title="Tickets Completados">
+              <span class="text-[9px] font-bold text-emerald-400 uppercase font-mono">Completado</span>
+              <span id="stat-completados" class="text-xs font-bold font-mono text-emerald-400">0</span>
+            </div>
+            <div class="flex flex-col items-center px-2 py-1 rounded-lg bg-error/10 border border-error/30" title="Tickets Fallidos">
+              <span class="text-[9px] font-bold text-error uppercase font-mono">Fallido</span>
+              <span id="stat-fallidos" class="text-xs font-bold font-mono text-error">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="pt-3 border-t border-outline-variant/20 flex items-center justify-between text-xs text-on-surface-variant/70">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[15px] text-emerald-400">verified</span>
+            <span id="analytics-precision-sub">Sincronizado con Precisión de Tareas</span>
+          </div>
+          <span class="font-mono text-[11px] text-on-surface-variant/80" id="stat-total-tickets">Total: 0</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MAIN ANALYTICS PANEL (Full Width) -->
+    <div class="w-full">
+      
+      <!-- Panel 1: Analítica Comparativa por Agente (Gráfico de Líneas Dinámico) -->
+      <div class="glass-panel rounded-2xl p-5 border border-outline-variant/40 shadow-lg flex flex-col gap-4">
+        <!-- Header with Title & 3 Mode Tabs -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-outline-variant/30">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[20px] text-purple-400">show_chart</span>
+            <h3 class="font-bold text-sm text-on-surface tracking-wide" id="analytics-chart-title">Tendencia de Tiempo de Uso</h3>
+          </div>
+          
+          <!-- Mode Tabs Selector -->
+          <div class="flex items-center bg-surface-container-low/70 p-1 rounded-xl border border-outline-variant/30 gap-1 text-xs">
+            <button id="chart-tab-tiempo" onclick="setAnalyticsChartMode('tiempo')" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-lg font-bold transition-all duration-200 cursor-pointer text-secondary bg-secondary/15 border border-secondary/40 shadow-[0_0_8px_rgba(0,255,204,0.15)]">
+              <span class="material-symbols-outlined text-[14px]">pace</span>
+              <span>Tiempo de Uso</span>
+            </button>
+            <button id="chart-tab-tokens" onclick="setAnalyticsChartMode('tokens')" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all duration-200 cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent">
+              <span class="material-symbols-outlined text-[14px]">toll</span>
+              <span>Gasto Tokens</span>
+            </button>
+            <button id="chart-tab-precision" onclick="setAnalyticsChartMode('precision')" type="button" class="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium transition-all duration-200 cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent">
+              <span class="material-symbols-outlined text-[14px]">query_stats</span>
+              <span>Precisión</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Chart Canvas Area -->
+        <div class="relative w-full h-[260px] min-h-[220px] flex items-center justify-center">
+          <canvas id="analytics-line-chart"></canvas>
+        </div>
+
+        <!-- Agent Values Footer Strip -->
+        <div class="pt-2.5 border-t border-outline-variant/20 grid grid-cols-5 gap-2 text-center text-xs">
+          <!-- Luffy -->
+          <div class="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/20 hover:border-primary/40 transition-all">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_#ff2d78]"></span>
+              <span class="font-bold text-[11px] text-primary">Luffy</span>
+            </div>
+            <span id="chart-val-luffy" class="font-mono text-xs text-on-surface font-semibold">0m</span>
+          </div>
+          <!-- Zoro -->
+          <div class="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/20 hover:border-secondary/40 transition-all">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_6px_#00ffcc]"></span>
+              <span class="font-bold text-[11px] text-secondary">Zoro</span>
+            </div>
+            <span id="chart-val-zoro" class="font-mono text-xs text-on-surface font-semibold">0m</span>
+          </div>
+          <!-- Sanji -->
+          <div class="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/20 hover:border-amber-400/40 transition-all">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]"></span>
+              <span class="font-bold text-[11px] text-amber-400">Sanji</span>
+            </div>
+            <span id="chart-val-sanji" class="font-mono text-xs text-on-surface font-semibold">0m</span>
+          </div>
+          <!-- Robin -->
+          <div class="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/20 hover:border-purple-400/40 transition-all">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_#c084fc]"></span>
+              <span class="font-bold text-[11px] text-purple-400">Robin</span>
+            </div>
+            <span id="chart-val-robin" class="font-mono text-xs text-on-surface font-semibold">0m</span>
+          </div>
+          <!-- Nami -->
+          <div class="flex flex-col items-center gap-1 p-1.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/20 hover:border-yellow-400/40 transition-all">
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]"></span>
+              <span class="font-bold text-[11px] text-yellow-400">Nami</span>
+            </div>
+            <span id="chart-val-nami" class="font-mono text-xs text-on-surface font-semibold">0m</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- VIEW 5: MONITOREO -->
+  <div id="view-monitoreo" class="hidden flex flex-col gap-6 w-full transition-all duration-300">
+    
+    <!-- Top Header of Monitoreo with Actions -->
+    <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-11 h-11 rounded-xl bg-cyan-400/10 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-[0_0_16px_rgba(34,211,238,0.25)] shrink-0">
+          <span class="material-symbols-outlined text-[24px]">monitoring</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base sm:text-lg font-bold text-on-surface tracking-wide">Monitoreo de Flotas & Equipos</h2>
+            <span class="py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-cyan-400/10 text-cyan-400 border border-cyan-400/30">Torre de Control</span>
+          </div>
+          <p class="text-xs text-on-surface-variant/70">Supervisión remota centralizada de tripulaciones y agentes desplegados</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center gap-2.5">
+        <button onclick="toggleConnectModal(true)" type="button" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 hover:bg-cyan-400/25 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all text-xs font-bold cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">add_link</span>
+          <span>Conectar Equipo Remoto</span>
+        </button>
+        <button onclick="simularEquiposFlota()" type="button" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 text-on-surface hover:text-secondary hover:border-secondary/40 transition-all text-xs font-bold cursor-pointer" title="Cargar equipos simulados para pruebas de alerta y monitoreo">
+          <span class="material-symbols-outlined text-[16px]">hub</span>
+          <span>Simular Flota de Prueba</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 4 GLOBAL FLEET SUMMARY METRICS CARDS -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
+      
+      <!-- Card 1: Total Equipos Desplegados -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-cyan-400/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Equipos Desplegados</span>
+          <div class="w-8 h-8 rounded-xl bg-cyan-400/10 border border-cyan-400/30 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">dns</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="fleet-stat-total">1</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-cyan-400">
+            <span class="material-symbols-outlined text-[14px]">devices</span>
+            <span id="fleet-stat-total-sub">1 instancia local HQ</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Equipos en Línea / Saludables -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Equipos Saludables</span>
+          <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">verified_user</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-secondary tracking-tight" id="fleet-stat-healthy">1</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse shadow-[0_0_6px_#00ffcc]"></span>
+            <span>Operando con normalidad</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Equipos con Alertas o Fallos Críticos -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-error/50 transition-all flex flex-col justify-between group shadow-lg" id="fleet-card-alerts">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Alertas & Fallos</span>
+          <div class="w-8 h-8 rounded-xl bg-error/10 border border-error/30 flex items-center justify-center text-error group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">warning</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-on-surface tracking-tight" id="fleet-stat-alerts">0</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold" id="fleet-stat-alerts-sub">
+            <span class="material-symbols-outlined text-[14px] text-emerald-400">check_circle</span>
+            <span class="text-emerald-400">Sin incidentes detectados</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Disponibilidad de la Flota (Uptime) -->
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-purple-400/50 transition-all flex flex-col justify-between group shadow-lg">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Disponibilidad Flota</span>
+          <div class="w-8 h-8 rounded-xl bg-purple-400/10 border border-purple-400/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+            <span class="material-symbols-outlined text-[18px]">speed</span>
+          </div>
+        </div>
+        <div>
+          <div class="text-2xl lg:text-3xl font-bold font-data-mono text-purple-400 tracking-tight" id="fleet-stat-uptime">100.0%</div>
+          <div class="mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-on-surface-variant">
+            <span>Tasa de respuesta activa</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FLEET FILTER & SEARCH TOOLBAR -->
+    <div class="glass-panel rounded-2xl p-3 sm:p-4 border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 shadow-md">
+      <!-- Search Input -->
+      <div class="relative flex-1 min-w-[220px]">
+        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[18px]">search</span>
+        <input id="fleet-search-input" oninput="filterFleetCards()" type="text" placeholder="Buscar por nombre de equipo, cliente o IP..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2 pl-9 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-cyan-400/60 transition-colors">
+      </div>
+
+      <!-- Filter Buttons -->
+      <div class="flex items-center bg-surface-container-low/70 p-1 rounded-xl border border-outline-variant/30 gap-1 text-xs">
+        <button id="fleet-filter-todos" onclick="setFleetFilter('todos')" type="button" class="px-3 py-1 rounded-lg font-bold transition-all text-cyan-400 bg-cyan-400/15 border border-cyan-400/40 shadow-sm cursor-pointer">
+          <span>Todos</span> (<span id="count-filter-todos">1</span>)
+        </button>
+        <button id="fleet-filter-saludables" onclick="setFleetFilter('saludables')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent cursor-pointer">
+          <span>Saludables</span> (<span id="count-filter-saludables">1</span>)
+        </button>
+        <button id="fleet-filter-alertas" onclick="setFleetFilter('alertas')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-error hover:bg-error/10 border border-transparent cursor-pointer">
+          <span>Con Alertas</span> (<span id="count-filter-alertas">0</span>)
+        </button>
+        <button id="fleet-filter-offline" onclick="setFleetFilter('offline')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent cursor-pointer">
+          <span>Desconectados</span> (<span id="count-filter-offline">0</span>)
+        </button>
+      </div>
+    </div>
+
+    <!-- FLEET CARDS GRID (Live Deployed Teams) -->
+    <div id="fleet-cards-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <!-- Dynamically populated from JS -->
+      <div class="p-8 text-center text-on-surface-variant text-sm col-span-full">
+        Cargando telemetría de equipos desplegados...
+      </div>
     </div>
 
   </div>
@@ -857,6 +1511,97 @@ window.toggleRightSidebar = toggleRightSidebar;
     });
 })();
 </script>
-<script src="/static/script.js?v=14"></script>
+<!-- MODAL: CONECTAR EQUIPO REMOTO -->
+<div id="fleet-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-2xl rounded-2xl p-6 border border-cyan-400/30 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400">
+          <span class="material-symbols-outlined text-[20px]">add_link</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-on-surface">Conectar Tripulación Remota</h3>
+          <p class="text-xs text-on-surface-variant/70">Instrucciones para reportar telemetría desde clientes o servidores</p>
+        </div>
+      </div>
+      <button onclick="toggleConnectModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-3 text-xs text-on-surface-variant/90 leading-relaxed">
+      <p>Cualquier equipo de agentes que instales en un servidor o máquina remota puede reportar su estado, salud de los agentes y fallos en tiempo real enviando un ping periódico por HTTP POST a este endpoint:</p>
+      
+      <div class="p-3 rounded-xl bg-[#090914] border border-outline-variant/40 font-mono text-cyan-400 text-xs flex items-center justify-between">
+        <span id="endpoint-url-display">POST http://&lt;TU-IP&gt;:8000/api/telemetria/reportar</span>
+        <button onclick="navigator.clipboard.writeText('http://' + window.location.host + '/api/telemetria/reportar'); alert('Enlace de webhook copiado al portapapeles');" class="text-xs text-secondary hover:underline cursor-pointer">Copiar</button>
+      </div>
+
+      <p class="font-semibold text-on-surface pt-1">Ejemplo de código en Python (insertar en el bucle del agente remoto):</p>
+      <pre class="p-3.5 rounded-xl bg-[#080812] border border-outline-variant/40 font-mono text-[11px] text-cyan-300 overflow-x-auto leading-normal">
+import requests, time
+
+payload = {
+    "id": "cliente-01",
+    "nombre": "Equipo Alpha • Cliente X",
+    "tipo": "Cloud VPS",
+    "ip": "198.51.100.24",
+    "version": "v1.0",
+    "estado": "activa", # 'activa', 'espera', 'error', 'desconectada'
+    "agentes": {
+        "luffy": "activo", "zoro": "activo", "sanji": "espera", "robin": "activo", "nami": "activo"
+    },
+    "tarea_actual": "Generación de informes de ventas nocturnos",
+    "error_critico": None, # o string con mensaje de error si falla
+    "tokens": 45000,
+    "cpu": 22.5,
+    "ram": 58.0
+}
+
+# Enviar latido cada 10 segundos
+requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload)
+      </pre>
+    </div>
+
+    <div class="pt-3 border-t border-outline-variant/30 flex justify-end">
+      <button onclick="toggleConnectModal(false)" type="button" class="px-5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+        Entendido y Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: INSPECCIÓN RÁPIDA DE EQUIPO REMOTO -->
+<div id="fleet-inspect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-2xl rounded-2xl p-6 border border-cyan-400/30 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-secondary/15 border border-secondary/30 flex items-center justify-center text-secondary">
+          <span class="material-symbols-outlined text-[20px]">monitor_heart</span>
+        </div>
+        <div>
+          <h3 class="font-bold text-base text-on-surface" id="inspect-modal-title">Tripulación HQ</h3>
+          <p class="text-xs text-on-surface-variant/70" id="inspect-modal-sub">Diagnóstico detallado y salud del nodo</p>
+        </div>
+      </div>
+      <button onclick="toggleInspectModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
+        <span class="material-symbols-outlined text-[20px]">close</span>
+      </button>
+    </div>
+
+    <div id="inspect-modal-body" class="flex flex-col gap-4 text-xs">
+      <!-- Loaded dynamically via JS -->
+    </div>
+
+    <div class="pt-3 border-t border-outline-variant/30 flex justify-between items-center">
+      <span class="text-[11px] text-on-surface-variant/70 font-mono" id="inspect-modal-ping">Latido: En vivo</span>
+      <button onclick="toggleInspectModal(false)" type="button" class="px-5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+        Cerrar Diagnóstico
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/script.js?v=41"></script>
 </body>
 </html>
