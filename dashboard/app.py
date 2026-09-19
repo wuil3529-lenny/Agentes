@@ -133,36 +133,297 @@ def obtener_modelos_agentes():
     agentes = ["luffy", "zoro", "sanji", "robin", "nami"]
     return {ag: agent_models.get(ag, default_model) for ag in agentes}
 
+class FullConfigPayload(BaseModel):
+    keys: Optional[Dict[str, str]] = None
+    base_urls: Optional[Dict[str, str]] = None
+    default_model: Optional[str] = None
+    default_provider: Optional[str] = None
+    modelos: Optional[Dict[str, str]] = None
+    presupuesto_maximo: Optional[float] = None
+    telegram: Optional[Dict[str, str]] = None
+    ollama: Optional[Dict[str, str]] = None
+
 @app.get("/api/config/env")
 async def read_env():
     env_path = AGENTES_DIR / ".env"
-    data = {"keys": {}, "default_model": "", "modelos": obtener_modelos_agentes()}
+    data = {
+        "keys": {},
+        "base_urls": {},
+        "default_model": "deepseek-chat",
+        "default_provider": "deepseek",
+        "modelos": obtener_modelos_agentes(),
+        "presupuesto_maximo": 10.0,
+        "telegram": {"token": "", "chat_id": ""},
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3"}
+    }
     if env_path.exists():
         for line in env_path.read_text(encoding="utf-8").splitlines():
             line = line.strip()
-            if not line or line.startswith("#"):
+            if not line or line.startswith("#") or "=" not in line:
                 continue
-            if "=" in line:
-                k, v = line.split("=", 1)
-                val = v.strip().strip('"').strip("'")
-                if k == "DEFAULT_MODEL":
-                    data["default_model"] = val
-                elif k.endswith("_API_KEY"):
-                    provider = k.replace("_API_KEY", "").lower()
-                    data["keys"][provider] = val
+            k, v = line.split("=", 1)
+            k = k.strip()
+            val = v.strip().strip('"').strip("'")
+            if k == "DEFAULT_MODEL":
+                data["default_model"] = val
+            elif k == "DEFAULT_PROVIDER":
+                data["default_provider"] = val
+            elif k == "PRESUPUESTO_MAXIMO":
+                try:
+                    data["presupuesto_maximo"] = float(val)
+                except ValueError:
+                    pass
+            elif k == "TELEGRAM_BOT_TOKEN":
+                data["telegram"]["token"] = val
+            elif k == "TELEGRAM_CHAT_ID":
+                data["telegram"]["chat_id"] = val
+            elif k == "OLLAMA_BASE_URL":
+                data["ollama"]["base_url"] = val
+            elif k == "OLLAMA_MODEL":
+                data["ollama"]["model"] = val
+            elif k.endswith("_BASE_URL"):
+                prov = k.replace("_BASE_URL", "").lower()
+                data["base_urls"][prov] = val
+            elif k.endswith("_API_KEY") or k.endswith("_KEY"):
+                provider = k.replace("_API_KEY", "").replace("_KEY", "").lower()
+                data["keys"][provider] = val
     return data
+
+@app.post("/api/config/guardar")
+async def guardar_config(payload: FullConfigPayload):
+    env_path = AGENTES_DIR / ".env"
+    lines = []
+    if env_path.exists():
+        lines = env_path.read_text(encoding="utf-8").splitlines()
+        
+    env_dict = {}
+    ordered_keys = []
+    for line in lines:
+        raw = line.strip()
+        if not raw or raw.startswith("#") or "=" not in raw:
+            continue
+        k, v = raw.split("=", 1)
+        k = k.strip()
+        v = v.strip().strip('"').strip("'")
+        env_dict[k] = v
+        if k not in ordered_keys:
+            ordered_keys.append(k)
+
+    if payload.keys:
+        for prov, val in payload.keys.items():
+            if val is not None:
+                env_key = f"{prov.upper()}_API_KEY"
+                if prov.lower() == "fal":
+                    env_key = "FAL_KEY"
+                env_dict[env_key] = val
+                if env_key not in ordered_keys:
+                    ordered_keys.append(env_key)
+
+    if payload.base_urls:
+        for prov, url_val in payload.base_urls.items():
+            if url_val is not None and url_val.strip():
+                url_key = f"{prov.upper()}_BASE_URL"
+                env_dict[url_key] = url_val.strip()
+                if url_key not in ordered_keys:
+                    ordered_keys.append(url_key)
+
+    if payload.default_model:
+        env_dict["DEFAULT_MODEL"] = payload.default_model
+        if "DEFAULT_MODEL" not in ordered_keys:
+            ordered_keys.append("DEFAULT_MODEL")
+    if payload.default_provider:
+        env_dict["DEFAULT_PROVIDER"] = payload.default_provider
+        if "DEFAULT_PROVIDER" not in ordered_keys:
+            ordered_keys.append("DEFAULT_PROVIDER")
+
+    if payload.modelos:
+        for ag, mod in payload.modelos.items():
+            ag_key = f"MODEL_{ag.upper()}"
+            env_dict[ag_key] = mod
+            if ag_key not in ordered_keys:
+                ordered_keys.append(ag_key)
+
+    if payload.presupuesto_maximo is not None:
+        pres_val = float(payload.presupuesto_maximo)
+        env_dict["PRESUPUESTO_MAXIMO"] = str(pres_val)
+        if "PRESUPUESTO_MAXIMO" not in ordered_keys:
+            ordered_keys.append("PRESUPUESTO_MAXIMO")
+        # Actualizar costos.json y si el presupuesto supera el costo actual, desmarcar bloqueo
+        costos_path = AGENTES_DIR / "costos.json"
+        if costos_path.exists():
+            try:
+                c_data = json.loads(costos_path.read_text(encoding="utf-8"))
+                c_data["presupuesto_maximo"] = pres_val
+                if float(c_data.get("costo", 0.0)) < pres_val:
+                    c_data["bloqueado_por_presupuesto"] = False
+                costos_path.write_text(json.dumps(c_data, indent=2, ensure_ascii=False), encoding="utf-8")
+            except Exception:
+                pass
+
+    if payload.telegram:
+        if "token" in payload.telegram and payload.telegram["token"] is not None:
+            env_dict["TELEGRAM_BOT_TOKEN"] = payload.telegram["token"]
+            if "TELEGRAM_BOT_TOKEN" not in ordered_keys:
+                ordered_keys.append("TELEGRAM_BOT_TOKEN")
+        if "chat_id" in payload.telegram and payload.telegram["chat_id"] is not None:
+            env_dict["TELEGRAM_CHAT_ID"] = payload.telegram["chat_id"]
+            if "TELEGRAM_CHAT_ID" not in ordered_keys:
+                ordered_keys.append("TELEGRAM_CHAT_ID")
+
+    if payload.ollama:
+        if "base_url" in payload.ollama and payload.ollama["base_url"] is not None:
+            env_dict["OLLAMA_BASE_URL"] = payload.ollama["base_url"]
+            if "OLLAMA_BASE_URL" not in ordered_keys:
+                ordered_keys.append("OLLAMA_BASE_URL")
+        if "model" in payload.ollama and payload.ollama["model"] is not None:
+            env_dict["OLLAMA_MODEL"] = payload.ollama["model"]
+            if "OLLAMA_MODEL" not in ordered_keys:
+                ordered_keys.append("OLLAMA_MODEL")
+            if "OLLAMA_BASE_URL" not in ordered_keys:
+                ordered_keys.append("OLLAMA_BASE_URL")
+        if "model" in payload.ollama and payload.ollama["model"] is not None:
+            env_dict["OLLAMA_MODEL"] = payload.ollama["model"]
+            if "OLLAMA_MODEL" not in ordered_keys:
+                ordered_keys.append("OLLAMA_MODEL")
+
+    new_lines = []
+    seen = set()
+    for line in lines:
+        raw = line.strip()
+        if raw.startswith("#") or not raw:
+            new_lines.append(line)
+            continue
+        if "=" in raw:
+            k = raw.split("=", 1)[0].strip()
+            if k in env_dict:
+                v = env_dict[k]
+                new_lines.append(f'{k}="{v}"' if (" " in v or any(c in v for c in "!@#$%^&*()")) else f'{k}={v}')
+                seen.add(k)
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+
+    for k in ordered_keys:
+        if k not in seen and k in env_dict:
+            v = env_dict[k]
+            new_lines.append(f'{k}="{v}"' if (" " in v or any(c in v for c in "!@#$%^&*()")) else f'{k}={v}')
+
+    env_path.write_text("\n".join(new_lines), encoding="utf-8")
+    return {"status": "ok", "message": "Configuración guardada correctamente"}
+
+@app.post("/api/config/test-telegram")
+async def test_telegram():
+    env_path = AGENTES_DIR / ".env"
+    token = ""
+    chat_id = ""
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("TELEGRAM_BOT_TOKEN="):
+                token = line.split("=", 1)[1].strip().strip('"').strip("'")
+            elif line.startswith("TELEGRAM_CHAT_ID="):
+                chat_id = line.split("=", 1)[1].strip().strip('"').strip("'")
+    if not token or not chat_id:
+        return {"status": "error", "message": "Falta configurar Token o Chat ID de Telegram"}
+    try:
+        import urllib.request
+        msg = "🏴‍☠️ [AgenticOS] Mensaje de prueba exitoso desde el panel de Configuración."
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        req = urllib.request.Request(url, data=json.dumps({"chat_id": chat_id, "text": msg}).encode("utf-8"), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            if resp.status == 200:
+                return {"status": "ok", "message": "¡Mensaje de prueba recibido en Telegram!"}
+    except Exception as e:
+        return {"status": "error", "message": f"Error conectando con Telegram: {str(e)}"}
+    return {"status": "error", "message": "No se pudo entregar el mensaje a Telegram"}
+
+def obtener_presupuesto_maximo() -> float:
+    env_path = AGENTES_DIR / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("PRESUPUESTO_MAXIMO="):
+                try:
+                    return float(line.split("=", 1)[1].strip().strip('"').strip("'"))
+                except Exception:
+                    pass
+    return 10.0
+
+def enviar_alerta_telegram_presupuesto(gasto: float, limite: float):
+    env_path = AGENTES_DIR / ".env"
+    token = ""
+    chat_id = ""
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("TELEGRAM_BOT_TOKEN="):
+                token = line.split("=", 1)[1].strip().strip('"').strip("'")
+            elif line.startswith("TELEGRAM_CHAT_ID="):
+                chat_id = line.split("=", 1)[1].strip().strip('"').strip("'")
+    if not token or not chat_id:
+        return
+    try:
+        import urllib.request
+        msg = f"🚨 [AgenticOS] PARADA DURA ACTIVADA:\n\nLa tripulación ha alcanzado el límite mensual de presupuesto (${gasto:.2f} / ${limite:.2f} USD).\n\nLos agentes han sido detenidos automáticamente para proteger tu factura. Puedes ampliar el presupuesto o reiniciar el contador desde el panel de control."
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        req = urllib.request.Request(url, data=json.dumps({"chat_id": chat_id, "text": msg}).encode("utf-8"), headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            pass
+    except Exception as e:
+        print(f"Error enviando alerta Telegram presupuesto: {e}")
+
+def detener_tripulacion_emergencia():
+    try:
+        subprocess.run(["docker", "compose", "stop"], cwd=str(AGENTES_DIR), capture_output=True, timeout=5)
+    except Exception:
+        pass
+    try:
+        current_pid = os.getpid()
+        for p in psutil.process_iter(['pid', 'name', 'cmdline']):
+            if p.info['pid'] == current_pid:
+                continue
+            if 'python' in (p.info['name'] or '').lower():
+                cmd = " ".join(p.info['cmdline'] or []).lower()
+                if any(x in cmd for x in ['base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent']):
+                    p.terminate()
+    except Exception:
+        pass
+
+@app.post("/api/config/reset-costos")
+async def reset_costos():
+    from datetime import datetime
+    mes_actual = datetime.now().strftime("%Y-%m")
+    costos_path = AGENTES_DIR / "costos.json"
+    default_costos = {
+        "mes_activo": mes_actual,
+        "tokens": 0,
+        "costo": 0.0,
+        "bloqueado_por_presupuesto": False,
+        "presupuesto_maximo": obtener_presupuesto_maximo(),
+        "agentes": {
+            "luffy": {"tokens": 0, "costo": 0.0},
+            "zoro": {"tokens": 0, "costo": 0.0},
+            "sanji": {"tokens": 0, "costo": 0.0},
+            "robin": {"tokens": 0, "costo": 0.0},
+            "nami": {"tokens": 0, "costo": 0.0}
+        },
+        "historial_meses": {}
+    }
+    if costos_path.exists():
+        try:
+            curr = json.loads(costos_path.read_text(encoding="utf-8"))
+            if isinstance(curr, dict) and "historial_meses" in curr:
+                default_costos["historial_meses"] = curr["historial_meses"]
+        except Exception:
+            pass
+    costos_path.write_text(json.dumps(default_costos, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"status": "ok", "message": f"Contador de costos del mes {mes_actual} restablecido a $0.00"}
 
 @app.post("/api/config/env")
 async def update_env(config: EnvConfig):
     env_path = AGENTES_DIR / ".env"
-    # Leer lineas existentes
     lines = []
     if env_path.exists():
         lines = env_path.read_text(encoding="utf-8").splitlines()
-    
-    # Actualizar o agregar variables (ejemplo simple)
     key_name = f"{config.provider.upper()}_API_KEY"
-    
     new_lines = []
     key_found = False
     model_found = False
@@ -179,11 +440,9 @@ async def update_env(config: EnvConfig):
             provider_found = True
         else:
             new_lines.append(line)
-            
     if not key_found: new_lines.append(f"{key_name}={config.api_key}")
     if not model_found: new_lines.append(f"DEFAULT_MODEL={config.model}")
     if not provider_found: new_lines.append(f"DEFAULT_PROVIDER={config.provider}")
-        
     env_path.write_text("\n".join(new_lines), encoding="utf-8")
     return {"status": "success", "message": "Entorno actualizado"}
 
@@ -192,22 +451,23 @@ async def delete_env_key(provider: str):
     env_path = AGENTES_DIR / ".env"
     if not env_path.exists():
         return {"status": "error", "message": "Archivo de entorno no encontrado"}
-    
     lines = env_path.read_text(encoding="utf-8").splitlines()
-    key_name = f"{provider.upper()}_API_KEY"
-    
-    new_lines = [line for line in lines if not line.startswith(f"{key_name}=")]
-    
+    p_up = provider.upper()
+    key_name = f"{p_up}_API_KEY"
+    url_name = f"{p_up}_BASE_URL"
+    new_lines = [line for line in lines if not line.startswith(f"{key_name}=") and not line.startswith(f"{url_name}=")]
     env_path.write_text("\n".join(new_lines), encoding="utf-8")
-    return {"status": "success", "message": f"Llave de {provider.upper()} eliminada"}
+    return {"status": "success", "message": f"Proveedor {p_up} eliminado"}
 
 @app.post("/api/system/restart")
 async def restart_system():
     try:
-        # Ejemplo de reinicio de contenedor asumiendo nombre 'tripulacion_ia'
-        # Se enva de fondo para que no bloquee la respuesta a la peticion web
-        subprocess.Popen(["docker", "restart", "tripulacion_ia_v3"])
-        return {"status": "success", "message": "Reiniciando contenedor..."}
+        bat_path = AGENTES_DIR / "reiniciar_tripulacion.bat"
+        if bat_path.exists():
+            subprocess.Popen([str(bat_path)], shell=True, cwd=str(AGENTES_DIR))
+        else:
+            subprocess.Popen("docker compose down && docker compose up -d", shell=True, cwd=str(AGENTES_DIR))
+        return {"status": "success", "message": "Ejecutando script de reinicio de contenedor Docker..."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -500,38 +760,92 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
     return estados
 
 def obtener_metricas_costos() -> dict:
+    from datetime import datetime
+    mes_actual = datetime.now().strftime("%Y-%m")
     costos_path = AGENTES_DIR / "costos.json"
     default_costos = {
+        "mes_activo": mes_actual,
         "tokens": 0,
         "costo": 0.0,
+        "bloqueado_por_presupuesto": False,
+        "presupuesto_maximo": obtener_presupuesto_maximo(),
         "agentes": {
             "luffy": {"tokens": 0, "costo": 0.0},
             "zoro": {"tokens": 0, "costo": 0.0},
             "sanji": {"tokens": 0, "costo": 0.0},
             "robin": {"tokens": 0, "costo": 0.0},
             "nami": {"tokens": 0, "costo": 0.0}
-        }
+        },
+        "historial_meses": {}
     }
-    if not costos_path.exists():
+    
+    data = default_costos
+    if costos_path.exists():
         try:
-            costos_path.write_text(json.dumps(default_costos, indent=2, ensure_ascii=False), encoding="utf-8")
+            raw = json.loads(costos_path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                data = raw
+        except Exception:
+            data = default_costos
+
+    # 1. Asegurar campos base
+    data.setdefault("tokens", 0)
+    data.setdefault("costo", 0.0)
+    data.setdefault("bloqueado_por_presupuesto", False)
+    if "agentes" not in data or not isinstance(data["agentes"], dict):
+        data["agentes"] = default_costos["agentes"]
+    else:
+        for ag in ["luffy", "zoro", "sanji", "robin", "nami"]:
+            if ag not in data["agentes"]:
+                data["agentes"][ag] = {"tokens": 0, "costo": 0.0}
+
+    # 2. Verificar cambio de mes en el calendario (Rollover automático mensual)
+    mes_registrado = data.get("mes_activo")
+    if not mes_registrado:
+        data["mes_activo"] = mes_actual
+        mes_registrado = mes_actual
+
+    necesita_guardar = False
+    if mes_registrado != mes_actual:
+        if "historial_meses" not in data or not isinstance(data["historial_meses"], dict):
+            data["historial_meses"] = {}
+        data["historial_meses"][mes_registrado] = {
+            "costo": data.get("costo", 0.0),
+            "tokens": data.get("tokens", 0)
+        }
+        data["mes_activo"] = mes_actual
+        data["costo"] = 0.0
+        data["tokens"] = 0
+        data["bloqueado_por_presupuesto"] = False
+        for ag in ["luffy", "zoro", "sanji", "robin", "nami"]:
+            data["agentes"][ag] = {"tokens": 0, "costo": 0.0}
+        necesita_guardar = True
+
+    # 3. Límite de presupuesto mensual y Parada Dura
+    presupuesto_max = obtener_presupuesto_maximo()
+    if data.get("presupuesto_maximo") != presupuesto_max:
+        data["presupuesto_maximo"] = presupuesto_max
+        necesita_guardar = True
+    costo_actual = float(data.get("costo", 0.0))
+
+    if presupuesto_max > 0 and costo_actual >= presupuesto_max:
+        if not data.get("bloqueado_por_presupuesto", False):
+            data["bloqueado_por_presupuesto"] = True
+            necesita_guardar = True
+            detener_tripulacion_emergencia()
+            enviar_alerta_telegram_presupuesto(costo_actual, presupuesto_max)
+    else:
+        if data.get("bloqueado_por_presupuesto", False):
+            data["bloqueado_por_presupuesto"] = False
+            necesita_guardar = True
+
+    if necesita_guardar:
+        try:
+            costos_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
             pass
-        return default_costos
-        
-    try:
-        data = json.loads(costos_path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return default_costos
-        if "agentes" not in data or not isinstance(data["agentes"], dict):
-            data["agentes"] = default_costos["agentes"]
-        else:
-            for ag in ["luffy", "zoro", "sanji", "robin", "nami"]:
-                if ag not in data["agentes"]:
-                    data["agentes"][ag] = {"tokens": 0, "costo": 0.0}
-        return data
-    except Exception:
-        return default_costos
+
+    return data
 
 def obtener_ultimos_logs(max_lineas=40):
     lineas_combinadas = []
@@ -800,7 +1114,10 @@ async def websocket_endpoint(websocket: WebSocket):
             docker_activo = check_docker_tripulacion()
             procesos_activos = check_procesos_tripulacion()
             is_activo = docker_activo or procesos_activos or (estado_tripulacion.get("estado") in ["activa", "activo", "conectada"])
-            if is_activo:
+            if costos.get("bloqueado_por_presupuesto"):
+                is_activo = False
+                estado_tripulacion["estado"] = "bloqueada_presupuesto"
+            elif is_activo:
                 estado_tripulacion["estado"] = "activa"
             else:
                 estado_tripulacion["estado"] = "desconectada"

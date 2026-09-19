@@ -1,6 +1,9 @@
 {
+  "mes_activo": "2026-09",
   "tokens": 0,
   "costo": 0.0,
+  "bloqueado_por_presupuesto": false,
+  "presupuesto_maximo": 1000.0,
   "agentes": {
     "luffy": {
       "tokens": 0,
@@ -22,5 +25,6 @@
       "tokens": 0,
       "costo": 0.0
     }
-  }
+  },
+  "historial_meses": {}
 }

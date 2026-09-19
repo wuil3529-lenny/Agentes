@@ -81,6 +81,7 @@ function connect() {
 
 function updateMainMetrics(sys, costos, pizarra, tickets_archivados, tiempo_trabajo) {
     if (costos) {
+        window.cachedCostos = costos;
         // Update global metrics
         const mTokens = document.getElementById('metric-tokens');
         const mCost = document.getElementById('metric-cost');
@@ -92,12 +93,68 @@ function updateMainMetrics(sys, costos, pizarra, tickets_archivados, tiempo_trab
             const mTokSub = document.getElementById('metric-tokens-sub');
             if (mTokSub) mTokSub.innerText = costos.tokens.toLocaleString() + ' tokens totales';
         }
+        const presMax = (typeof costos.presupuesto_maximo === 'number' && costos.presupuesto_maximo > 0) ? costos.presupuesto_maximo : 10.0;
+        const pctGasto = presMax > 0 ? ((costos.costo / presMax) * 100) : 0;
+        const pctFormatted = pctGasto.toFixed(1);
+
         if (mCost) {
             mCost.innerText = '$' + costos.costo.toFixed(2);
             const mCostSub = document.getElementById('metric-cost-sub');
             if (mCostSub) {
-                let pct = ((costos.costo / 10.0) * 100).toFixed(1);
-                mCostSub.innerText = `Presupuesto ($10): ${pct}%`;
+                mCostSub.innerText = `Presupuesto ($${presMax.toFixed(2)}): ${pctFormatted}%`;
+            }
+        }
+
+        // Actualizar tarjeta de Presupuesto & Cuotas Operativas
+        const elPresMes = document.getElementById('cfg-presupuesto-mes-label');
+        if (elPresMes && costos.mes_activo) {
+            const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const parts = String(costos.mes_activo).split('-');
+            const mesIdx = parseInt(parts[1], 10) - 1;
+            const mesNombre = (mesIdx >= 0 && mesIdx < 12) ? meses[mesIdx] : parts[1];
+            elPresMes.innerText = `Consumo ${mesNombre} ${parts[0]}`;
+        }
+
+        const elPresBadge = document.getElementById('cfg-presupuesto-consumo-badge');
+        if (elPresBadge) {
+            elPresBadge.innerText = `$${costos.costo.toFixed(2)} / $${presMax.toFixed(2)} USD`;
+            if (costos.bloqueado_por_presupuesto || pctGasto >= 100) {
+                elPresBadge.className = 'text-xs font-mono font-bold text-error animate-pulse';
+            } else if (pctGasto >= 80) {
+                elPresBadge.className = 'text-xs font-mono font-bold text-amber-400';
+            } else {
+                elPresBadge.className = 'text-xs font-mono font-bold text-emerald-400';
+            }
+        }
+
+        const elPresBar = document.getElementById('cfg-presupuesto-bar');
+        if (elPresBar) {
+            elPresBar.style.width = Math.min(pctGasto, 100) + '%';
+            if (costos.bloqueado_por_presupuesto || pctGasto >= 100) {
+                elPresBar.className = 'h-full bg-gradient-to-r from-red-600 to-error rounded-full transition-all duration-500';
+            } else if (pctGasto >= 80) {
+                elPresBar.className = 'h-full bg-gradient-to-r from-amber-500 to-yellow-400 rounded-full transition-all duration-500';
+            } else {
+                elPresBar.className = 'h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all duration-500';
+            }
+        }
+
+        const elPresPct = document.getElementById('cfg-presupuesto-pct-text');
+        if (elPresPct) {
+            elPresPct.innerText = `${pctFormatted}% consumido`;
+            if (costos.bloqueado_por_presupuesto || pctGasto >= 100) {
+                elPresPct.className = 'text-error font-bold';
+            } else {
+                elPresPct.className = '';
+            }
+        }
+
+        const elPresAlerta = document.getElementById('cfg-presupuesto-alerta-bloqueo');
+        if (elPresAlerta) {
+            if (costos.bloqueado_por_presupuesto) {
+                elPresAlerta.classList.remove('hidden');
+            } else {
+                elPresAlerta.classList.add('hidden');
             }
         }
         
@@ -1305,8 +1362,15 @@ function updateEstado(est) {
     };
 
     if (dot && text && est) {
-        const isOff = (est.estado && (est.estado.toLowerCase() === 'desconectada' || est.estado.toLowerCase() === 'apagado'));
-        if (isOff) {
+        const estadoNorm = (est.estado || '').toLowerCase();
+        const isOff = (estadoNorm === 'desconectada' || estadoNorm === 'apagado');
+        const isBudgetBlocked = (estadoNorm === 'bloqueada_presupuesto');
+
+        if (isBudgetBlocked) {
+            dot.className = 'w-2 h-2 rounded-full bg-error shadow-[0_0_10px_rgba(255,68,68,0.9)] animate-ping';
+            text.className = 'text-[10px] font-label text-error uppercase tracking-widest font-bold';
+            text.innerText = 'TOPE PRESUPUESTO';
+        } else if (isOff) {
             dot.className = 'w-2 h-2 rounded-full bg-error shadow-[0_0_8px_rgba(255,84,73,0.6)] animate-pulse';
             text.className = 'text-[10px] font-label text-error uppercase tracking-widest';
             text.innerText = 'APAGADO';
@@ -1318,7 +1382,8 @@ function updateEstado(est) {
     }
 
     if (!est) return;
-    const isOffline = est.estado && (est.estado.toLowerCase() === 'desconectada' || est.estado.toLowerCase() === 'apagado');
+    const estadoNorm = (est.estado || '').toLowerCase();
+    const isOffline = estadoNorm === 'desconectada' || estadoNorm === 'apagado' || estadoNorm === 'bloqueada_presupuesto';
     const agentes = est.agentes || {};
 
     ['luffy', 'zoro', 'sanji', 'nami', 'robin'].forEach(id => {
@@ -1997,6 +2062,20 @@ function selectMeniscusTab(targetView, clickedEl) {
         localStorage.setItem('activeDashboardView', targetView);
     } catch(e) {}
     
+    // Clear highlight on footer config button
+    const cfgBtn = document.getElementById('footer-btn-config');
+    const iconBox = document.getElementById('footer-config-icon-box');
+    const textEl = document.getElementById('footer-config-text');
+    if (cfgBtn) {
+        cfgBtn.className = "w-full !py-2.5 !text-xs text-on-surface-variant hover:text-white flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent";
+    }
+    if (iconBox) {
+        iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 border border-primary/30 text-primary group-hover:shadow-[0_0_10px_rgba(255,45,120,0.4)] transition-all shrink-0";
+    }
+    if (textEl) {
+        textEl.className = "font-medium";
+    }
+
     // 1. Calculate target center Y
     const targetCenterY = targetItem.offsetTop + targetItem.offsetHeight / 2;
     meniscusState.targetY = targetCenterY;
@@ -2032,7 +2111,7 @@ function selectMeniscusTab(targetView, clickedEl) {
 window.selectMeniscusTab = selectMeniscusTab;
 
 function switchCanvasView(targetView) {
-    const viewIds = ['vista-general', 'monitor-agentes', 'control-tareas', 'analitica', 'monitoreo'];
+    const viewIds = ['vista-general', 'monitor-agentes', 'control-tareas', 'analitica', 'monitoreo', 'configuracion'];
     viewIds.forEach(vid => {
         const viewEl = document.getElementById('view-' + vid);
         if (viewEl) {
@@ -2047,6 +2126,9 @@ function switchCanvasView(targetView) {
                 });
                 if (targetView === 'analitica' && typeof initOrUpdateAnalyticsChart === 'function') {
                     setTimeout(initOrUpdateAnalyticsChart, 60);
+                }
+                if (targetView === 'configuracion' && typeof loadConfigData === 'function') {
+                    loadConfigData();
                 }
             } else {
                 viewEl.classList.add('hidden');
@@ -2133,6 +2215,12 @@ function initMeniscusNav() {
         savedView = localStorage.getItem('activeDashboardView') || 'vista-general';
     } catch(e) {}
     
+    if (savedView === 'configuracion') {
+        openConfigView();
+        initBeadDragInteraction();
+        return;
+    }
+
     const container = document.getElementById('nav-container');
     if (!container) return;
     
@@ -2597,4 +2685,864 @@ async function eliminarEquipoRemoto(equipoId) {
         console.error('Error eliminando equipo:', e);
     }
 }
+
+// ----------------- SISTEMA DE CONFIGURACIÓN DEL SISTEMA -----------------
+let cachedConfig = null;
+
+function openConfigView() {
+    switchCanvasView('configuracion');
+    try {
+        localStorage.setItem('activeDashboardView', 'configuracion');
+    } catch(e) {}
+
+    // Deselect main nav items
+    const container = document.getElementById('nav-container');
+    if (container) {
+        container.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+    }
+
+    // Highlight footer config button with sidebar primary magenta neon color
+    const cfgBtn = document.getElementById('footer-btn-config');
+    const iconBox = document.getElementById('footer-config-icon-box');
+    const textEl = document.getElementById('footer-config-text');
+    if (cfgBtn) {
+        cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+    }
+    if (iconBox) {
+        iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
+    }
+    if (textEl) {
+        textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
+    }
+
+    // Update telemetry URL dynamically based on host
+    const teleUrl = document.getElementById('cfg-telemetry-url-text');
+    if (teleUrl) {
+        teleUrl.innerText = `http://${window.location.host}/api/telemetria/reportar`;
+    }
+
+    loadConfigData();
+}
+window.openConfigView = openConfigView;
+
+function openContactModal(show = true) {
+    const modal = document.getElementById('contact-modal');
+    if (!modal) return;
+    if (show) {
+        modal.classList.remove('hidden');
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+window.openContactModal = openContactModal;
+
+function showConfigToast(msg, isError = false) {
+    const toast = document.getElementById('config-status-toast');
+    const msgEl = document.getElementById('config-status-toast-msg');
+    const content = document.getElementById('config-status-toast-content');
+    if (!toast || !msgEl || !content) return;
+
+    msgEl.innerText = msg;
+    if (isError) {
+        toast.className = 'p-3 rounded-xl border border-error/50 bg-error/15 text-error text-xs font-semibold flex items-center justify-between gap-3 shadow-lg transition-all duration-300 animate-pulse';
+        const icon = content.querySelector('.material-symbols-outlined');
+        if (icon) icon.innerText = 'error';
+    } else {
+        toast.className = 'p-3 rounded-xl border border-emerald-400/50 bg-emerald-400/15 text-emerald-400 text-xs font-semibold flex items-center justify-between gap-3 shadow-lg transition-all duration-300';
+        const icon = content.querySelector('.material-symbols-outlined');
+        if (icon) icon.innerText = 'check_circle';
+    }
+    toast.classList.remove('hidden');
+
+    setTimeout(() => {
+        if (toast) toast.classList.add('hidden');
+    }, 5000);
+}
+
+function toggleKeyVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const isPass = input.type === 'password';
+    input.type = isPass ? 'text' : 'password';
+    const btn = input.nextElementSibling;
+    if (btn) {
+        const icon = btn.querySelector('.material-symbols-outlined');
+        if (icon) icon.innerText = isPass ? 'visibility_off' : 'visibility';
+    }
+}
+window.toggleKeyVisibility = toggleKeyVisibility;
+
+// Logos e Iconos Vectoriales Oficiales (SVGs auténticos de cada marca)
+const PROVIDER_SVGS = {
+    deepseek: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2C6.48 2 2 6.48 2 12c0 2.85 1.2 5.42 3.12 7.24L4 21l3.2-.88A9.95 9.95 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm1 14.5c-2.48 0-4.5-1.57-4.5-3.5S10.52 9.5 13 9.5s4.5 1.57 4.5 3.5-2.02 3.5-4.5 3.5zm2.5-4.5a1 1 0 11-2 0 1 1 0 012 0z" fill="#0066FF"/>
+        <path d="M7 11.5c.8-1.5 2.5-2.5 4.5-2.5 1.5 0 2.8.6 3.7 1.5.3-.2.8-.5 1.3-.6-1.2-1.4-3-2.4-5-2.4-3.3 0-6 2.3-6.5 5.5.3-.2.7-.4 1.1-.5.3-.4.6-.7.9-1z" fill="#38BDF8"/>
+    </svg>`,
+    groq: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="24" height="24" rx="5" fill="#F55036"/>
+        <path d="M12.5 6.5C8.9 6.5 6.5 9 6.5 12.3c0 3.3 2.4 5.8 6 5.8 2.2 0 4-1 4.9-2.7h-2.5c-.6.8-1.4 1.2-2.4 1.2-1.9 0-3.3-1.4-3.4-3.3h8.6c.1-.4.1-.7.1-1 0-3.4-2.2-5.8-5.3-5.8zm-3.3 4.8c.2-1.7 1.4-2.9 3.2-2.9 1.8 0 3 1.2 3.1 2.9H9.2z" fill="#FFFFFF"/>
+    </svg>`,
+    qwen: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 7v10l9 5 9-5V7l-9-5zm0 3.2l6 3.3v6.8l-6 3.3-6-3.3v-6.8l6-3.3z" fill="#615CED"/>
+        <path d="M12 7.5l4 2.2v4.5l-4 2.2-4-2.2V9.7l4-2.2z" fill="#00C9A7"/>
+    </svg>`,
+    openrouter: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`,
+    mistral: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 4h3.2v3.2H4zm12.8 0H20v3.2h-3.2zm-9.6 4.8h3.2v3.2H7.2zm6.4 0h3.2v3.2h-3.2zm-3.2 4.8h3.2v3.2h-3.2zm-3.2 4.8h3.2v3.2H7.2zm6.4 0h3.2v3.2h-3.2z" fill="#FA520F"/>
+    </svg>`,
+    ollama: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2a4 4 0 00-4 4v2H7a3 3 0 00-3 3v5a4 4 0 004 4h1v2h2v-2h2v2h2v-2h1a4 4 0 004-4v-5a3 3 0 00-3-3h-1V6a4 4 0 00-4-4zm-2 5a1 1 0 110-2 1 1 0 010 2zm4 0a1 1 0 110-2 1 1 0 010 2z" fill="#FFFFFF"/>
+    </svg>`,
+    openai: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M22.28 9.37a5.98 5.98 0 00-.52-4.95 6.08 6.08 0 00-6.42-2.74A6.08 6.08 0 0010.5 0a6.04 6.04 0 00-5.75 4.13 6.02 6.02 0 00-3.9 2.84 6.08 6.08 0 00.7 6.94 6.03 6.03 0 00.52 4.95 6.08 6.08 0 006.42 2.74A6.08 6.08 0 0013.5 24a6.04 6.04 0 005.75-4.13 6.02 6.02 0 003.9-2.84 6.08 6.08 0 00-.87-7.66zm-7.6 12.75a4.48 4.48 0 01-2.92-1.07l.15-.09 4.8-2.77a.8.8 0 00.4-.69v-6.78l2.03 1.17a.08.08 0 01.04.06v5.7a4.5 4.5 0 01-4.5 4.47zm-10.7-3.9a4.5 4.5 0 01-.54-3.1 4.54 4.54 0 011.6-2.58l.15.09 4.8 2.77a.8.8 0 00.8 0l5.87-3.39v2.34a.08.08 0 01-.03.07l-4.94 2.85a4.5 4.5 0 01-6.1-1.05zm-1.8-10.72a4.5 4.5 0 012.38-2.03 4.53 4.53 0 013.04.31v.17l-4.8 2.77a.8.8 0 00-.4.69v6.78l-2.03-1.17a.08.08 0 01-.04-.07v-5.7a4.5 4.5 0 011.85-1.75zm15.13 3.32l-5.87 3.39v-2.35a.08.08 0 01.03-.07l4.94-2.85a4.5 4.5 0 016.1 1.05 4.5 4.5 0 01.54 3.1 4.54 4.54 0 01-1.6 2.58l-.14-.09-4.8-2.77a.8.8 0 00-.8 0zm2.97-2.39v-.17l4.8-2.77a.8.8 0 00.4-.69v-6.78l2.03 1.17a.08.08 0 01.04.07v5.7a4.5 4.5 0 01-2.38 2.03 4.53 4.53 0 01-3.04-.31l-1.85 1.07zm-10.5 4.14l2.67-1.54 2.67 1.54v3.08l-2.67 1.54-2.67-1.54v-3.08z" fill="#10A37F"/>
+    </svg>`,
+    gemini: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 24C12 17.373 6.627 12 0 12C6.627 12 12 6.627 12 0C12 6.627 17.373 12 24 12C17.373 12 12 17.373 12 24Z" fill="url(#gemini-grad-svg)"/>
+        <defs>
+            <linearGradient id="gemini-grad-svg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#4E82EE"/>
+                <stop offset="50%" stop-color="#9B72CB"/>
+                <stop offset="100%" stop-color="#D96570"/>
+            </linearGradient>
+        </defs>
+    </svg>`,
+    anthropic: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14.5 3h-5l-6.5 18h4.5l1.3-3.8h6.4l1.3 3.8h4.5L14.5 3zm-4.3 10.7l2.3-6.8 2.3 6.8h-4.6z" fill="#D97757"/>
+    </svg>`,
+    xai: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" fill="#FFFFFF"/>
+    </svg>`,
+    custom: `<svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" fill="#22D3EE"/>
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M9.9 2h4.2l.6 2.3c.5.2 1 .5 1.5.8l2.2-1 3 3-1 2.2c.3.5.6 1 .8 1.5l2.3.6v4.2l-2.3.6c-.2.5-.5 1-.8 1.5l1 2.2-3 3-2.2-1c-.5.3-1 .6-1.5.8l-.6 2.3H9.9l-.6-2.3c-.5-.2-1-.5-1.5-.8l-2.2 1-3-3 1-2.2c-.3-.5-.6-1-.8-1.5L1.5 14.1V9.9l2.3-.6c.2-.5.5-1 .8-1.5l-1-2.2 3-3 2.2 1c.5-.3 1-.6 1.5-.8L9.9 2zm2.1 15a5 5 0 100-10 5 5 0 000 10z" fill="#22D3EE"/>
+    </svg>`
+};
+
+// Catálogo de proveedores con NOMBRES PUROS (sin nombres de modelos)
+const PROVIDER_METADATA = {
+    deepseek: {
+        name: 'DeepSeek',
+        defaultUrl: 'https://api.deepseek.com/v1',
+        defaultModel: 'deepseek-chat'
+    },
+    groq: {
+        name: 'Groq',
+        defaultUrl: 'https://api.groq.com/openai/v1',
+        defaultModel: 'llama-3.3-70b-versatile'
+    },
+    qwen: {
+        name: 'Qwen',
+        defaultUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
+        defaultModel: 'qwen-plus'
+    },
+    openrouter: {
+        name: 'OpenRouter',
+        defaultUrl: 'https://openrouter.ai/api/v1',
+        defaultModel: 'anthropic/claude-3.7-sonnet'
+    },
+    mistral: {
+        name: 'Mistral AI',
+        defaultUrl: 'https://api.mistral.ai/v1',
+        defaultModel: 'mistral-large-latest'
+    },
+    ollama: {
+        name: 'Ollama',
+        defaultUrl: 'http://localhost:11434/v1',
+        defaultModel: 'llama3'
+    },
+    openai: {
+        name: 'OpenAI',
+        defaultUrl: 'https://api.openai.com/v1',
+        defaultModel: 'gpt-4o'
+    },
+    gemini: {
+        name: 'Google Gemini',
+        defaultUrl: '',
+        defaultModel: 'gemini-2.5-pro'
+    },
+    anthropic: {
+        name: 'Anthropic Claude',
+        defaultUrl: '',
+        defaultModel: 'claude-3-7-sonnet'
+    },
+    xai: {
+        name: 'xAI',
+        defaultUrl: 'https://api.x.ai/v1',
+        defaultModel: 'grok-2-latest'
+    },
+    custom: {
+        name: 'Personalizado',
+        defaultUrl: '',
+        defaultModel: ''
+    }
+};
+
+let activeProviders = ['deepseek'];
+let cachedConfigKeys = {};
+let cachedConfigBaseUrls = {};
+
+function getStoredProviders() {
+    try {
+        const stored = localStorage.getItem('tripulacion_active_providers');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed;
+            }
+        }
+    } catch (e) {}
+    return ['deepseek'];
+}
+
+function saveStoredProviders(list) {
+    try {
+        localStorage.setItem('tripulacion_active_providers', JSON.stringify(list));
+    } catch (e) {}
+}
+
+function renderProvidersList(keys = {}, baseUrls = {}) {
+    const container = document.getElementById('providers-list-container');
+    if (!container) return;
+
+    if (!activeProviders || activeProviders.length === 0) {
+        container.innerHTML = `
+            <div class="p-6 rounded-xl border border-dashed border-outline-variant/30 text-center text-xs text-on-surface-variant flex flex-col items-center gap-2.5">
+                <span class="material-symbols-outlined text-3xl text-cyan-400/60">hub</span>
+                <span>No hay proveedores configurados en este momento.</span>
+                <button onclick="abrirModalAgregarProveedor()" type="button" class="text-cyan-400 font-bold hover:underline cursor-pointer">
+                    + Agregar un Proveedor de IA
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = activeProviders.map(provId => {
+        const meta = PROVIDER_METADATA[provId] || {
+            name: provId.toUpperCase(),
+            defaultUrl: '',
+            defaultModel: ''
+        };
+        const svgIcon = PROVIDER_SVGS[provId] || '<span class="material-symbols-outlined text-[16px] text-cyan-400">hub</span>';
+        const valKey = keys[provId] !== undefined ? keys[provId] : (cachedConfigKeys[provId] || '');
+        const valUrl = baseUrls[provId] !== undefined ? baseUrls[provId] : (cachedConfigBaseUrls[provId] || meta.defaultUrl || '');
+        const hasKey = Boolean(valKey && String(valKey).trim().length > 0);
+
+        return `
+            <div class="p-3.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-2.5 transition-all" id="provider-card-${provId}">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center p-1 border border-outline-variant/30 shrink-0 shadow-sm">
+                            ${svgIcon}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-on-surface font-mono">${meta.name}</span>
+                            <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-container-highest text-on-surface-variant/80 uppercase">${provId}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span id="status-badge-${provId}" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${hasKey ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}">
+                            ${hasKey ? 'CONECTADA' : 'SIN CLAVE'}
+                        </span>
+                        <button onclick="abrirModalConfirmarEliminarProveedor('${provId}')" type="button" title="Retirar este proveedor" class="p-1 text-on-surface-variant hover:text-error rounded-lg hover:bg-error/10 transition-colors cursor-pointer">
+                            <span class="material-symbols-outlined text-[16px]">delete</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-mono text-on-surface-variant/70">API Key / Clave secreta (.env):</label>
+                    <div class="relative flex items-center">
+                        <input id="cfg-key-${provId}" type="password" value="${String(valKey).replace(/"/g, '&quot;')}" placeholder="sk-..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-3 pr-10 text-xs font-mono text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
+                        <button onclick="toggleKeyVisibility('cfg-key-${provId}')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
+                            <span class="material-symbols-outlined text-[17px]">visibility</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col gap-1">
+                    <label class="text-[10px] font-mono text-on-surface-variant/70">URL Base del Endpoint (Opcional):</label>
+                    <input id="cfg-url-${provId}" type="text" value="${String(valUrl).replace(/"/g, '&quot;')}" placeholder="${meta.defaultUrl || 'https://api.openai.com/v1'}" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 px-3 text-xs font-mono text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Control del Menú Desplegable con Logos Vectoriales Oficiales
+function renderModalDropdownOptions() {
+    const menu = document.getElementById('modal-prov-dropdown-menu');
+    if (!menu) return;
+
+    const list = Object.keys(PROVIDER_METADATA);
+    menu.innerHTML = list.map(id => {
+        const m = PROVIDER_METADATA[id];
+        const svg = PROVIDER_SVGS[id] || '<span class="material-symbols-outlined text-[16px]">hub</span>';
+        return `
+            <div onclick="seleccionarOpcionProveedor('${id}')" class="px-3 py-2 hover:bg-cyan-400/10 hover:text-cyan-400 flex items-center gap-2.5 cursor-pointer transition-colors text-xs font-mono text-on-surface">
+                <div class="w-5 h-5 rounded-md bg-surface-container-high/70 flex items-center justify-center p-0.5 border border-outline-variant/30 shrink-0">
+                    ${svg}
+                </div>
+                <span class="font-bold">${m.name}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleDropdownProveedores(forceOpen) {
+    const menu = document.getElementById('modal-prov-dropdown-menu');
+    const arrow = document.getElementById('modal-prov-dropdown-arrow');
+    if (!menu) return;
+
+    const shouldOpen = forceOpen !== undefined ? forceOpen : menu.classList.contains('hidden');
+    if (shouldOpen) {
+        menu.classList.remove('hidden');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+    } else {
+        menu.classList.add('hidden');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+}
+window.toggleDropdownProveedores = toggleDropdownProveedores;
+
+document.addEventListener('click', (e) => {
+    const btn = document.getElementById('modal-prov-dropdown-btn');
+    const menu = document.getElementById('modal-prov-dropdown-menu');
+    if (menu && !menu.classList.contains('hidden')) {
+        if (btn && !btn.contains(e.target) && !menu.contains(e.target)) {
+            toggleDropdownProveedores(false);
+        }
+    }
+});
+
+function seleccionarOpcionProveedor(provId) {
+    const input = document.getElementById('modal-select-provider');
+    const display = document.getElementById('modal-prov-selected-display');
+    if (input) input.value = provId;
+
+    const meta = PROVIDER_METADATA[provId] || { name: provId.toUpperCase() };
+    const svg = PROVIDER_SVGS[provId] || '<span class="material-symbols-outlined text-[16px]">hub</span>';
+
+    if (display) {
+        display.innerHTML = `
+            <div class="w-5 h-5 rounded-md bg-surface-container-high/70 flex items-center justify-center p-0.5 border border-outline-variant/30 shrink-0">
+                ${svg}
+            </div>
+            <span class="font-bold text-xs text-on-surface font-mono">${meta.name}</span>
+        `;
+    }
+
+    toggleDropdownProveedores(false);
+    alCambiarProveedorSelect(provId);
+}
+window.seleccionarOpcionProveedor = seleccionarOpcionProveedor;
+
+function abrirModalAgregarProveedor() {
+    const modal = document.getElementById('modal-add-provider');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    
+    renderModalDropdownOptions();
+    seleccionarOpcionProveedor('groq');
+
+    const keyInput = document.getElementById('modal-prov-key');
+    if (keyInput) setTimeout(() => keyInput.focus(), 100);
+}
+window.abrirModalAgregarProveedor = abrirModalAgregarProveedor;
+
+function cerrarModalAgregarProveedor() {
+    const modal = document.getElementById('modal-add-provider');
+    if (modal) modal.classList.add('hidden');
+    toggleDropdownProveedores(false);
+}
+window.cerrarModalAgregarProveedor = cerrarModalAgregarProveedor;
+
+function alCambiarProveedorSelect(provId) {
+    const customGroup = document.getElementById('modal-custom-id-group');
+    const customInput = document.getElementById('modal-prov-custom-id');
+    const keyInput = document.getElementById('modal-prov-key');
+    const urlInput = document.getElementById('modal-prov-url');
+
+    if (provId === 'custom') {
+        if (customGroup) customGroup.classList.remove('hidden');
+        if (customInput) {
+            customInput.value = '';
+            customInput.focus();
+        }
+        if (keyInput) keyInput.value = '';
+        if (urlInput) urlInput.value = '';
+    } else {
+        if (customGroup) customGroup.classList.add('hidden');
+        const meta = PROVIDER_METADATA[provId] || {};
+        if (keyInput) keyInput.value = cachedConfigKeys[provId] || '';
+        if (urlInput) urlInput.value = cachedConfigBaseUrls[provId] || meta.defaultUrl || '';
+    }
+}
+window.alCambiarProveedorSelect = alCambiarProveedorSelect;
+
+function agregarModeloASelects(modelo) {
+    if (!modelo) return;
+    const selects = [
+        'cfg-default-model',
+        'cfg-model-luffy',
+        'cfg-model-zoro',
+        'cfg-model-sanji',
+        'cfg-model-robin',
+        'cfg-model-nami'
+    ];
+    selects.forEach(sId => {
+        const sel = document.getElementById(sId);
+        if (sel) {
+            const exists = Array.from(sel.options).some(o => o.value === modelo);
+            if (!exists) {
+                const opt = document.createElement('option');
+                opt.value = modelo;
+                opt.innerText = `${modelo} (Agregado)`;
+                sel.appendChild(opt);
+            }
+        }
+    });
+}
+
+async function guardarNuevoProveedorModal() {
+    const selEl = document.getElementById('modal-select-provider');
+    const customIdEl = document.getElementById('modal-prov-custom-id');
+    const keyEl = document.getElementById('modal-prov-key');
+    const urlEl = document.getElementById('modal-prov-url');
+    const saveBtn = document.getElementById('btn-modal-save-provider');
+
+    let provId = selEl ? selEl.value.trim().toLowerCase() : 'groq';
+    if (provId === 'custom') {
+        const customId = (customIdEl ? customIdEl.value.trim() : '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        if (!customId) {
+            showConfigToast('Debes ingresar un nombre o identificador para el proveedor personalizado.', true);
+            if (customIdEl) customIdEl.focus();
+            return;
+        }
+        provId = customId;
+    }
+
+    const key = keyEl ? keyEl.value.trim() : '';
+    const url = urlEl ? urlEl.value.trim() : '';
+
+    if (!key && provId !== 'ollama') {
+        showConfigToast('Ingresa la API Key para conectar este proveedor.', true);
+        if (keyEl) keyEl.focus();
+        return;
+    }
+
+    const meta = PROVIDER_METADATA[provId] || {
+        name: provId.toUpperCase(),
+        sub: 'Proveedor compatible OpenAI / Local',
+        icon: '⚙️',
+        defaultUrl: url,
+        defaultModel: ''
+    };
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Guardando en .env...</span>';
+    }
+
+    try {
+        const payloadKeys = { ...cachedConfigKeys };
+        const payloadUrls = { ...cachedConfigBaseUrls };
+
+        activeProviders.forEach(p => {
+            const k = document.getElementById(`cfg-key-${p}`);
+            const u = document.getElementById(`cfg-url-${p}`);
+            if (k) payloadKeys[p] = k.value.trim();
+            if (u && u.value.trim()) payloadUrls[p] = u.value.trim();
+        });
+
+        payloadKeys[provId] = key;
+        if (url) payloadUrls[provId] = url;
+
+        const getVal = id => {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        };
+
+        const payload = {
+            keys: payloadKeys,
+            base_urls: payloadUrls,
+            default_model: getVal('cfg-default-model') || 'deepseek-chat',
+            default_provider: activeProviders.includes('deepseek') ? 'deepseek' : provId,
+            modelos: {
+                luffy: getVal('cfg-model-luffy') || 'deepseek-chat',
+                zoro: getVal('cfg-model-zoro') || 'deepseek-chat',
+                sanji: getVal('cfg-model-sanji') || 'deepseek-chat',
+                robin: getVal('cfg-model-robin') || 'deepseek-chat',
+                nami: getVal('cfg-model-nami') || 'deepseek-chat'
+            },
+            presupuesto_maximo: parseFloat(getVal('cfg-presupuesto-max')) || 10.0,
+            telegram: {
+                token: getVal('cfg-telegram-token'),
+                chat_id: getVal('cfg-telegram-chatid')
+            }
+        };
+
+        const res = await fetch('/api/config/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.status === 'ok') {
+            if (!activeProviders.includes(provId)) {
+                activeProviders.push(provId);
+                saveStoredProviders(activeProviders);
+            }
+            cachedConfigKeys[provId] = key;
+            if (url) cachedConfigBaseUrls[provId] = url;
+
+            if (meta.defaultModel) {
+                agregarModeloASelects(meta.defaultModel);
+            }
+
+            renderProvidersList(cachedConfigKeys, cachedConfigBaseUrls);
+            cerrarModalAgregarProveedor();
+            showConfigToast(`¡Proveedor ${meta.name || provId.toUpperCase()} guardado exitosamente en .env!`);
+        } else {
+            showConfigToast(data.message || 'Error guardando en .env', true);
+        }
+    } catch (e) {
+        console.error('Error guardando proveedor en .env:', e);
+        showConfigToast('Error al comunicar con el servidor para guardar.', true);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Proveedor en .env</span>';
+        }
+    }
+}
+window.guardarNuevoProveedorModal = guardarNuevoProveedorModal;
+window.confirmarAgregarProveedor = guardarNuevoProveedorModal;
+
+let pendingDeleteProviderId = null;
+
+function abrirModalConfirmarEliminarProveedor(provId) {
+    pendingDeleteProviderId = provId;
+    const modal = document.getElementById('modal-confirm-delete-provider');
+    if (!modal) return;
+
+    const meta = PROVIDER_METADATA[provId] || { name: provId.toUpperCase() };
+    const titleEl = document.getElementById('modal-delete-prov-title');
+
+    if (titleEl) {
+        titleEl.innerText = meta.name;
+    }
+
+    modal.classList.remove('hidden');
+}
+window.abrirModalConfirmarEliminarProveedor = abrirModalConfirmarEliminarProveedor;
+
+function cerrarModalConfirmarEliminarProveedor() {
+    pendingDeleteProviderId = null;
+    const modal = document.getElementById('modal-confirm-delete-provider');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+window.cerrarModalConfirmarEliminarProveedor = cerrarModalConfirmarEliminarProveedor;
+
+async function ejecutarEliminarProveedor() {
+    const provId = pendingDeleteProviderId;
+    if (!provId) {
+        cerrarModalConfirmarEliminarProveedor();
+        return;
+    }
+
+    const btn = document.getElementById('btn-modal-confirm-delete');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Eliminando...</span>';
+    }
+
+    try {
+        await fetch(`/api/config/env/${provId}`, { method: 'DELETE' });
+    } catch (e) {
+        console.warn('Error llamando delete backend:', e);
+    }
+
+    delete cachedConfigKeys[provId];
+    delete cachedConfigBaseUrls[provId];
+
+    activeProviders = activeProviders.filter(p => p !== provId);
+    saveStoredProviders(activeProviders);
+
+    renderProvidersList(cachedConfigKeys, cachedConfigBaseUrls);
+    cerrarModalConfirmarEliminarProveedor();
+
+    const meta = PROVIDER_METADATA[provId] || { name: provId };
+    showConfigToast(`Proveedor ${meta.name} eliminado.`);
+
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">delete</span><span>Eliminar</span>';
+    }
+}
+window.ejecutarEliminarProveedor = ejecutarEliminarProveedor;
+
+// Mantener compatibilidad hacia atrás
+function eliminarProveedorConfig(provId) {
+    abrirModalConfirmarEliminarProveedor(provId);
+}
+window.eliminarProveedorConfig = eliminarProveedorConfig;
+
+async function loadConfigData() {
+    try {
+        const res = await fetch('/api/config/env');
+        if (!res.ok) throw new Error('Error al consultar configuración');
+        const data = await res.json();
+        cachedConfig = data;
+
+        const keys = data.keys || {};
+        const baseUrls = data.base_urls || {};
+        cachedConfigKeys = { ...keys };
+        cachedConfigBaseUrls = { ...baseUrls };
+
+        // Providers list initialization
+        activeProviders = getStoredProviders();
+        if (!activeProviders.includes('deepseek')) {
+            activeProviders.unshift('deepseek');
+        }
+
+        renderProvidersList(cachedConfigKeys, cachedConfigBaseUrls);
+
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val || '';
+        };
+
+        // Default Model
+        if (data.default_model) {
+            const defSel = document.getElementById('cfg-default-model');
+            if (defSel) {
+                const hasOption = Array.from(defSel.options).some(o => o.value === data.default_model);
+                if (!hasOption) {
+                    const opt = document.createElement('option');
+                    opt.value = data.default_model;
+                    opt.innerText = data.default_model;
+                    defSel.appendChild(opt);
+                }
+                defSel.value = data.default_model;
+            }
+        }
+
+        // Agent Models
+        const mods = data.modelos || {};
+        const agents = ['luffy', 'zoro', 'sanji', 'robin', 'nami'];
+        agents.forEach(ag => {
+            const agMod = mods[ag] || data.default_model || 'deepseek-chat';
+            const selectEl = document.getElementById(`cfg-model-${ag}`);
+            if (selectEl) {
+                const hasOption = Array.from(selectEl.options).some(o => o.value === agMod);
+                if (!hasOption && agMod) {
+                    const opt = document.createElement('option');
+                    opt.value = agMod;
+                    opt.innerText = agMod;
+                    selectEl.appendChild(opt);
+                }
+                selectEl.value = agMod;
+            }
+        });
+
+        // Presupuesto
+        if (data.presupuesto_maximo !== undefined) {
+            setVal('cfg-presupuesto-max', data.presupuesto_maximo);
+            const presVal = parseFloat(data.presupuesto_maximo) || 10.0;
+            const elPresBadge = document.getElementById('cfg-presupuesto-consumo-badge');
+            const curCost = (window.cachedCostos && typeof window.cachedCostos.costo === 'number') ? window.cachedCostos.costo : 0.0;
+            if (elPresBadge) {
+                elPresBadge.innerText = `$${curCost.toFixed(2)} / $${presVal.toFixed(2)} USD`;
+            }
+        }
+
+        // Telegram
+        if (data.telegram) {
+            setVal('cfg-telegram-token', data.telegram.token || '');
+            setVal('cfg-telegram-chatid', data.telegram.chat_id || '');
+        }
+
+    } catch (e) {
+        console.error('Error cargando configuración:', e);
+        showConfigToast('No se pudo cargar la configuración del sistema.', true);
+    }
+}
+window.loadConfigData = loadConfigData;
+
+async function guardarTodaLaConfiguracion() {
+    const saveBtn = document.getElementById('btn-save-all-config');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Guardando...</span>';
+    }
+
+    try {
+        const getVal = id => {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        };
+
+        const keys = {};
+        const base_urls = {};
+        activeProviders.forEach(provId => {
+            const kEl = document.getElementById(`cfg-key-${provId}`);
+            const uEl = document.getElementById(`cfg-url-${provId}`);
+            if (kEl) {
+                keys[provId] = kEl.value.trim();
+                cachedConfigKeys[provId] = keys[provId];
+            }
+            if (uEl) {
+                const urlVal = uEl.value.trim();
+                if (urlVal) {
+                    base_urls[provId] = urlVal;
+                    cachedConfigBaseUrls[provId] = urlVal;
+                }
+            }
+        });
+
+        const payload = {
+            keys,
+            base_urls,
+            default_model: getVal('cfg-default-model') || 'deepseek-chat',
+            default_provider: activeProviders.includes('deepseek') ? 'deepseek' : (activeProviders[0] || 'deepseek'),
+            modelos: {
+                luffy: getVal('cfg-model-luffy') || 'deepseek-chat',
+                zoro: getVal('cfg-model-zoro') || 'deepseek-chat',
+                sanji: getVal('cfg-model-sanji') || 'deepseek-chat',
+                robin: getVal('cfg-model-robin') || 'deepseek-chat',
+                nami: getVal('cfg-model-nami') || 'deepseek-chat'
+            },
+            presupuesto_maximo: parseFloat(getVal('cfg-presupuesto-max')) || 10.0,
+            telegram: {
+                token: getVal('cfg-telegram-token'),
+                chat_id: getVal('cfg-telegram-chatid')
+            }
+        };
+
+        const res = await fetch('/api/config/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.status === 'ok') {
+            showConfigToast('¡Configuración guardada exitosamente en .env!');
+            
+            // Actualizar inmediatamente la insignia de presupuesto y métricas en pantalla
+            const newPresMax = parseFloat(getVal('cfg-presupuesto-max')) || 10.0;
+            const curCost = (window.cachedCostos && typeof window.cachedCostos.costo === 'number') ? window.cachedCostos.costo : 0.0;
+            const elPresBadge = document.getElementById('cfg-presupuesto-consumo-badge');
+            if (elPresBadge) {
+                elPresBadge.innerText = `$${curCost.toFixed(2)} / $${newPresMax.toFixed(2)} USD`;
+            }
+            const elPresBar = document.getElementById('cfg-presupuesto-bar');
+            if (elPresBar && newPresMax > 0) {
+                const pct = Math.min((curCost / newPresMax) * 100, 100);
+                elPresBar.style.width = pct + '%';
+            }
+            const elPresPct = document.getElementById('cfg-presupuesto-pct-text');
+            if (elPresPct && newPresMax > 0) {
+                const pct = ((curCost / newPresMax) * 100).toFixed(1);
+                elPresPct.innerText = `${pct}% consumido`;
+            }
+            const mCostSub = document.getElementById('metric-cost-sub');
+            if (mCostSub && newPresMax > 0) {
+                const pct = ((curCost / newPresMax) * 100).toFixed(1);
+                mCostSub.innerText = `Presupuesto ($${newPresMax.toFixed(2)}): ${pct}%`;
+            }
+
+            activeProviders.forEach(provId => {
+                const badge = document.getElementById(`status-badge-${provId}`);
+                const hasKey = Boolean(keys[provId]);
+                if (badge) {
+                    badge.className = `text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${hasKey ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}`;
+                    badge.innerText = hasKey ? 'CONECTADA' : 'SIN CLAVE';
+                }
+            });
+        } else {
+            showConfigToast(data.message || 'Error guardando cambios.', true);
+        }
+    } catch (e) {
+        console.error('Error guardando configuración:', e);
+        showConfigToast('Error de comunicación con el servidor.', true);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Cambios</span>';
+        }
+    }
+}
+window.guardarTodaLaConfiguracion = guardarTodaLaConfiguracion;
+
+async function reiniciarTripulacionDesdeConfig() {
+    if (!confirm('¿Deseas reiniciar los agentes y servicios de la tripulación?')) return;
+    try {
+        const res = await fetch('/api/system/restart', { method: 'POST' });
+        const data = await res.json();
+        showConfigToast(data.message || 'Orden de reinicio enviada correctamente.');
+    } catch (e) {
+        showConfigToast('Error al intentar reiniciar el servicio.', true);
+    }
+}
+window.reiniciarTripulacionDesdeConfig = reiniciarTripulacionDesdeConfig;
+
+async function probarTelegramTest() {
+    const btn = document.getElementById('btn-test-telegram');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Enviando prueba...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/config/test-telegram', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            showConfigToast(data.message);
+        } else {
+            showConfigToast(data.message, true);
+        }
+    } catch (e) {
+        showConfigToast('Error al conectar con Telegram.', true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">notifications_active</span><span>Enviar Mensaje de Prueba al Bot</span>';
+        }
+    }
+}
+window.probarTelegramTest = probarTelegramTest;
+
+async function resetearCostosMes() {
+    if (!confirm('¿Estás seguro de que deseas restablecer el acumulador de consumo y costos a $0.00?')) return;
+    try {
+        const res = await fetch('/api/config/reset-costos', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            showConfigToast(data.message);
+        } else {
+            showConfigToast(data.message, true);
+        }
+    } catch (e) {
+        showConfigToast('Error restableciendo costos.', true);
+    }
+}
+window.resetearCostosMes = resetearCostosMes;
+
+function copiarUrlTelemetria() {
+    const text = `http://${window.location.host}/api/telemetria/reportar`;
+    navigator.clipboard.writeText(text).then(() => {
+        showConfigToast('¡URL de telemetría copiada al portapapeles!');
+    }).catch(() => {
+        showConfigToast('No se pudo copiar automáticamente. URL: ' + text);
+    });
+}
+window.copiarUrlTelemetria = copiarUrlTelemetria;
+
 
