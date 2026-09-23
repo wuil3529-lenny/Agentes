@@ -1,0 +1,14 @@
+{
+  "pendientes": {},
+  "historial": {
+    "cliente-retail-demo": [
+      {
+        "id": "cmd-1790125585281",
+        "accion": "reiniciar_tripulacion",
+        "exito": null,
+        "salida": "En cola de entrega para el próximo latido de la flota...",
+        "hora": "2026-09-22 21:06:25"
+      }
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="dark" lang="es" style=""><head>
+<!DOCTYPE html><html class="dark h-full overflow-hidden" lang="es" style="height: 100%; overflow: hidden;"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
 <title>AgenticOS - Vista General</title>
@@ -155,6 +155,13 @@
         }
       </script>
 <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
         body {
             background-color: #0a0a12;
             color: #e8e0f0;
@@ -330,14 +337,57 @@
             color: #ffffff;
             font-weight: 700;
             text-shadow: 0 0 12px rgba(255, 45, 120, 0.6);
+        /* Cyber Security Shield Orbital Scanner & Reactive Animations */
+        @keyframes shieldOrbitalSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-
+        @keyframes lockSnapPulse {
+            0% { transform: scale(0.85); }
+            45% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        .shield-scanner-box {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.35s ease;
+        }
+        .shield-scanner-box::before {
+            content: '';
+            position: absolute;
+            inset: -60%;
+            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(244, 63, 94, 0.3) 80%, rgba(244, 63, 94, 0.95) 98%, #ffffff 100%);
+            animation: shieldOrbitalSpin 2.2s linear infinite;
+            pointer-events: none;
+            border-radius: 50%;
+            transition: background 0.4s ease;
+        }
+        .shield-scanner-box.active-shield::before {
+            background: conic-gradient(from 0deg, transparent 0%, transparent 55%, rgba(16, 185, 129, 0.35) 80%, rgba(52, 211, 153, 0.95) 98%, #ffffff 100%);
+            animation: shieldOrbitalSpin 1.6s linear infinite;
+        }
+        .shield-scanner-box::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            background: #141122;
+            border-radius: 0.95rem;
+            z-index: 1;
+        }
+        .shield-scanner-box .shield-icon-content {
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+        .lock-snap-anim {
+            animation: lockSnapPulse 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
 
 </style>
 </head>
-<body class="font-body-md text-on-surface antialiased flex h-screen overflow-hidden">
+<body class="font-body-md text-on-surface antialiased flex h-screen h-[100dvh] max-h-screen overflow-hidden">
 <!-- SideNavBar -->
-<nav class="bg-surface dark:bg-surface fixed left-0 top-0 h-full w-[260px] bg-surface-container-low border-r border-outline-variant flex flex-col h-screen py-6 z-40">
+<nav class="bg-surface dark:bg-surface fixed left-0 top-0 h-full w-[260px] bg-surface-container-low border-r border-outline-variant flex flex-col h-screen max-h-screen py-4 z-40 overflow-hidden">
 <!-- Header / Brand -->
 <div class="px-6 mb-8 flex items-center justify-center" style="margin-top: -40px;">
 <div class="w-32 flex items-center justify-center shrink-0">
@@ -392,30 +442,32 @@
     <span class="nav-label font-medium tracking-wide text-sm">Monitoreo</span>
   </a>
 </div>
-<!-- CTA Action -->
-<div class="px-6 mb-6">
-
-</div>
 <!-- Footer Navigation -->
-<div class="flex flex-col gap-1.5 px-3 mt-auto pt-4 border-t border-outline-variant/20">
-  <button onclick="openConfigView()" type="button" id="footer-btn-config" class="w-full !py-2.5 !text-xs text-on-surface-variant hover:text-white flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent">
+<div class="flex flex-col gap-1 px-3 mt-auto pt-3 border-t border-outline-variant/20 shrink-0">
+  <button onclick="openConfigView()" type="button" id="footer-btn-config" class="w-full !py-2 !text-xs text-on-surface-variant hover:text-white flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent">
     <span id="footer-config-icon-box" class="w-7 h-7 flex items-center justify-center rounded-lg bg-primary/10 border border-primary/30 text-primary group-hover:shadow-[0_0_10px_rgba(255,45,120,0.4)] transition-all shrink-0">
       <span class="material-symbols-outlined text-[17px]">settings</span>
     </span>
     <span id="footer-config-text" class="font-medium">Configuración</span>
   </button>
-  <button onclick="openContactModal(true)" type="button" id="footer-btn-contact" class="w-full !py-2.5 !text-xs text-on-surface-variant hover:text-on-surface flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent">
-    <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-surface-container-high/60 border border-outline-variant/30 text-on-surface-variant shrink-0">
-      <span class="material-symbols-outlined text-[17px]">help</span>
+  <button onclick="openSecurityModal(true)" type="button" id="footer-btn-security" class="w-full !py-2 !text-xs text-on-surface-variant hover:text-white flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent">
+    <span id="footer-security-icon-box" class="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-400 group-hover:shadow-[0_0_10px_rgba(244,63,94,0.4)] transition-all shrink-0">
+      <span class="material-symbols-outlined text-[17px]">shield_lock</span>
     </span>
-    <span class="font-medium">Contacto</span>
+    <span id="footer-security-text" class="font-medium">Seguridad</span>
+  </button>
+  <button onclick="openContactModal(true)" type="button" id="footer-btn-contact" class="w-full !py-2 !text-xs text-on-surface-variant hover:text-white flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none group border border-transparent">
+    <span class="w-7 h-7 flex items-center justify-center rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 group-hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all shrink-0">
+      <span class="material-symbols-outlined text-[17px]">contact_support</span>
+    </span>
+    <span class="font-medium">Contacto & Privacidad</span>
   </button>
 </div>
 </nav>
 <!-- Main Content Area -->
-<div class="flex-1 flex flex-col ml-[260px] relative h-full">
+<div class="flex-1 flex flex-col ml-[260px] relative h-full h-screen max-h-screen min-h-0 overflow-hidden">
 <!-- TopAppBar -->
-<header class="bg-surface/80 backdrop-blur-xl bg-surface-container border-b border-outline-variant/50 flex justify-between items-center h-16 px-8 sticky top-0 z-50">
+<header class="shrink-0 bg-surface/80 backdrop-blur-xl bg-surface-container border-b border-outline-variant/50 flex justify-between items-center h-16 px-8 z-30">
 <!-- Left: Brand / Title -->
 <div class="flex items-center gap-4">
 </div>
@@ -444,10 +496,10 @@
   <div class="relative" id="profile-menu-container">
     <button id="profile-toggle-btn" onclick="toggleProfileDropdown(event)" class="flex items-center gap-3 p-1.5 pr-3 rounded-xl bg-surface-container/50 border border-outline-variant/40 hover:border-primary/50 hover:bg-surface-container transition-all duration-200 cursor-pointer group">
       <div class="w-8 h-8 rounded-lg overflow-hidden border border-primary/40 group-hover:border-primary group-hover:shadow-[0_0_10px_rgba(255,45,120,0.5)] transition-all relative">
-        <img alt="Capitán" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=LuffyCaptain&backgroundColor=0f0f1a">
+        <img id="header-profile-avatar" alt="Capitán" class="w-full h-full object-cover" src="/static/avatars/bot_cyan.jpg">
       </div>
       <div class="flex flex-col text-left">
-        <span class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors leading-tight">Capitán</span>
+        <span id="header-profile-name" class="text-xs font-bold text-on-surface group-hover:text-primary transition-colors leading-tight">Capitán</span>
         <span class="text-[10px] font-label-caps text-on-surface-variant/70 leading-none">En Línea</span>
       </div>
       <span class="material-symbols-outlined text-on-surface-variant text-[18px] group-hover:text-on-surface transition-transform group-hover:rotate-180 duration-200">expand_more</span>
@@ -458,16 +510,27 @@
       <!-- User Info -->
       <div class="flex items-center gap-3 pb-3 border-b border-outline-variant/30">
         <div class="w-10 h-10 rounded-xl overflow-hidden border border-primary/50 shrink-0">
-          <img alt="Avatar" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=LuffyCaptain&backgroundColor=0f0f1a">
+          <img id="dropdown-profile-avatar" alt="Avatar" class="w-full h-full object-cover" src="/static/avatars/bot_cyan.jpg">
         </div>
         <div class="flex flex-col min-w-0">
-          <span class="text-sm font-bold text-on-surface truncate">Capitán</span>
-          <span class="text-xs text-on-surface-variant font-mono truncate">admin@tripulacion.os</span>
+          <span id="dropdown-profile-name" class="text-sm font-bold text-on-surface truncate">Capitán</span>
+          <span id="dropdown-profile-user" class="text-xs text-on-surface-variant font-mono truncate">admin@tripulacion.os</span>
         </div>
       </div>
 
+      <!-- Change Avatar & Security Action -->
+      <div class="py-2 border-b border-outline-variant/30">
+        <button onclick="toggleProfileDropdown(event); openSecurityModal(true)" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-surface-container-high text-xs text-on-surface hover:text-primary transition-colors cursor-pointer group">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px] text-primary">account_circle</span>
+            <span class="font-medium">Cambiar Avatar & Perfil</span>
+          </div>
+          <span class="material-symbols-outlined text-[14px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">chevron_right</span>
+        </button>
+      </div>
+
       <!-- Logout Action -->
-      <div class="pt-2.5">
+      <div class="pt-2">
         <button id="logout-btn" onclick="alert('Cerrando sesión de la consola...')" class="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-error/10 border border-error/30 text-error hover:bg-error hover:text-white hover:border-error transition-all duration-200 text-xs font-bold shadow-sm cursor-pointer">
           <span class="material-symbols-outlined text-[16px]">logout</span>
           <span>Cerrar Sesión</span>
@@ -477,7 +540,41 @@
   </div>
 </div>
 </header>
-<main id="main-canvas" class="flex-1 overflow-y-auto p-6 lg:p-8 transition-[margin] duration-75 flex flex-col gap-6" style="margin-right: 320px;">
+
+<!-- BANNER Y OVERLAY DE ALARMA DE INTRUSIÓN PERIMETRAL -->
+<div id="security-alarm-overlay" class="hidden fixed inset-0 pointer-events-none z-50 transition-opacity duration-300" style="box-shadow: inset 0 0 70px rgba(255, 60, 60, 0.55); border: 3px solid rgba(255, 60, 60, 0.75);"></div>
+
+<div id="security-alarm-banner" class="hidden shrink-0 mx-6 lg:mx-8 mt-3 rounded-2xl bg-gradient-to-r from-red-950/95 via-red-900/95 to-red-950/95 border-2 border-red-500 shadow-[0_0_35px_rgba(239,68,68,0.45)] p-4 flex flex-col md:flex-row items-center justify-between gap-3 text-white z-40 animate-pulse">
+  <div class="flex items-center gap-3 w-full md:w-auto">
+    <div class="w-11 h-11 rounded-xl bg-red-600/30 border border-red-400 flex items-center justify-center text-red-200 shrink-0">
+      <span class="material-symbols-outlined text-[26px] animate-bounce">warning</span>
+    </div>
+    <div class="flex flex-col min-w-0">
+      <div class="flex items-center gap-2">
+        <span class="text-[11px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-red-600 text-white font-mono shadow-sm">¡Alerta de Intrusión Bloqueada!</span>
+        <span class="text-xs text-red-200 font-mono" id="alarm-banner-time">En vivo</span>
+      </div>
+      <p class="text-xs text-red-100 font-mono mt-1 leading-tight" id="alarm-banner-details">
+        Intento de conexión no autorizado detectado desde IP desconocida. El cortafuegos perimetral cerró el acceso.
+      </p>
+    </div>
+  </div>
+  <div class="flex items-center gap-2 shrink-0 w-full md:w-auto justify-end">
+    <button id="btn-toggle-sirena" onclick="toggleMuteSirena()" type="button" class="px-3 py-1.5 rounded-xl bg-red-800/80 hover:bg-red-700 border border-red-400/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow">
+      <span class="material-symbols-outlined text-[16px]" id="icon-sirena">volume_up</span>
+      <span id="text-sirena">Silenciar Sirena</span>
+    </button>
+    <button onclick="openSecurityModal(true)" type="button" class="px-3 py-1.5 rounded-xl bg-surface-container-high/90 hover:bg-surface-container-highest border border-outline-variant/50 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow">
+      <span class="material-symbols-outlined text-[16px] text-cyan-400">shield</span>
+      <span>Ver Incidentes</span>
+    </button>
+    <button onclick="descartarAlarmaIntrusion()" type="button" class="p-1.5 rounded-xl hover:bg-red-800/80 text-red-300 hover:text-white cursor-pointer transition-colors" title="Descartar alarma">
+      <span class="material-symbols-outlined text-[18px]">close</span>
+    </button>
+  </div>
+</div>
+
+<main id="main-canvas" class="flex-1 min-h-0 overflow-y-auto p-6 lg:p-8 transition-[margin] duration-75 flex flex-col gap-6" style="margin-right: 320px;">
   
   <!-- VIEW 1: VISTA GENERAL -->
   <div id="view-vista-general" class="flex flex-col gap-6 w-full transition-all duration-300">
@@ -1275,8 +1372,8 @@
         </div>
 
         <!-- SECTION 2: ASIGNACIÓN DE MODELOS POR AGENTE -->
-        <div class="glass-panel rounded-2xl p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
-          <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3.5 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
             <div class="flex items-center gap-2.5">
               <span class="material-symbols-outlined text-secondary text-[20px]">smart_toy</span>
               <h3 class="font-bold text-sm text-on-surface">Asignación de Modelos por Agente</h3>
@@ -1284,138 +1381,94 @@
             <span class="text-[10px] font-mono text-secondary">Tripulación IA</span>
           </div>
 
-          <p class="text-xs text-on-surface-variant/80">Selecciona el modelo específico con el que operará cada agente según su rol y requerimientos.</p>
+          <p class="text-xs text-on-surface-variant/80 -mt-1">Selecciona el modelo específico con el que operará cada agente según su rol y requerimientos.</p>
 
           <!-- Global Default Model -->
-          <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
+          <div class="p-2.5 sm:p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 flex flex-wrap items-center justify-between gap-2.5">
             <div class="flex flex-col">
               <span class="text-xs font-bold text-on-surface">Modelo General por Defecto</span>
               <span class="text-[10px] text-on-surface-variant/70">Fallback para operaciones globales</span>
             </div>
-            <select id="cfg-default-model" class="bg-surface-container-highest border border-outline-variant/50 rounded-xl py-1.5 px-3 text-xs font-mono text-on-surface focus:outline-none focus:border-primary/60 transition-colors">
+            <select id="cfg-default-model" class="bg-surface-container-highest border border-outline-variant/50 rounded-xl py-1 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary/60 transition-colors">
               <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
               <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-              <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-              <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-              <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-              <option value="gpt-4o">gpt-4o (OpenAI)</option>
-              <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-              <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-              <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-              <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-              <option value="llama3">llama3 (Ollama)</option>
             </select>
           </div>
 
-          <!-- 5 Agents Roster -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <!-- 5 Agents Roster in 3 columns -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-0.5">
             <!-- Luffy -->
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_#ff2d78]"></span>
-                <span class="font-bold text-xs text-primary uppercase font-mono">Luffy</span>
-                <span class="text-[9px] text-on-surface-variant/60 font-mono">Capitán / Orquestador</span>
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-primary shadow-[0_0_6px_#ff2d78] shrink-0"></span>
+                  <span class="font-bold text-xs text-primary uppercase font-mono">Luffy</span>
+                </div>
+                <span class="text-[9px] text-on-surface-variant/60 font-mono truncate">Capitán</span>
               </div>
-              <select id="cfg-model-luffy" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1.5 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-primary/60">
+              <select id="cfg-model-luffy" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1 px-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-primary/60 transition-colors">
                 <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-                <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-                <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-                <option value="gpt-4o">gpt-4o (OpenAI)</option>
-                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-                <option value="llama3">llama3 (Ollama)</option>
               </select>
             </div>
 
             <!-- Zoro -->
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_6px_#00ffcc]"></span>
-                <span class="font-bold text-xs text-secondary uppercase font-mono">Zoro</span>
-                <span class="text-[9px] text-on-surface-variant/60 font-mono">Código & Refactor</span>
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_6px_#00ffcc] shrink-0"></span>
+                  <span class="font-bold text-xs text-secondary uppercase font-mono">Zoro</span>
+                </div>
+                <span class="text-[9px] text-on-surface-variant/60 font-mono truncate">Código</span>
               </div>
-              <select id="cfg-model-zoro" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1.5 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-secondary/60">
+              <select id="cfg-model-zoro" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1 px-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-secondary/60 transition-colors">
                 <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-                <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-                <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-                <option value="gpt-4o">gpt-4o (OpenAI)</option>
-                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-                <option value="llama3">llama3 (Ollama)</option>
               </select>
             </div>
 
             <!-- Sanji -->
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24]"></span>
-                <span class="font-bold text-xs text-amber-400 uppercase font-mono">Sanji</span>
-                <span class="text-[9px] text-on-surface-variant/60 font-mono">Estrategia & Plan</span>
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24] shrink-0"></span>
+                  <span class="font-bold text-xs text-amber-400 uppercase font-mono">Sanji</span>
+                </div>
+                <span class="text-[9px] text-on-surface-variant/60 font-mono truncate">Estrategia</span>
               </div>
-              <select id="cfg-model-sanji" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1.5 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-amber-400/60">
+              <select id="cfg-model-sanji" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1 px-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-amber-400/60 transition-colors">
                 <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-                <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-                <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-                <option value="gpt-4o">gpt-4o (OpenAI)</option>
-                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-                <option value="llama3">llama3 (Ollama)</option>
               </select>
             </div>
 
             <!-- Robin -->
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_#c084fc]"></span>
-                <span class="font-bold text-xs text-purple-400 uppercase font-mono">Robin</span>
-                <span class="text-[9px] text-on-surface-variant/60 font-mono">Investigación & Docs</span>
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_6px_#c084fc] shrink-0"></span>
+                  <span class="font-bold text-xs text-purple-400 uppercase font-mono">Robin</span>
+                </div>
+                <span class="text-[9px] text-on-surface-variant/60 font-mono truncate">Docs</span>
               </div>
-              <select id="cfg-model-robin" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1.5 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-purple-400/60">
+              <select id="cfg-model-robin" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1 px-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-purple-400/60 transition-colors">
                 <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-                <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-                <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-                <option value="gpt-4o">gpt-4o (OpenAI)</option>
-                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-                <option value="llama3">llama3 (Ollama)</option>
               </select>
             </div>
 
             <!-- Nami -->
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5 sm:col-span-2">
-              <div class="flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15]"></span>
-                <span class="font-bold text-xs text-yellow-400 uppercase font-mono">Nami</span>
-                <span class="text-[9px] text-on-surface-variant/60 font-mono">Finanzas, Métricas & Recursos</span>
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-1">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_6px_#facc15] shrink-0"></span>
+                  <span class="font-bold text-xs text-yellow-400 uppercase font-mono">Nami</span>
+                </div>
+                <span class="text-[9px] text-on-surface-variant/60 font-mono truncate">Métricas</span>
               </div>
-              <select id="cfg-model-nami" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1.5 px-2.5 text-xs font-mono text-on-surface focus:outline-none focus:border-yellow-400/60">
+              <select id="cfg-model-nami" class="w-full bg-surface-container-highest/80 border border-outline-variant/40 rounded-xl py-1 px-2 text-[11px] font-mono text-on-surface focus:outline-none focus:border-yellow-400/60 transition-colors">
                 <option value="deepseek-chat" selected>deepseek-chat (DeepSeek-V3)</option>
                 <option value="deepseek-reasoner">deepseek-reasoner (DeepSeek-R1)</option>
-                <option value="qwen-plus">qwen-plus (Alibaba Qwen)</option>
-                <option value="qwen-max">qwen-max (Alibaba Qwen)</option>
-                <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile (Groq)</option>
-                <option value="gpt-4o">gpt-4o (OpenAI)</option>
-                <option value="gpt-4o-mini">gpt-4o-mini (OpenAI)</option>
-                <option value="gemini-2.5-pro">gemini-2.5-pro (Google)</option>
-                <option value="gemini-2.5-flash">gemini-2.5-flash (Google)</option>
-                <option value="claude-3-7-sonnet">claude-3-7-sonnet (Anthropic)</option>
-                <option value="llama3">llama3 (Ollama)</option>
               </select>
             </div>
           </div>
@@ -1424,11 +1477,11 @@
       </div>
 
       <!-- RIGHT COLUMN (col-span-5): Presupuesto, Notificaciones & Conectividad -->
-      <div class="xl:col-span-5 flex flex-col gap-6">
+      <div class="xl:col-span-5 flex flex-col gap-4">
 
         <!-- SECTION 3: PRESUPUESTO & CUOTAS -->
-        <div class="glass-panel rounded-2xl p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
-          <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
             <div class="flex items-center gap-2.5">
               <span class="material-symbols-outlined text-amber-400 text-[20px]">payments</span>
               <h3 class="font-bold text-sm text-on-surface">Presupuesto & Cuotas Operativas</h3>
@@ -1436,12 +1489,12 @@
             <span class="text-[10px] font-mono text-amber-400">USD</span>
           </div>
 
-          <div class="flex flex-col gap-3">
+          <div class="flex flex-col gap-2.5">
             <!-- Consumo del Mes en Curso -->
-            <div class="p-3.5 rounded-xl bg-surface-container-highest/40 border border-outline-variant/30 flex flex-col gap-2.5">
+            <div class="p-2.5 sm:p-3 rounded-xl bg-surface-container-highest/40 border border-outline-variant/30 flex flex-col gap-2">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-[16px] text-amber-400">calendar_month</span>
+                  <span class="material-symbols-outlined text-[15px] text-amber-400">calendar_month</span>
                   <span id="cfg-presupuesto-mes-label" class="text-xs font-bold text-on-surface">Consumo Mensual</span>
                 </div>
                 <span id="cfg-presupuesto-consumo-badge" class="text-xs font-mono font-bold text-emerald-400">$0.00 / $1000.00 USD</span>
@@ -1455,38 +1508,39 @@
               </div>
             </div>
 
-            <div class="flex flex-col gap-1.5">
-              <label class="text-xs font-medium text-on-surface-variant">Presupuesto Mensual Máximo ($ USD)</label>
+            <div class="flex flex-col gap-1">
+              <label class="text-[11px] font-medium text-on-surface-variant">Presupuesto Mensual Máximo ($ USD)</label>
               <div class="relative flex items-center">
-                <span class="absolute left-3 text-on-surface-variant font-mono font-bold text-sm">$</span>
-                <input id="cfg-presupuesto-max" type="number" step="0.5" min="1" max="100000" value="1000.0" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2 pl-7 pr-3 text-xs font-mono font-bold text-on-surface focus:outline-none focus:border-amber-400/60 transition-colors">
+                <span class="absolute left-3 text-on-surface-variant font-mono font-bold text-xs">$</span>
+                <input id="cfg-presupuesto-max" type="number" step="0.5" min="1" max="100000" value="1000.0" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-7 pr-3 text-xs font-mono font-bold text-on-surface focus:outline-none focus:border-amber-400/60 transition-colors">
               </div>
-              <span class="text-[10px] text-on-surface-variant/70 leading-relaxed">Parada automática activa: Si el gasto del mes alcanza este límite, la tripulación se detendrá de inmediato para evitar sobrecostos.</span>
+              <span class="text-[9.5px] text-on-surface-variant/65 leading-tight">Parada automática si el gasto del mes alcanza este límite para evitar sobrecostos.</span>
             </div>
 
             <!-- Banner Alerta de Parada Dura si se sobrepasa el presupuesto mensual -->
-            <div id="cfg-presupuesto-alerta-bloqueo" class="hidden p-3 rounded-xl bg-error/15 border border-error/40 text-error text-xs flex items-start gap-2 animate-pulse">
-              <span class="material-symbols-outlined text-[17px] shrink-0 mt-0.5">error</span>
-              <div class="leading-relaxed">
-                <span class="font-bold">PARADA DURA ACTIVADA:</span> Has alcanzado el límite mensual establecido. Los agentes han sido detenidos automáticamente para proteger tu factura. Puedes ampliar el presupuesto o reiniciar el contador para reanudar el trabajo.
+            <div id="cfg-presupuesto-alerta-bloqueo" class="hidden p-2.5 rounded-xl bg-error/15 border border-error/40 text-error text-xs flex items-start gap-2 animate-pulse">
+              <span class="material-symbols-outlined text-[16px] shrink-0 mt-0.5">error</span>
+              <div class="leading-relaxed text-[11px]">
+                <span class="font-bold">PARADA DURA ACTIVADA:</span> Has alcanzado el límite mensual. Los agentes han sido detenidos automáticamente.
               </div>
             </div>
 
-            <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex items-center justify-between">
+            <div class="p-2.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex items-center justify-between">
               <div class="flex flex-col">
                 <span class="text-xs font-bold text-on-surface">Reinicio de Contador de Costos</span>
-                <span class="text-[10px] text-on-surface-variant/60">Restablecer el consumo del mes actual a $0.00</span>
+                <span class="text-[10px] text-on-surface-variant/60">Restablecer el consumo del mes a $0.00</span>
               </div>
-              <button onclick="resetearCostosMes()" type="button" class="px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-error/15 text-on-surface hover:text-error border border-outline-variant/40 hover:border-error/40 text-xs font-bold transition-all cursor-pointer">
-                Reiniciar
+              <button onclick="abrirModalConfirmarResetCostos()" type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-400 border border-amber-400/30 text-xs font-bold transition-all cursor-pointer shadow-[0_0_10px_rgba(251,191,36,0.1)]">
+                <span class="material-symbols-outlined text-[15px]">restart_alt</span>
+                <span>Reiniciar</span>
               </button>
             </div>
           </div>
         </div>
 
         <!-- SECTION 4: NOTIFICACIONES (TELEGRAM) -->
-        <div class="glass-panel rounded-2xl p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
-          <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
             <div class="flex items-center gap-2.5">
               <span class="material-symbols-outlined text-purple-400 text-[20px]">send</span>
               <h3 class="font-bold text-sm text-on-surface">Alertas & Bot de Telegram</h3>
@@ -1494,23 +1548,25 @@
             <span class="text-[10px] font-mono text-purple-400">Canal Directo</span>
           </div>
 
-          <div class="flex flex-col gap-3">
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-on-surface-variant">Telegram Bot Token</label>
-              <div class="relative flex items-center">
-                <input id="cfg-telegram-token" type="password" placeholder="8615475894:AAGuQ..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2 pl-3 pr-10 text-xs font-mono text-on-surface focus:outline-none focus:border-purple-400/60 transition-colors">
-                <button onclick="toggleKeyVisibility('cfg-telegram-token')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
-                  <span class="material-symbols-outlined text-[17px]">visibility</span>
-                </button>
+          <div class="flex flex-col gap-2.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-on-surface-variant">Telegram Bot Token</label>
+                <div class="relative flex items-center">
+                  <input id="cfg-telegram-token" type="password" placeholder="8615475894:AAGuQ..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-3 pr-9 text-xs font-mono text-on-surface focus:outline-none focus:border-purple-400/60 transition-colors">
+                  <button onclick="toggleKeyVisibility('cfg-telegram-token')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
+                    <span class="material-symbols-outlined text-[16px]">visibility</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex flex-col gap-1">
+                <label class="text-[11px] font-medium text-on-surface-variant">Telegram Chat ID</label>
+                <input id="cfg-telegram-chatid" type="text" placeholder="2044001034" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 px-3 text-xs font-mono text-on-surface focus:outline-none focus:border-purple-400/60 transition-colors">
               </div>
             </div>
 
-            <div class="flex flex-col gap-1">
-              <label class="text-xs font-medium text-on-surface-variant">Telegram Chat ID</label>
-              <input id="cfg-telegram-chatid" type="text" placeholder="2044001034" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2 px-3 text-xs font-mono text-on-surface focus:outline-none focus:border-purple-400/60 transition-colors">
-            </div>
-
-            <button onclick="probarTelegramTest()" type="button" id="btn-test-telegram" class="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-purple-400/15 border border-purple-400/40 text-purple-400 hover:bg-purple-400/25 transition-all text-xs font-bold cursor-pointer">
+            <button onclick="probarTelegramTest()" type="button" id="btn-test-telegram" class="w-full flex items-center justify-center gap-2 py-1.5 rounded-xl bg-purple-400/15 border border-purple-400/40 text-purple-400 hover:bg-purple-400/25 transition-all text-xs font-bold cursor-pointer">
               <span class="material-symbols-outlined text-[16px]">notifications_active</span>
               <span>Enviar Mensaje de Prueba al Bot</span>
             </button>
@@ -1518,8 +1574,8 @@
         </div>
 
         <!-- SECTION 5: ESTADO DE RED & ENLACE REMOTO -->
-        <div class="glass-panel rounded-2xl p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
-          <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3 shadow-lg">
+          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
             <div class="flex items-center gap-2.5">
               <span class="material-symbols-outlined text-cyan-400 text-[20px]">lan</span>
               <h3 class="font-bold text-sm text-on-surface">Conectividad & Telemetría</h3>
@@ -1527,15 +1583,17 @@
             <span class="text-[10px] font-mono text-cyan-400">Endpoint Activo</span>
           </div>
 
-          <div class="flex flex-col gap-2.5 text-xs">
-            <span class="text-on-surface-variant font-medium">URL para Conectar Equipos de Clientes:</span>
-            <div class="flex items-center gap-2 bg-surface-container-highest/60 p-2.5 rounded-xl border border-outline-variant/40 font-mono text-[11px] text-cyan-400 overflow-x-auto">
+          <div class="flex flex-col gap-2 text-xs">
+            <div class="flex items-center justify-between">
+              <span class="text-on-surface-variant font-medium text-[11px]">URL para Conectar Equipos de Clientes:</span>
+            </div>
+            <div class="flex items-center gap-2 bg-surface-container-highest/60 py-1.5 px-3 rounded-xl border border-outline-variant/40 font-mono text-[11px] text-cyan-400 overflow-x-auto">
               <span id="cfg-telemetry-url-text" class="truncate">http://localhost:8000/api/telemetria/reportar</span>
-              <button onclick="copiarUrlTelemetria()" type="button" class="ml-auto text-on-surface-variant hover:text-cyan-400 p-1 shrink-0 cursor-pointer" title="Copiar URL">
+              <button onclick="copiarUrlTelemetria()" type="button" class="ml-auto text-on-surface-variant hover:text-cyan-400 p-0.5 shrink-0 cursor-pointer" title="Copiar URL">
                 <span class="material-symbols-outlined text-[16px]">content_copy</span>
               </button>
             </div>
-            <p class="text-[11px] text-on-surface-variant/70 leading-relaxed">
+            <p class="text-[10.5px] text-on-surface-variant/70 leading-normal">
               Los agentes que configures en otros equipos enviarán su telemetría periódicamente a este endpoint para consolidar su estado en tu panel de Monitoreo.
             </p>
           </div>
@@ -1898,8 +1956,9 @@ payload = {
     "ram": 58.0
 }
 
-# Enviar latido cada 10 segundos
-requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload)
+# Enviar latido cada 10 segundos (incluir token si la consola en la nube lo requiere)
+headers = {"X-Telemetry-Token": "&lt;TU-TOKEN-SECRETO&gt;"}
+requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload, headers=headers)
       </pre>
     </div>
 
@@ -1942,46 +2001,410 @@ requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload)
   </div>
 </div>
 
-<!-- MODAL: CONTACTO & SOPORTE -->
-<div id="contact-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-  <div class="glass-panel w-full max-w-md rounded-2xl p-6 border border-primary/30 shadow-2xl flex flex-col gap-4">
+<!-- MODAL: CONTACTO & PRIVACIDAD -->
+<div id="contact-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-lg rounded-3xl p-6 border border-cyan-400/35 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
+    <!-- Header -->
     <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center text-primary">
-          <span class="material-symbols-outlined text-[20px]">support_agent</span>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-cyan-400/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400 shrink-0">
+          <span class="material-symbols-outlined text-[22px]">verified_user</span>
         </div>
         <div>
-          <h3 class="font-bold text-base text-on-surface">Contacto & Soporte</h3>
-          <p class="text-xs text-on-surface-variant/70">AgenticOS • Tripulación IA</p>
+          <h3 class="font-bold text-base text-on-surface">Contacto & Privacidad</h3>
+          <p class="text-xs text-on-surface-variant/70">Propiedad Intelectual • Canales Oficiales • Soberanía de Datos</p>
         </div>
       </div>
-      <button onclick="openContactModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
+      <button onclick="openContactModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer" title="Cerrar ventana">
         <span class="material-symbols-outlined text-[20px]">close</span>
       </button>
     </div>
 
-    <div class="flex flex-col gap-3 text-xs text-on-surface-variant">
-      <p class="leading-relaxed">Sistema de control y orquestación de agentes autónomos desarrollado para alta productividad, autonomía y monitoreo distribuido.</p>
-      
-      <div class="p-3 rounded-xl bg-surface-container-low border border-outline-variant/30 flex flex-col gap-2 font-mono text-[11px]">
-        <div class="flex justify-between items-center">
-          <span class="text-on-surface-variant">Capitán / Admin:</span>
-          <span class="text-primary font-bold">Wuil</span>
+    <div class="flex flex-col gap-4 text-xs">
+      <!-- CARD 1: Canales Oficiales de Contacto -->
+      <div class="flex flex-col gap-2">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[15px]">support_agent</span>
+          <span>Canales de Contacto Directo & Soporte:</span>
+        </span>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <!-- WhatsApp -->
+          <a href="https://wa.me/584128288975" target="_blank" rel="noopener noreferrer" class="p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 flex flex-col gap-1 transition-all hover:scale-[1.02] group cursor-pointer shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs flex items-center gap-1 text-emerald-400">
+                <span class="material-symbols-outlined text-[17px]">chat</span>
+                <span>WhatsApp</span>
+              </span>
+              <span class="material-symbols-outlined text-[14px] text-emerald-400/70 group-hover:translate-x-0.5 transition-transform">open_in_new</span>
+            </div>
+            <span class="text-[11px] font-mono text-emerald-200">0412-8288975</span>
+            <span class="text-[9px] text-emerald-300/60 font-mono">Chat inmediato</span>
+          </a>
+
+          <!-- Correo -->
+          <a href="mailto:Wuil3529@gmail.com" class="p-3 rounded-2xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 flex flex-col gap-1 transition-all hover:scale-[1.02] group cursor-pointer shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs flex items-center gap-1 text-cyan-400">
+                <span class="material-symbols-outlined text-[17px]">mail</span>
+                <span>Correo</span>
+              </span>
+              <span class="material-symbols-outlined text-[14px] text-cyan-400/70 group-hover:translate-x-0.5 transition-transform">open_in_new</span>
+            </div>
+            <span class="text-[11px] font-mono text-cyan-200 truncate">Wuil3529@gmail</span>
+            <span class="text-[9px] text-cyan-300/60 font-mono">Soporte por email</span>
+          </a>
+
+          <!-- Instagram -->
+          <a href="https://www.instagram.com/wuil3529/" target="_blank" rel="noopener noreferrer" class="p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 flex flex-col gap-1 transition-all hover:scale-[1.02] group cursor-pointer shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-xs flex items-center gap-1 text-rose-400">
+                <span class="material-symbols-outlined text-[17px]">photo_camera</span>
+                <span>Instagram</span>
+              </span>
+              <span class="material-symbols-outlined text-[14px] text-rose-400/70 group-hover:translate-x-0.5 transition-transform">open_in_new</span>
+            </div>
+            <span class="text-[11px] font-mono text-rose-200">@wuil3529</span>
+            <span class="text-[9px] text-rose-300/60 font-mono">Perfil oficial</span>
+          </a>
         </div>
-        <div class="flex justify-between items-center">
+      </div>
+
+      <!-- CARD 2: Declaración de Propiedad Intelectual & Autoría (Venezuela) -->
+      <div class="p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/35 flex flex-col gap-2 shadow-sm">
+        <div class="flex items-center justify-between pb-1.5 border-b border-outline-variant/20">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-amber-400 text-[17px]">workspace_premium</span>
+            <span class="font-bold text-on-surface text-xs">Propiedad Intelectual & Autoría (Venezuela)</span>
+          </div>
+          <span class="text-[9px] font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/30">PROPIETARIO ÚNICO</span>
+        </div>
+        <p class="text-[11px] text-on-surface-variant leading-relaxed">
+          El software, arquitectura distribuida, código fuente e ingeniería de agentes de <span class="text-on-surface font-semibold">Tripulación IA / AgenticOS</span> son autoría y propiedad intelectual exclusiva de <span class="text-amber-400 font-bold">Wuilfredo</span>, amparado por la <span class="text-on-surface font-semibold">Ley sobre el Derecho de Autor de la República Bolivariana de Venezuela</span> (obras de ingenio / programas de computación), la <span class="text-on-surface font-semibold">Decisión 351 del Acuerdo de Cartagena</span> y el <span class="text-on-surface font-semibold">Convenio de Berna</span>. Queda prohibida la reproducción no autorizada de su núcleo de código sin consentimiento expreso del autor.
+        </p>
+      </div>
+
+      <!-- CARD 3: Política de Privacidad & Garantía de No Exposición de Datos -->
+      <div class="p-3.5 rounded-2xl bg-surface-container-low border border-emerald-500/30 flex flex-col gap-2 shadow-sm">
+        <div class="flex items-center justify-between pb-1.5 border-b border-outline-variant/20">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-400 text-[17px]">lock</span>
+            <span class="font-bold text-on-surface text-xs">Política de Privacidad & Soberanía del Cliente</span>
+          </div>
+          <span class="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/30">ART. 60 Y 28 CRBV</span>
+        </div>
+        <p class="text-[11px] text-on-surface-variant leading-relaxed">
+          En estricto cumplimiento del <span class="text-on-surface font-semibold">Artículo 60 de la Constitución de la República Bolivariana de Venezuela</span> (inviolabilidad de la vida privada, confidencialidad y límite a la informática) y la <span class="text-on-surface font-semibold">Ley Especial contra Delitos Informáticos</span>:
+        </p>
+        <div class="p-2.5 rounded-xl bg-[#070710] border border-emerald-500/20 font-mono text-[10px] text-emerald-200 leading-normal flex items-start gap-2">
+          <span class="material-symbols-outlined text-emerald-400 text-[16px] shrink-0 mt-0.5">check_circle</span>
+          <span><strong class="text-emerald-400">Compromiso de Privacidad Total:</strong> Ninguna información personal, clave API, archivo, base de datos ni conversación de los clientes es recolectada, enviada a servidores externos, vendida ni expuesta a terceros. Toda la operación se ejecuta en soberanía local y privada en la máquina de cada cliente.</span>
+        </div>
+      </div>
+
+      <!-- System Details Badge -->
+      <div class="p-2.5 rounded-xl bg-surface-container-high/40 border border-outline-variant/30 flex items-center justify-between font-mono text-[11px]">
+        <div class="flex items-center gap-2">
+          <span class="text-on-surface-variant">Creador:</span>
+          <span class="text-primary font-bold">Wuilfredo</span>
+          <span class="text-on-surface-variant/40">•</span>
           <span class="text-on-surface-variant">Versión:</span>
           <span class="text-secondary font-bold">v1.97.0.1.3.0</span>
         </div>
-        <div class="flex justify-between items-center">
-          <span class="text-on-surface-variant">Estado del Nodo:</span>
-          <span class="text-emerald-400 font-bold flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Localhost HQ Activo</span>
+        <div class="flex items-center gap-1.5 text-emerald-400 font-bold">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Nodo Protegido</span>
         </div>
       </div>
     </div>
 
+    <!-- Footer Action -->
     <div class="pt-3 border-t border-outline-variant/30 flex justify-end">
-      <button onclick="openContactModal(false)" type="button" class="px-5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+      <button onclick="openContactModal(false)" type="button" class="px-6 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+        Entendido y Cerrar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: SEGURIDAD & BLINDAJE EN LA NUBE (TAMAÑO DUPLICADO / 2 COLUMNAS) -->
+<div id="modal-security" onclick="if(event.target === this) openSecurityModal(false)" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-4xl lg:max-w-5xl rounded-3xl p-6 sm:p-8 border border-rose-500/35 shadow-[0_0_50px_rgba(244,63,94,0.25)] flex flex-col gap-6 max-h-[92vh] overflow-y-auto animate-in fade-in duration-200">
+    
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between pb-4 border-b border-outline-variant/30 shrink-0">
+      <div class="flex items-center gap-3.5">
+        <div id="modal-sec-scanner-box" class="w-12 h-12 rounded-2xl border border-rose-500/40 flex items-center justify-center shield-scanner-box shadow-[0_0_20px_rgba(244,63,94,0.3)] shrink-0">
+          <div class="shield-icon-content flex items-center justify-center text-rose-400">
+            <span id="modal-sec-header-icon" class="material-symbols-outlined text-[26px]">shield_lock</span>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-bold text-lg sm:text-xl text-on-surface tracking-wide">Seguridad & Blindaje en la Nube</h3>
+          <p class="text-xs sm:text-sm text-on-surface-variant/75 mt-0.5">Credenciales de acceso, telemetría y protección perimetral de red</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="cfg-sec-badge" class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-400/15 text-emerald-400 border border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.3)] transition-all">SEGURIDAD ACTIVA</span>
+        <button onclick="openSecurityModal(false)" class="text-on-surface-variant hover:text-on-surface p-2 rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer" title="Cerrar ventana">
+          <span class="material-symbols-outlined text-[22px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Controls Body: Generous 2-Column Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+      
+      <!-- LEFT COLUMN: Autenticación de Acceso Web & Credenciales -->
+      <div id="card-auth-security" class="p-5 sm:p-6 rounded-2xl bg-surface-container-highest/40 border border-emerald-500/40 flex flex-col justify-between gap-4 shadow-[0_0_30px_rgba(16,185,129,0.18)] transition-all duration-300 relative overflow-hidden">
+        <!-- Dynamic Shield Activation Pulse Glow Line -->
+        <div id="auth-shield-glowline" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse"></div>
+
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2.5">
+              <div id="auth-lock-icon-box" class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all duration-300">
+                <span id="auth-lock-icon" class="material-symbols-outlined text-[19px]">lock</span>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-on-surface">Autenticación de Acceso Web</h4>
+                <span id="auth-status-subtext" class="text-[10px] font-mono text-emerald-400 font-bold">Blindaje Activo • Acceso Protegido</span>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>ACTIVO</span>
+            </span>
+          </div>
+
+          <p class="text-xs text-on-surface-variant/80 leading-relaxed">
+            Exige usuario y contraseña al abrir la consola en internet. Mantiene seguros tus APIs, modelos y agentes ante visitas no autorizadas.
+          </p>
+        </div>
+
+        <!-- Credenciales de Usuario & Contraseña -->
+        <div id="cfg-sec-credentials-group" class="flex flex-col gap-3.5 pt-3 border-t border-outline-variant/20 transition-opacity duration-200">
+          
+          <!-- SECCIÓN: Avatar o Foto de Perfil -->
+          <div class="flex flex-col gap-2.5 p-3 rounded-xl bg-surface-container-high/40 border border-outline-variant/30">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-mono text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">face</span>
+                <span>Foto de Perfil / Avatar:</span>
+              </label>
+              <span class="text-[10px] text-on-surface-variant/70 font-mono">Personalización</span>
+            </div>
+
+            <!-- Avatar Preview & Action Controls -->
+            <div class="flex items-center gap-3.5">
+              <!-- Current Avatar Preview Box -->
+              <div class="relative group/avatar shrink-0 cursor-pointer" onclick="document.getElementById('cfg-sec-avatar-file').click()" title="Haz clic para subir tu foto">
+                <div class="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 border-emerald-500/50 group-hover/avatar:border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.25)] transition-all bg-[#0f0f1a]">
+                  <img id="cfg-sec-avatar-preview" alt="Avatar Preview" class="w-full h-full object-cover" src="/static/avatars/bot_cyan.jpg">
+                </div>
+                <div class="absolute inset-0 rounded-2xl bg-black/55 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
+                  <span class="material-symbols-outlined text-white text-[18px]">photo_camera</span>
+                </div>
+              </div>
+
+              <!-- Upload & Direct Link controls -->
+              <div class="flex flex-col gap-1.5 flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <input type="file" id="cfg-sec-avatar-file" accept="image/*" class="hidden" onchange="handleAvatarFileUpload(event)">
+                  <button type="button" onclick="document.getElementById('cfg-sec-avatar-file').click()" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50 text-[11px] font-mono font-bold flex items-center gap-1.5 transition-all cursor-pointer">
+                    <span class="material-symbols-outlined text-[14px]">upload</span>
+                    <span>Subir Foto</span>
+                  </button>
+                  <button type="button" onclick="promptCustomAvatarUrl()" class="px-2.5 py-1 rounded-lg bg-surface-container-highest/60 border border-outline-variant/30 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-highest text-[11px] font-mono flex items-center gap-1 transition-all cursor-pointer">
+                    <span class="material-symbols-outlined text-[14px]">link</span>
+                    <span>Pegar URL</span>
+                  </button>
+                </div>
+                <input type="hidden" id="cfg-sec-avatar-url" value="/static/avatars/bot_cyan.jpg">
+                <span class="text-[10px] text-on-surface-variant/60 font-mono truncate">Elige un robot redondo o sube tu propia imagen</span>
+              </div>
+            </div>
+
+            <!-- Preset Quick Avatars Gallery: Robots Redondos -->
+            <div class="flex items-center gap-2.5 pt-1.5 overflow-x-auto pb-1" id="avatar-presets-container">
+              <!-- Bot 1: Blanco Cian -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_cyan.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border-2 border-emerald-400 p-0.5 bg-[#0f0f1a] hover:scale-110 transition-all shrink-0 cursor-pointer shadow-sm ring-2 ring-emerald-500/30" title="Robot Blanco Cian">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_cyan.jpg" alt="Blanco Cian">
+              </button>
+              <!-- Bot 2: Esmeralda Menta -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_green.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Esmeralda Menta">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_green.jpg" alt="Esmeralda">
+              </button>
+              <!-- Bot 3: Ámbar Naranja -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_orange.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Ámbar Alegre">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_orange.jpg" alt="Ámbar">
+              </button>
+              <!-- Bot 4: Azul Zafiro -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_blue.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Azul Eléctrico">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_blue.jpg" alt="Azul">
+              </button>
+              <!-- Bot 5: Púrpura Neón -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_purple.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Púrpura Neón">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_purple.jpg" alt="Púrpura">
+              </button>
+              <!-- Bot 6: Rosa Pastel -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_pink.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Rosa Tierno">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_pink.jpg" alt="Rosa">
+              </button>
+              <!-- Bot 7: Obsidiana Rojo -->
+              <button type="button" onclick="selectPresetAvatar('/static/avatars/bot_dark.jpg', this)" class="avatar-preset-btn w-9 h-9 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-[#0f0f1a] hover:scale-110 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm" title="Robot Obsidiana Rojo">
+                <img class="w-full h-full object-cover rounded-lg pointer-events-none" src="/static/avatars/bot_dark.jpg" alt="Obsidiana">
+              </button>
+            </div>
+          </div>
+
+          <!-- 1. Nombre de Usuario -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-mono text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">person</span>
+                <span>Nombre de Usuario:</span>
+              </label>
+              <span class="text-[10px] text-on-surface-variant/70 font-mono">Alias de Acceso</span>
+            </div>
+            <div class="relative flex items-center">
+              <input id="cfg-sec-user" type="text" placeholder="Ej: Capitán o admin" value="admin" class="w-full bg-surface-container-highest/70 border border-outline-variant/40 rounded-xl py-2 pl-8 pr-3 text-xs font-mono text-on-surface focus:outline-none focus:border-emerald-400/60 transition-colors shadow-inner">
+              <span class="material-symbols-outlined text-[16px] text-on-surface-variant/50 absolute left-2.5 pointer-events-none">badge</span>
+            </div>
+          </div>
+
+          <!-- 2. Nueva Contraseña -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-mono text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">key</span>
+                <span>Contraseña:</span>
+              </label>
+              <button onclick="generarPasswordSeguraAleatoria()" type="button" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-mono font-bold flex items-center gap-1 hover:underline cursor-pointer">
+                <span class="material-symbols-outlined text-[13px]">magic_button</span>
+                <span>Generar Segura</span>
+              </button>
+            </div>
+            <div class="relative flex items-center">
+              <input id="cfg-sec-password" oninput="verificarCoincidenciaPassword()" type="password" placeholder="Escribe tu contraseña..." class="w-full bg-surface-container-highest/70 border border-outline-variant/40 rounded-xl py-2 pl-8 pr-10 text-xs font-mono text-on-surface focus:outline-none focus:border-emerald-400/60 transition-colors shadow-inner">
+              <span class="material-symbols-outlined text-[16px] text-on-surface-variant/50 absolute left-2.5 pointer-events-none">lock</span>
+              <button onclick="toggleKeyVisibility('cfg-sec-password')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
+                <span class="material-symbols-outlined text-[17px]">visibility</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Confirmar Contraseña -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-xs font-mono text-on-surface font-semibold flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-emerald-400">check_circle</span>
+                <span>Confirmar Contraseña:</span>
+              </label>
+              <span id="cfg-sec-password-match-msg" class="text-[10px] font-mono"></span>
+            </div>
+            <div class="relative flex items-center">
+              <input id="cfg-sec-password-confirm" oninput="verificarCoincidenciaPassword()" type="password" placeholder="Repite la contraseña..." class="w-full bg-surface-container-highest/70 border border-outline-variant/40 rounded-xl py-2 pl-8 pr-10 text-xs font-mono text-on-surface focus:outline-none focus:border-emerald-400/60 transition-colors shadow-inner">
+              <span class="material-symbols-outlined text-[16px] text-on-surface-variant/50 absolute left-2.5 pointer-events-none">password</span>
+              <button onclick="toggleKeyVisibility('cfg-sec-password-confirm')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
+                <span class="material-symbols-outlined text-[17px]">visibility</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Telemetría & Filtro de IPs -->
+      <div class="flex flex-col gap-4 sm:gap-5">
+        
+        <!-- CARD 2: Token Secreto de Telemetría -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-highest/40 border border-outline-variant/35 flex flex-col gap-3 shadow-lg">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-cyan-400 text-[18px]">vpn_key</span>
+              <h4 class="text-xs sm:text-sm font-bold text-on-surface">Token Secreto de Telemetría</h4>
+            </div>
+            <button onclick="generarTokenTelemetriaAleatorio()" type="button" class="text-[11px] text-cyan-400 hover:text-cyan-300 cursor-pointer font-mono font-bold flex items-center gap-1 bg-cyan-400/10 hover:bg-cyan-400/20 px-2 py-0.5 rounded-lg border border-cyan-400/30 transition-all">
+              <span class="material-symbols-outlined text-[13px]">autorenew</span>
+              <span>Generar</span>
+            </button>
+          </div>
+
+          <div class="relative flex items-center">
+            <input id="cfg-sec-telemetry-token" type="password" placeholder="sk-telemetry-..." class="w-full bg-surface-container-highest/70 border border-outline-variant/40 rounded-xl py-1.5 pl-3 pr-20 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-400/60 transition-colors shadow-inner">
+            <div class="absolute right-1.5 flex items-center gap-1">
+              <button onclick="toggleKeyVisibility('cfg-sec-telemetry-token')" type="button" class="text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar/ocultar token">
+                <span class="material-symbols-outlined text-[16px]">visibility</span>
+              </button>
+              <button onclick="copiarTokenTelemetria()" type="button" class="text-on-surface-variant hover:text-cyan-400 p-1 transition-colors cursor-pointer" title="Copiar token">
+                <span class="material-symbols-outlined text-[16px]">content_copy</span>
+              </button>
+            </div>
+          </div>
+          <span class="text-[11px] text-on-surface-variant/75 leading-tight">
+            Tus agentes remotos deben incluir <code class="text-cyan-300 font-mono bg-cyan-400/10 px-1 py-0.5 rounded border border-cyan-400/20 text-[10px]">X-Telemetry-Token</code> con este secreto para que sus pings sean aceptados.
+          </span>
+        </div>
+
+        <!-- CARD 3: Filtro de IPs Permitidas -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-highest/40 border border-outline-variant/35 flex flex-col gap-2.5 shadow-lg">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-400 text-[18px]">filter_alt</span>
+              <h4 class="text-xs sm:text-sm font-bold text-on-surface">Filtro de IPs Permitidas (Whitelist)</h4>
+            </div>
+            <button onclick="autocompletarMiRedIP()" type="button" class="text-[11px] text-amber-400 hover:text-amber-300 font-mono font-bold flex items-center gap-1 hover:underline cursor-pointer" title="Rellenar con tu PC y red local">
+              <span class="material-symbols-outlined text-[13px]">router</span>
+              <span>Mi PC y Red</span>
+            </button>
+          </div>
+          <input id="cfg-sec-ip-whitelist" type="text" placeholder="127.0.0.1, 192.168.0.*, 10.2.0.*" value="127.0.0.1, 192.168.0.*, 10.2.0.*" class="w-full bg-surface-container-highest/70 border border-outline-variant/40 rounded-xl py-1.5 px-3 text-xs font-mono text-on-surface focus:outline-none focus:border-amber-400/60 transition-colors shadow-inner">
+          <span class="text-[11px] text-on-surface-variant/75 leading-tight">
+            Restringe el acceso administrativo exclusivamente a tu computadora y a tu red local (separadas por coma).
+          </span>
+        </div>
+
+        <!-- CARD 4: Historial de Intentos de Intrusión y Bloqueos -->
+        <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-highest/40 border border-outline-variant/35 flex flex-col gap-2.5 shadow-lg">
+          <div class="flex items-center justify-between pb-2 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                <span class="material-symbols-outlined text-[16px]">security</span>
+              </div>
+              <h4 class="text-xs sm:text-sm font-bold text-on-surface">Historial de Intrusiones & Bloqueos</h4>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="probarSirenaSeguridad()" type="button" class="text-[10px] text-red-400 hover:text-red-300 font-mono font-bold flex items-center gap-1 bg-red-500/10 hover:bg-red-500/20 px-2 py-0.5 rounded-lg border border-red-500/30 transition-all cursor-pointer" title="Probar sonido de la alarma">
+                <span class="material-symbols-outlined text-[13px]">volume_up</span>
+                <span>Probar</span>
+              </button>
+              <button onclick="limpiarHistorialIncidentes()" type="button" class="text-[10px] text-on-surface-variant hover:text-on-surface font-mono flex items-center gap-1 bg-surface-container-high px-2 py-0.5 rounded-lg border border-outline-variant/30 transition-all cursor-pointer" title="Vaciar registro">
+                <span class="material-symbols-outlined text-[13px]">delete_sweep</span>
+                <span>Limpiar</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="sec-incidentes-container" class="max-h-32 overflow-y-auto rounded-xl border border-outline-variant/25 bg-[#070710] p-2 font-mono text-[11px] flex flex-col gap-1.5">
+            <div class="text-center py-3 text-on-surface-variant/50 italic text-[11px]" id="sec-incidentes-empty">
+              Sin intentos de intrusión. Perímetro 100% seguro.
+            </div>
+            <div id="sec-incidentes-list" class="flex flex-col gap-1.5"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="pt-4 border-t border-outline-variant/30 flex justify-end items-center gap-3 shrink-0">
+      <button onclick="openSecurityModal(false)" type="button" class="px-5 py-2.5 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
         Cerrar
+      </button>
+      <button id="btn-modal-save-security" onclick="guardarSeguridadModal()" type="button" class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] cursor-pointer">
+        <span class="material-symbols-outlined text-[17px]">save</span>
+        <span>Guardar Seguridad</span>
       </button>
     </div>
   </div>
@@ -2098,6 +2521,37 @@ requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload)
   </div>
 </div>
 
-<script src="/static/script.js?v=55"></script>
+<!-- MODAL: CONFIRMAR REINICIO DE CONTADOR DE COSTOS -->
+<div id="modal-confirm-reset-costos" onclick="if(event.target === this) cerrarModalConfirmarResetCostos()" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-sm rounded-2xl p-5 border border-amber-400/40 shadow-[0_0_25px_rgba(251,191,36,0.2)] flex flex-col gap-4 animate-in fade-in duration-150">
+    <div class="flex items-start gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.25)] shrink-0">
+        <span class="material-symbols-outlined text-[22px]">restart_alt</span>
+      </div>
+      <div class="flex-1 min-w-0 pt-0.5">
+        <h3 class="font-bold text-sm text-on-surface leading-tight">¿Reiniciar contador de consumo?</h3>
+        <p class="text-xs text-on-surface-variant mt-1.5 leading-relaxed">
+          Esta acción restablecerá el consumo del mes actual a <span class="font-bold text-emerald-400">$0.00 USD</span>. El historial acumulado de meses anteriores se mantendrá protegido.
+        </p>
+      </div>
+      <button onclick="cerrarModalConfirmarResetCostos()" class="text-on-surface-variant hover:text-on-surface p-1 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">close</span>
+      </button>
+    </div>
+
+    <!-- Modal Footer Actions -->
+    <div class="pt-3 border-t border-outline-variant/30 flex justify-end items-center gap-2.5">
+      <button onclick="cerrarModalConfirmarResetCostos()" type="button" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+        Cancelar
+      </button>
+      <button id="btn-modal-confirm-reset-costos" onclick="ejecutarResetearCostos()" type="button" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-[#0a0a12] font-bold text-xs transition-all shadow-[0_0_15px_rgba(251,191,36,0.35)] cursor-pointer">
+        <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+        <span>Reiniciar Contador</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/script.js?v=74"></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
   "tokens": 0,
   "costo": 0.0,
   "bloqueado_por_presupuesto": false,
-  "presupuesto_maximo": 1000.0,
+  "presupuesto_maximo": 100.0,
   "agentes": {
     "luffy": {
       "tokens": 0,

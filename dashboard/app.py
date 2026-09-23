@@ -1,10 +1,14 @@
 import asyncio
 import json
 import time
+import os
 from pathlib import Path
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from datetime import datetime
+import urllib.request
+import urllib.parse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 import psutil
 import platform
 from typing import Optional, List, Dict, Any
@@ -23,6 +27,156 @@ LUFFY_DIR = AGENTES_DIR / "Luffy"
 
 # Montar archivos estáticos
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+# ----------------- REGISTRO Y ALARMA DE INTRUSIÓN -----------------
+INCIDENTES_SEGURIDAD_FILE = AGENTES_DIR / "incidentes_seguridad.json"
+HISTORIAL_INTRUSIONES = []
+if INCIDENTES_SEGURIDAD_FILE.exists():
+    try:
+        HISTORIAL_INTRUSIONES = json.loads(INCIDENTES_SEGURIDAD_FILE.read_text(encoding="utf-8"))
+        if not isinstance(HISTORIAL_INTRUSIONES, list):
+            HISTORIAL_INTRUSIONES = []
+    except Exception:
+        HISTORIAL_INTRUSIONES = []
+
+ULTIMA_ALERTA_INTRUSION = None
+ULTIMA_NOTIF_TELEGRAM_POR_IP = {}
+
+def enviar_telegram_alerta_sync(mensaje: str):
+    env_path = AGENTES_DIR / ".env"
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat_id:
+        if env_path.exists():
+            try:
+                for l in env_path.read_text(encoding="utf-8").splitlines():
+                    if l.strip().startswith("TELEGRAM_BOT_TOKEN="):
+                        token = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                    elif l.strip().startswith("TELEGRAM_CHAT_ID="):
+                        chat_id = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
+            except Exception:
+                pass
+    if not token or not chat_id:
+        return
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = json.dumps({"chat_id": chat_id, "text": mensaje, "parse_mode": "Markdown"}).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    try:
+        urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        try:
+            payload_plain = json.dumps({"chat_id": chat_id, "text": mensaje}).encode("utf-8")
+            req2 = urllib.request.Request(url, data=payload_plain, headers={"Content-Type": "application/json"}, method="POST")
+            urllib.request.urlopen(req2, timeout=5)
+        except Exception:
+            pass
+
+async def notificar_alerta_seguridad_telegram(ip: str, ruta: str, metodo: str, user_agent: str):
+    ahora = time.time()
+    ultimo = ULTIMA_NOTIF_TELEGRAM_POR_IP.get(ip, 0)
+    # Rate limit: máximo 1 alerta por IP cada 30 segundos
+    if ahora - ultimo < 30:
+        return
+    ULTIMA_NOTIF_TELEGRAM_POR_IP[ip] = ahora
+    
+    hora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    mensaje = (
+        f"🚨 *¡ALERTA DE SEGURIDAD! INTRUSIÓN BLOQUEADA* 🚨\n\n"
+        f"🛡️ *Evento:* Intento de conexión no autorizada detectado\n"
+        f"🌐 *IP Bloqueada:* `{ip}`\n"
+        f"🎯 *Ruta:* `{metodo} {ruta}`\n"
+        f"⏰ *Hora:* `{hora_str}`\n"
+        f"💻 *Agente:* `{user_agent[:60]}`\n"
+        f"🛑 *Acción:* Cortafuegos perimetral bloqueó el acceso (403 Forbidden).\n\n"
+        f"⚡ _Tripulación IA • Centinela Activo_"
+    )
+    try:
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, enviar_telegram_alerta_sync, mensaje)
+    except Exception:
+        pass
+
+# Cortafuegos Perimetral: Filtro de IPs Permitidas (Whitelist)
+@app.middleware("http")
+async def ip_whitelist_middleware(request: Request, call_next):
+    env_path = AGENTES_DIR / ".env"
+    allowed_ips_raw = os.getenv("ALLOWED_IPS", "").strip()
+    if not allowed_ips_raw and env_path.exists():
+        try:
+            for l in env_path.read_text(encoding="utf-8").splitlines():
+                if l.strip().startswith("ALLOWED_IPS="):
+                    allowed_ips_raw = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+        except Exception:
+            pass
+
+    if allowed_ips_raw:
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+
+        # Siempre permitir localhost y loopback
+        is_allowed = client_ip in ["127.0.0.1", "::1", "localhost", "testclient"]
+
+        if not is_allowed:
+            rules = [r.strip() for r in allowed_ips_raw.split(",") if r.strip()]
+            for rule in rules:
+                if rule == client_ip:
+                    is_allowed = True
+                    break
+                if rule.endswith("*") and client_ip.startswith(rule[:-1]):
+                    is_allowed = True
+                    break
+                if rule.endswith(".") and client_ip.startswith(rule):
+                    is_allowed = True
+                    break
+                if "/" in rule:
+                    try:
+                        import ipaddress
+                        if ipaddress.ip_address(client_ip) in ipaddress.ip_network(rule, strict=False):
+                            is_allowed = True
+                            break
+                    except Exception:
+                        pass
+
+        if not is_allowed:
+            global ULTIMA_ALERTA_INTRUSION
+            user_agent = request.headers.get("user-agent", "Desconocido")
+            incidente = {
+                "id": f"inc-{int(time.time()*1000)}",
+                "ip": client_ip,
+                "ruta": request.url.path,
+                "metodo": request.method,
+                "hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "timestamp": time.time(),
+                "user_agent": user_agent[:120],
+                "bloqueado": True
+            }
+            HISTORIAL_INTRUSIONES.insert(0, incidente)
+            if len(HISTORIAL_INTRUSIONES) > 100:
+                HISTORIAL_INTRUSIONES.pop()
+            try:
+                INCIDENTES_SEGURIDAD_FILE.write_text(json.dumps(HISTORIAL_INTRUSIONES, indent=2, ensure_ascii=False), encoding="utf-8")
+            except Exception:
+                pass
+            ULTIMA_ALERTA_INTRUSION = incidente
+            try:
+                asyncio.create_task(notificar_alerta_seguridad_telegram(client_ip, request.url.path, request.method, user_agent))
+            except Exception:
+                pass
+
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "status": "error",
+                    "message": f"Acceso denegado: Tu dirección IP ({client_ip}) no está autorizada por el cortafuegos perimetral.",
+                    "alarma": "Alarma de intrusión activada y notificada al administrador"
+                }
+            )
+
+    return await call_next(request)
+
 
 from pydantic import BaseModel
 import subprocess
@@ -142,6 +296,7 @@ class FullConfigPayload(BaseModel):
     presupuesto_maximo: Optional[float] = None
     telegram: Optional[Dict[str, str]] = None
     ollama: Optional[Dict[str, str]] = None
+    seguridad: Optional[Dict[str, Any]] = None
 
 @app.get("/api/config/env")
 async def read_env():
@@ -154,7 +309,15 @@ async def read_env():
         "modelos": obtener_modelos_agentes(),
         "presupuesto_maximo": 10.0,
         "telegram": {"token": "", "chat_id": ""},
-        "ollama": {"base_url": "http://localhost:11434", "model": "llama3"}
+        "ollama": {"base_url": "http://localhost:11434", "model": "llama3"},
+        "seguridad": {
+            "auth_active": False,
+            "auth_user": "admin",
+            "auth_password": "",
+            "auth_avatar": "/static/avatars/bot_cyan.jpg",
+            "telemetry_token": "",
+            "ip_whitelist": ""
+        }
     }
     if env_path.exists():
         for line in env_path.read_text(encoding="utf-8").splitlines():
@@ -181,6 +344,18 @@ async def read_env():
                 data["ollama"]["base_url"] = val
             elif k == "OLLAMA_MODEL":
                 data["ollama"]["model"] = val
+            elif k == "CONSOLE_AUTH_ACTIVE":
+                data["seguridad"]["auth_active"] = (val.lower() == "true")
+            elif k == "CONSOLE_AUTH_USER":
+                data["seguridad"]["auth_user"] = val
+            elif k == "CONSOLE_AUTH_PASSWORD":
+                data["seguridad"]["auth_password"] = val
+            elif k == "CONSOLE_AUTH_AVATAR":
+                data["seguridad"]["auth_avatar"] = val
+            elif k == "TELEMETRY_SECRET_TOKEN":
+                data["seguridad"]["telemetry_token"] = val
+            elif k == "ALLOWED_IPS":
+                data["seguridad"]["ip_whitelist"] = val
             elif k.endswith("_BASE_URL"):
                 prov = k.replace("_BASE_URL", "").lower()
                 data["base_urls"][prov] = val
@@ -285,6 +460,34 @@ async def guardar_config(payload: FullConfigPayload):
             env_dict["OLLAMA_MODEL"] = payload.ollama["model"]
             if "OLLAMA_MODEL" not in ordered_keys:
                 ordered_keys.append("OLLAMA_MODEL")
+
+    if payload.seguridad:
+        s = payload.seguridad
+        if "auth_active" in s:
+            auth_act = "true" if s["auth_active"] in [True, "true", "True", 1] else "false"
+            env_dict["CONSOLE_AUTH_ACTIVE"] = auth_act
+            if "CONSOLE_AUTH_ACTIVE" not in ordered_keys:
+                ordered_keys.append("CONSOLE_AUTH_ACTIVE")
+        if "auth_user" in s and s["auth_user"] is not None:
+            env_dict["CONSOLE_AUTH_USER"] = str(s["auth_user"]).strip()
+            if "CONSOLE_AUTH_USER" not in ordered_keys:
+                ordered_keys.append("CONSOLE_AUTH_USER")
+        if "auth_password" in s and s["auth_password"] is not None:
+            env_dict["CONSOLE_AUTH_PASSWORD"] = str(s["auth_password"]).strip()
+            if "CONSOLE_AUTH_PASSWORD" not in ordered_keys:
+                ordered_keys.append("CONSOLE_AUTH_PASSWORD")
+        if "auth_avatar" in s and s["auth_avatar"] is not None:
+            env_dict["CONSOLE_AUTH_AVATAR"] = str(s["auth_avatar"]).strip()
+            if "CONSOLE_AUTH_AVATAR" not in ordered_keys:
+                ordered_keys.append("CONSOLE_AUTH_AVATAR")
+        if "telemetry_token" in s and s["telemetry_token"] is not None:
+            env_dict["TELEMETRY_SECRET_TOKEN"] = str(s["telemetry_token"]).strip()
+            if "TELEMETRY_SECRET_TOKEN" not in ordered_keys:
+                ordered_keys.append("TELEMETRY_SECRET_TOKEN")
+        if "ip_whitelist" in s and s["ip_whitelist"] is not None:
+            env_dict["ALLOWED_IPS"] = str(s["ip_whitelist"]).strip()
+            if "ALLOWED_IPS" not in ordered_keys:
+                ordered_keys.append("ALLOWED_IPS")
 
     new_lines = []
     seen = set()
@@ -471,8 +674,53 @@ async def restart_system():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# ----------------- MONITOREO DE FLOTA REMOTA -----------------
+# ----------------- REGISTRO Y GESTIÓN DE SEGURIDAD -----------------
+@app.get("/api/seguridad/incidentes")
+async def get_incidentes_seguridad():
+    return {
+        "incidentes": HISTORIAL_INTRUSIONES,
+        "alerta_activa": ULTIMA_ALERTA_INTRUSION if (ULTIMA_ALERTA_INTRUSION and (time.time() - ULTIMA_ALERTA_INTRUSION.get("timestamp", 0) < 120)) else None
+    }
+
+@app.post("/api/seguridad/silenciar-alarma")
+async def silenciar_alarma_seguridad():
+    global ULTIMA_ALERTA_INTRUSION
+    ULTIMA_ALERTA_INTRUSION = None
+    return {"status": "ok", "message": "Alarma de intrusión silenciada"}
+
+@app.delete("/api/seguridad/incidentes")
+async def limpiar_incidentes_seguridad():
+    global ULTIMA_ALERTA_INTRUSION, HISTORIAL_INTRUSIONES
+    HISTORIAL_INTRUSIONES.clear()
+    ULTIMA_ALERTA_INTRUSION = None
+    try:
+        INCIDENTES_SEGURIDAD_FILE.write_text("[]", encoding="utf-8")
+    except Exception:
+        pass
+    return {"status": "ok", "message": "Historial de incidentes borrado"}
+
+# ----------------- MONITOREO Y CONTROL DE FLOTA REMOTA -----------------
 FLOTA_REMOTA_DB = {}
+COMANDOS_FILE = AGENTES_DIR / "comandos_remotos.json"
+COMANDOS_PENDIENTES: Dict[str, List[dict]] = {}
+HISTORIAL_COMANDOS: Dict[str, List[dict]] = {}
+
+if COMANDOS_FILE.exists():
+    try:
+        raw_cmd = json.loads(COMANDOS_FILE.read_text(encoding="utf-8"))
+        COMANDOS_PENDIENTES = raw_cmd.get("pendientes", {})
+        HISTORIAL_COMANDOS = raw_cmd.get("historial", {})
+    except Exception:
+        pass
+
+def guardar_comandos():
+    try:
+        COMANDOS_FILE.write_text(json.dumps({
+            "pendientes": COMANDOS_PENDIENTES,
+            "historial": HISTORIAL_COMANDOS
+        }, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 class ReporteTelemetria(BaseModel):
     id: str
@@ -488,9 +736,78 @@ class ReporteTelemetria(BaseModel):
     costo: Optional[float] = 0.0
     cpu: Optional[float] = 0.0
     ram: Optional[float] = 0.0
+    logs: Optional[List[dict]] = None
+    resultado_comando: Optional[dict] = None
+
+class ComandoRemotoPayload(BaseModel):
+    equipo_id: str
+    accion: str
+    parametros: Optional[dict] = {}
+
+@app.post("/api/remoto/comando")
+async def enviar_comando_remoto(payload: ComandoRemotoPayload):
+    cmd_id = f"cmd-{int(time.time()*1000)}"
+    nuevo_cmd = {
+        "id": cmd_id,
+        "accion": payload.accion,
+        "parametros": payload.parametros or {},
+        "creado_en": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "estado": "pendiente"
+    }
+    if payload.equipo_id not in COMANDOS_PENDIENTES:
+        COMANDOS_PENDIENTES[payload.equipo_id] = []
+    COMANDOS_PENDIENTES[payload.equipo_id].append(nuevo_cmd)
+
+    if payload.equipo_id not in HISTORIAL_COMANDOS:
+        HISTORIAL_COMANDOS[payload.equipo_id] = []
+    HISTORIAL_COMANDOS[payload.equipo_id].insert(0, {
+        "id": cmd_id,
+        "accion": payload.accion,
+        "exito": None,
+        "salida": "En cola de entrega para el próximo latido de la flota...",
+        "hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    guardar_comandos()
+    return {
+        "status": "ok",
+        "message": f"Orden '{payload.accion}' encolada para el nodo {payload.equipo_id}",
+        "comando": nuevo_cmd
+    }
+
+@app.get("/api/remoto/comandos/{equipo_id}")
+async def get_comandos_remotos(equipo_id: str):
+    return {
+        "pendientes": COMANDOS_PENDIENTES.get(equipo_id, []),
+        "historial": HISTORIAL_COMANDOS.get(equipo_id, [])
+    }
 
 @app.post("/api/telemetria/reportar")
-async def reportar_telemetria(data: ReporteTelemetria):
+async def reportar_telemetria(data: ReporteTelemetria, request: Request):
+    # Validación de Token Secreto de Telemetría si está activo en .env
+    env_path = AGENTES_DIR / ".env"
+    expected_token = os.getenv("TELEMETRY_SECRET_TOKEN", "").strip()
+    if not expected_token and env_path.exists():
+        try:
+            for l in env_path.read_text(encoding="utf-8").splitlines():
+                if l.strip().startswith("TELEMETRY_SECRET_TOKEN="):
+                    expected_token = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+        except Exception:
+            pass
+
+    if expected_token:
+        received_token = request.headers.get("x-telemetry-token") or request.headers.get("x-api-key")
+        if not received_token:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                received_token = auth_header[7:].strip()
+        
+        if received_token != expected_token:
+            return JSONResponse(
+                status_code=401,
+                content={"status": "error", "message": "Acceso denegado: Token secreto de telemetría no válido o ausente"}
+            )
+
     ahora_ts = time.time()
     eq_dict = data.dict()
     eq_dict["ultimo_ping"] = ahora_ts
@@ -501,7 +818,34 @@ async def reportar_telemetria(data: ReporteTelemetria):
         equipos_path.write_text(json.dumps(list(FLOTA_REMOTA_DB.values()), indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception:
         pass
-    return {"status": "ok", "message": f"Telemetría de {data.nombre} recibida"}
+
+    # Si el cliente reporta resultado de un comando ejecutado previamente
+    if data.resultado_comando:
+        cmd_res = data.resultado_comando
+        if data.id not in HISTORIAL_COMANDOS:
+            HISTORIAL_COMANDOS[data.id] = []
+        # Actualizar en historial
+        HISTORIAL_COMANDOS[data.id].insert(0, {
+            "id": cmd_res.get("id"),
+            "accion": cmd_res.get("accion", "comando"),
+            "exito": cmd_res.get("exito", True),
+            "salida": cmd_res.get("salida", "Comando ejecutado"),
+            "hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        })
+        if len(HISTORIAL_COMANDOS[data.id]) > 30:
+            HISTORIAL_COMANDOS[data.id].pop()
+        guardar_comandos()
+
+    # Extraer comandos pendientes para entregar a este nodo
+    cmds_a_entregar = COMANDOS_PENDIENTES.pop(data.id, [])
+    if cmds_a_entregar:
+        guardar_comandos()
+
+    return {
+        "status": "ok", 
+        "message": f"Telemetría de {data.nombre} recibida",
+        "comandos": cmds_a_entregar
+    }
 
 @app.post("/api/telemetria/simular")
 async def simular_telemetria():
@@ -1165,7 +1509,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 "tripulacion_activa": is_activo,
                 "modelos": obtener_modelos_agentes(),
                 "tiempo_trabajo": tiempo_trabajo,
-                "flota_remota": obtener_estado_flota(is_activo, estado_tripulacion, pizarra, metrics, costos, logs)
+                "flota_remota": obtener_estado_flota(is_activo, estado_tripulacion, pizarra, metrics, costos, logs),
+                "alerta_intrusion": ULTIMA_ALERTA_INTRUSION if (ULTIMA_ALERTA_INTRUSION and (time.time() - ULTIMA_ALERTA_INTRUSION.get("timestamp", 0) < 180)) else None,
+                "incidentes_seguridad": HISTORIAL_INTRUSIONES[:20],
+                "comandos_remotos": {
+                    "pendientes": COMANDOS_PENDIENTES,
+                    "historial": HISTORIAL_COMANDOS
+                }
             }
             
             await websocket.send_json(data)

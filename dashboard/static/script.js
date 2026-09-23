@@ -70,6 +70,12 @@ function connect() {
                 if (data.flota_remota && typeof updateFleetMonitoring === 'function') {
                     updateFleetMonitoring(data.flota_remota);
                 }
+                if (typeof handleIntrusionAlarmUpdate === 'function') {
+                    handleIntrusionAlarmUpdate(data.alerta_intrusion, data.incidentes_seguridad);
+                }
+                if (data.comandos_remotos) {
+                    window.cachedComandosRemotos = data.comandos_remotos;
+                }
             }
         } catch (e) {
             console.error('WS Error:', e);
@@ -2657,8 +2663,52 @@ function inspeccionarEquipo(equipoId) {
                     </div>
                     <span class="text-[10px] font-mono text-on-surface-variant/60">Auditoría en tiempo real</span>
                 </div>
-                <div class="max-h-60 overflow-y-auto font-mono text-[11px] leading-relaxed flex flex-col gap-1 pr-1 bg-[#05050d] p-2.5 rounded-xl border border-outline-variant/20">
+                <div class="max-h-52 overflow-y-auto font-mono text-[11px] leading-relaxed flex flex-col gap-1 pr-1 bg-[#05050d] p-2.5 rounded-xl border border-outline-variant/20">
                     ${renderInspectLogs(eq)}
+                </div>
+            </div>
+
+            <!-- Torre de Control & Órdenes Remotas -->
+            <div class="p-3.5 rounded-xl bg-surface-container-low border border-cyan-400/30 flex flex-col gap-3">
+                <div class="flex items-center justify-between pb-1.5 border-b border-outline-variant/20">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-[18px] text-cyan-400">tune</span>
+                        <span class="font-bold text-on-surface text-xs">Torre de Mando & Corrección Remota:</span>
+                    </div>
+                    <span class="text-[10px] font-mono text-cyan-400 font-bold bg-cyan-400/10 px-2 py-0.5 rounded border border-cyan-400/25">Enlace C2 Seguro</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <button onclick="enviarOrdenRemota('${eq.id}', 'reiniciar_tripulacion')" type="button" class="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 text-xs font-semibold cursor-pointer transition-all hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[15px]">restart_alt</span>
+                        <span>Reiniciar</span>
+                    </button>
+                    <button onclick="enviarOrdenRemota('${eq.id}', 'limpiar_errores')" type="button" class="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 text-xs font-semibold cursor-pointer transition-all hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[15px]">cleaning_services</span>
+                        <span>Limpiar Memoria</span>
+                    </button>
+                    <button onclick="enviarOrdenRemota('${eq.id}', 'pausar_flota')" type="button" class="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-purple-400/10 hover:bg-purple-400/20 text-purple-300 border border-purple-400/30 text-xs font-semibold cursor-pointer transition-all hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[15px]">pause_circle</span>
+                        <span>Pausar</span>
+                    </button>
+                    <button onclick="enviarOrdenRemota('${eq.id}', 'reanudar_flota')" type="button" class="flex items-center justify-center gap-1.5 p-2 rounded-xl bg-emerald-400/10 hover:bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 text-xs font-semibold cursor-pointer transition-all hover:scale-[1.02]">
+                        <span class="material-symbols-outlined text-[15px]">play_circle</span>
+                        <span>Reanudar</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input id="input-custom-cmd-${eq.id}" type="text" placeholder="Ej: sincronizar_archivos o actualizar_prompts" class="flex-1 bg-[#090914] border border-outline-variant/40 rounded-xl py-1.5 px-3 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-400/60 shadow-inner">
+                    <button onclick="enviarOrdenPersonalizada('${eq.id}')" type="button" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-[#090914] text-xs font-bold cursor-pointer transition-all shrink-0 shadow">
+                        Despachar
+                    </button>
+                </div>
+
+                <div class="mt-1 flex flex-col gap-1 text-[11px] font-mono text-on-surface-variant/80 border-t border-outline-variant/15 pt-2">
+                    <span class="text-[10px] text-on-surface-variant font-bold uppercase">Órdenes Despachadas Recientemente:</span>
+                    <div id="cmd-history-container-${eq.id}" class="flex flex-col gap-1">
+                        ${renderCommandHistory(eq.id)}
+                    </div>
                 </div>
             </div>
         `;
@@ -2879,6 +2929,166 @@ const PROVIDER_METADATA = {
     }
 };
 
+// Catálogo de modelos reconocidos agrupados por proveedor
+const PROVIDER_MODELS = {
+    deepseek: [
+        { id: 'deepseek-chat', label: 'deepseek-chat (DeepSeek-V3)' },
+        { id: 'deepseek-reasoner', label: 'deepseek-reasoner (DeepSeek-R1)' }
+    ],
+    openai: [
+        { id: 'gpt-4o', label: 'gpt-4o (OpenAI)' },
+        { id: 'gpt-4o-mini', label: 'gpt-4o-mini (OpenAI)' },
+        { id: 'o1', label: 'o1 (OpenAI)' },
+        { id: 'o3-mini', label: 'o3-mini (OpenAI)' }
+    ],
+    gemini: [
+        { id: 'gemini-2.5-pro', label: 'gemini-2.5-pro (Google)' },
+        { id: 'gemini-2.5-flash', label: 'gemini-2.5-flash (Google)' },
+        { id: 'gemini-1.5-pro', label: 'gemini-1.5-pro (Google)' },
+        { id: 'gemini-1.5-flash', label: 'gemini-1.5-flash (Google)' }
+    ],
+    groq: [
+        { id: 'llama-3.3-70b-versatile', label: 'llama-3.3-70b-versatile (Groq)' },
+        { id: 'llama-3.1-8b-instant', label: 'llama-3.1-8b-instant (Groq)' },
+        { id: 'mixtral-8x7b-32768', label: 'mixtral-8x7b-32768 (Groq)' }
+    ],
+    anthropic: [
+        { id: 'claude-3-7-sonnet', label: 'claude-3-7-sonnet (Anthropic)' },
+        { id: 'claude-3-5-sonnet', label: 'claude-3-5-sonnet (Anthropic)' },
+        { id: 'claude-3-5-haiku', label: 'claude-3-5-haiku (Anthropic)' }
+    ],
+    xai: [
+        { id: 'grok-2', label: 'grok-2 (xAI)' },
+        { id: 'grok-2-mini', label: 'grok-2-mini (xAI)' }
+    ],
+    qwen: [
+        { id: 'qwen-plus', label: 'qwen-plus (Alibaba Qwen)' },
+        { id: 'qwen-max', label: 'qwen-max (Alibaba Qwen)' },
+        { id: 'qwen-turbo', label: 'qwen-turbo (Alibaba Qwen)' }
+    ],
+    mistral: [
+        { id: 'mistral-large-latest', label: 'mistral-large-latest (Mistral)' },
+        { id: 'mistral-small-latest', label: 'mistral-small-latest (Mistral)' },
+        { id: 'codestral-latest', label: 'codestral-latest (Mistral Codestral)' }
+    ],
+    openrouter: [
+        { id: 'openrouter/auto', label: 'openrouter/auto (OpenRouter)' },
+        { id: 'anthropic/claude-3.7-sonnet', label: 'claude-3.7-sonnet (OpenRouter)' },
+        { id: 'meta-llama/llama-3.3-70b-instruct', label: 'llama-3.3-70b-instruct (OpenRouter)' }
+    ],
+    ollama: [
+        { id: 'llama3', label: 'llama3 (Ollama Local)' },
+        { id: 'qwen2.5-coder', label: 'qwen2.5-coder (Ollama Local)' },
+        { id: 'mistral', label: 'mistral (Ollama Local)' }
+    ]
+};
+
+let customAddedModels = [];
+
+function actualizarSelectoresModelosDisponibles(clavesConfig, opcionesActuales) {
+    const selects = [
+        'cfg-default-model',
+        'cfg-model-luffy',
+        'cfg-model-zoro',
+        'cfg-model-sanji',
+        'cfg-model-robin',
+        'cfg-model-nami'
+    ];
+
+    const keys = clavesConfig || cachedConfigKeys || {};
+
+    // Filtrar estrictamente según los proveedores dados de alta en activeProviders de la consola
+    const provs = (Array.isArray(activeProviders) && activeProviders.length > 0)
+        ? activeProviders
+        : ['deepseek'];
+
+    const activeProvList = provs.filter(provId => {
+        if (!PROVIDER_MODELS[provId]) return false;
+        if (provId === 'ollama') {
+            return Boolean(cachedConfigBaseUrls['ollama'] || (cachedConfig && cachedConfig.ollama));
+        }
+        const k = keys[provId];
+        return Boolean(k && String(k).trim().length > 0);
+    });
+
+    // Si deepseek está entre los proveedores activos de la lista pero no se leyó clave, incluirlo por defecto
+    if (activeProvList.length === 0 && provs.includes('deepseek')) {
+        activeProvList.push('deepseek');
+    }
+
+    selects.forEach(sId => {
+        const sel = document.getElementById(sId);
+        if (!sel) return;
+
+        let curVal = '';
+        if (opcionesActuales && opcionesActuales[sId]) {
+            curVal = opcionesActuales[sId];
+        } else if (sel.value) {
+            curVal = sel.value;
+        }
+
+        sel.innerHTML = '';
+
+        if (activeProvList.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = '';
+            opt.disabled = true;
+            opt.selected = true;
+            opt.innerText = 'Sin claves API activas (configura una arriba)';
+            sel.appendChild(opt);
+            return;
+        }
+
+        let foundSelected = false;
+
+        activeProvList.forEach(provId => {
+            const meta = PROVIDER_METADATA[provId] || { name: provId.toUpperCase() };
+            const models = PROVIDER_MODELS[provId] || [];
+
+            if (models.length > 0) {
+                const grp = document.createElement('optgroup');
+                grp.label = meta.name;
+
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.innerText = m.label;
+                    if (m.id === curVal) {
+                        opt.selected = true;
+                        foundSelected = true;
+                    }
+                    grp.appendChild(opt);
+                });
+
+                sel.appendChild(grp);
+            }
+        });
+
+        // Modelos personalizados agregados manualmente
+        if (customAddedModels.length > 0) {
+            const custGrp = document.createElement('optgroup');
+            custGrp.label = 'Personalizados';
+            customAddedModels.forEach(mId => {
+                const opt = document.createElement('option');
+                opt.value = mId;
+                opt.innerText = `${mId} (Agregado)`;
+                if (mId === curVal) {
+                    opt.selected = true;
+                    foundSelected = true;
+                }
+                custGrp.appendChild(opt);
+            });
+            sel.appendChild(custGrp);
+        }
+
+        // Si el valor actual no pertenece a los proveedores activos, seleccionar el primer modelo disponible
+        if (!foundSelected && sel.options.length > 0) {
+            sel.selectedIndex = 0;
+        }
+    });
+}
+window.actualizarSelectoresModelosDisponibles = actualizarSelectoresModelosDisponibles;
+
 let activeProviders = ['deepseek'];
 let cachedConfigKeys = {};
 let cachedConfigBaseUrls = {};
@@ -2969,6 +3179,7 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
             </div>
         `;
     }).join('');
+    actualizarSelectoresModelosDisponibles(keys);
 }
 
 // Control del Menú Desplegable con Logos Vectoriales Oficiales
@@ -3084,26 +3295,10 @@ window.alCambiarProveedorSelect = alCambiarProveedorSelect;
 
 function agregarModeloASelects(modelo) {
     if (!modelo) return;
-    const selects = [
-        'cfg-default-model',
-        'cfg-model-luffy',
-        'cfg-model-zoro',
-        'cfg-model-sanji',
-        'cfg-model-robin',
-        'cfg-model-nami'
-    ];
-    selects.forEach(sId => {
-        const sel = document.getElementById(sId);
-        if (sel) {
-            const exists = Array.from(sel.options).some(o => o.value === modelo);
-            if (!exists) {
-                const opt = document.createElement('option');
-                opt.value = modelo;
-                opt.innerText = `${modelo} (Agregado)`;
-                sel.appendChild(opt);
-            }
-        }
-    });
+    if (!customAddedModels.includes(modelo)) {
+        customAddedModels.push(modelo);
+    }
+    actualizarSelectoresModelosDisponibles();
 }
 
 async function guardarNuevoProveedorModal() {
@@ -3318,38 +3513,18 @@ async function loadConfigData() {
             if (el) el.value = val || '';
         };
 
-        // Default Model
-        if (data.default_model) {
-            const defSel = document.getElementById('cfg-default-model');
-            if (defSel) {
-                const hasOption = Array.from(defSel.options).some(o => o.value === data.default_model);
-                if (!hasOption) {
-                    const opt = document.createElement('option');
-                    opt.value = data.default_model;
-                    opt.innerText = data.default_model;
-                    defSel.appendChild(opt);
-                }
-                defSel.value = data.default_model;
-            }
-        }
-
-        // Agent Models
+        // Modelos por agente filtrados dinámicamente según proveedores con clave activa
         const mods = data.modelos || {};
-        const agents = ['luffy', 'zoro', 'sanji', 'robin', 'nami'];
-        agents.forEach(ag => {
-            const agMod = mods[ag] || data.default_model || 'deepseek-chat';
-            const selectEl = document.getElementById(`cfg-model-${ag}`);
-            if (selectEl) {
-                const hasOption = Array.from(selectEl.options).some(o => o.value === agMod);
-                if (!hasOption && agMod) {
-                    const opt = document.createElement('option');
-                    opt.value = agMod;
-                    opt.innerText = agMod;
-                    selectEl.appendChild(opt);
-                }
-                selectEl.value = agMod;
-            }
-        });
+        const desiredSelections = {
+            'cfg-default-model': data.default_model || 'deepseek-chat',
+            'cfg-model-luffy': mods.luffy || data.default_model || 'deepseek-chat',
+            'cfg-model-zoro': mods.zoro || data.default_model || 'deepseek-chat',
+            'cfg-model-sanji': mods.sanji || data.default_model || 'deepseek-chat',
+            'cfg-model-robin': mods.robin || data.default_model || 'deepseek-chat',
+            'cfg-model-nami': mods.nami || data.default_model || 'deepseek-chat'
+        };
+
+        actualizarSelectoresModelosDisponibles(cachedConfigKeys, desiredSelections);
 
         // Presupuesto
         if (data.presupuesto_maximo !== undefined) {
@@ -3368,12 +3543,430 @@ async function loadConfigData() {
             setVal('cfg-telegram-chatid', data.telegram.chat_id || '');
         }
 
+        // Seguridad & Blindaje en la Nube
+        if (data.seguridad) {
+            const sec = data.seguridad;
+            const chk = document.getElementById('cfg-sec-auth-active');
+            if (chk) chk.checked = Boolean(sec.auth_active);
+            setVal('cfg-sec-user', sec.auth_user || 'admin');
+            setVal('cfg-sec-password', sec.auth_password || '');
+            setVal('cfg-sec-password-confirm', sec.auth_password || '');
+            setVal('cfg-sec-telemetry-token', sec.telemetry_token || '');
+            setVal('cfg-sec-ip-whitelist', sec.ip_whitelist || '');
+            toggleCloudAuthFields();
+            updateProfileDisplayName(sec.auth_user);
+            if (sec.auth_avatar) {
+                updateProfileAvatar(sec.auth_avatar);
+            } else {
+                try {
+                    const localAv = localStorage.getItem('console_profile_avatar');
+                    if (localAv) updateProfileAvatar(localAv);
+                } catch(e) {}
+            }
+        }
+
     } catch (e) {
         console.error('Error cargando configuración:', e);
         showConfigToast('No se pudo cargar la configuración del sistema.', true);
     }
 }
 window.loadConfigData = loadConfigData;
+
+let currentProfileAvatar = '/static/avatars/bot_cyan.jpg';
+
+function updateProfileAvatar(url) {
+    if (!url || !url.trim()) return;
+    currentProfileAvatar = url.trim();
+    
+    try {
+        localStorage.setItem('console_profile_avatar', currentProfileAvatar);
+    } catch(e) {}
+
+    const headerImg = document.getElementById('header-profile-avatar');
+    if (headerImg) headerImg.src = currentProfileAvatar;
+
+    const dropImg = document.getElementById('dropdown-profile-avatar');
+    if (dropImg) dropImg.src = currentProfileAvatar;
+
+    const previewImg = document.getElementById('cfg-sec-avatar-preview');
+    if (previewImg) previewImg.src = currentProfileAvatar;
+
+    const urlInput = document.getElementById('cfg-sec-avatar-url');
+    if (urlInput) urlInput.value = currentProfileAvatar;
+
+    const presetButtons = document.querySelectorAll('.avatar-preset-btn');
+    presetButtons.forEach(btn => {
+        const img = btn.querySelector('img');
+        if (img && img.src === currentProfileAvatar) {
+            btn.className = 'avatar-preset-btn w-8 h-8 rounded-xl overflow-hidden border-2 border-emerald-400 p-0.5 bg-[#0f0f1a] hover:scale-105 transition-all shrink-0 cursor-pointer shadow-sm ring-2 ring-emerald-500/30';
+        } else {
+            btn.className = 'avatar-preset-btn w-8 h-8 rounded-xl overflow-hidden border border-outline-variant/40 p-0.5 bg-surface-container-highest hover:scale-105 hover:border-emerald-400 transition-all shrink-0 cursor-pointer shadow-sm';
+        }
+    });
+}
+window.updateProfileAvatar = updateProfileAvatar;
+
+function selectPresetAvatar(url, btnElement) {
+    updateProfileAvatar(url);
+    showConfigToast('¡Avatar temático seleccionado!');
+}
+window.selectPresetAvatar = selectPresetAvatar;
+
+function promptCustomAvatarUrl() {
+    const current = document.getElementById('cfg-sec-avatar-url')?.value || currentProfileAvatar;
+    const url = prompt('Ingresa el enlace (URL) de tu foto o avatar:', current);
+    if (url && url.trim()) {
+        updateProfileAvatar(url.trim());
+        showConfigToast('¡Foto de perfil actualizada!');
+    }
+}
+window.promptCustomAvatarUrl = promptCustomAvatarUrl;
+
+function handleAvatarFileUpload(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+        showConfigToast('Por favor selecciona un archivo de imagen válido.', true);
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const maxDim = 256;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+                if (width > maxDim) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                }
+            } else {
+                if (height > maxDim) {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
+                }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+            updateProfileAvatar(dataUrl);
+            showConfigToast('¡Foto de perfil cargada con éxito!');
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+window.handleAvatarFileUpload = handleAvatarFileUpload;
+
+// Iniciar avatar desde almacenamiento local si existe
+try {
+    const cachedAv = localStorage.getItem('console_profile_avatar');
+    if (cachedAv) updateProfileAvatar(cachedAv);
+} catch(e) {}
+
+function updateProfileDisplayName(username) {
+    if (!username || !username.trim()) return;
+    const name = username.trim();
+    const headerProfile = document.getElementById('header-profile-name');
+    if (headerProfile) headerProfile.innerText = name;
+    const dropdownProfile = document.getElementById('dropdown-profile-name');
+    if (dropdownProfile) dropdownProfile.innerText = name;
+    const dropdownUser = document.getElementById('dropdown-profile-user');
+    if (dropdownUser) dropdownUser.innerText = name.toLowerCase() + '@tripulacion.os';
+}
+window.updateProfileDisplayName = updateProfileDisplayName;
+
+function toggleCloudAuthFields() {
+    const chk = document.getElementById('cfg-sec-auth-active');
+    const group = document.getElementById('cfg-sec-credentials-group');
+    const badge = document.getElementById('cfg-sec-badge');
+    const card = document.getElementById('card-auth-security');
+    const lockIconBox = document.getElementById('auth-lock-icon-box');
+    const lockIcon = document.getElementById('auth-lock-icon');
+    const statusSubtext = document.getElementById('auth-status-subtext');
+    const scannerBox = document.getElementById('modal-sec-scanner-box');
+    const headerIcon = document.getElementById('modal-sec-header-icon');
+    const glowLine = document.getElementById('auth-shield-glowline');
+    const isActive = chk ? chk.checked : true;
+
+    if (group) {
+        if (isActive) {
+            group.classList.remove('opacity-40', 'pointer-events-none');
+        } else {
+            group.classList.add('opacity-40', 'pointer-events-none');
+        }
+    }
+
+    if (lockIcon && lockIconBox) {
+        lockIconBox.classList.remove('lock-snap-anim');
+        void lockIconBox.offsetWidth; // Trigger reflow for animation restart
+        lockIconBox.classList.add('lock-snap-anim');
+
+        if (isActive) {
+            lockIcon.innerText = 'lock';
+            lockIconBox.className = 'w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.35)] lock-snap-anim transition-all duration-300';
+            if (statusSubtext) {
+                statusSubtext.innerText = 'Blindaje Activo • Acceso Protegido';
+                statusSubtext.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+            }
+        } else {
+            lockIcon.innerText = 'lock_open';
+            lockIconBox.className = 'w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 lock-snap-anim transition-all duration-300';
+            if (statusSubtext) {
+                statusSubtext.innerText = 'Sin Protección • Acceso Libre';
+                statusSubtext.className = 'text-[10px] font-mono text-on-surface-variant/70';
+            }
+        }
+    }
+
+    if (card) {
+        if (isActive) {
+            card.classList.add('border-emerald-500/40', 'shadow-[0_0_30px_rgba(16,185,129,0.18)]');
+            card.classList.remove('border-outline-variant/35');
+            if (glowLine) glowLine.classList.remove('hidden');
+        } else {
+            card.classList.remove('border-emerald-500/40', 'shadow-[0_0_30px_rgba(16,185,129,0.18)]');
+            card.classList.add('border-outline-variant/35');
+            if (glowLine) glowLine.classList.add('hidden');
+        }
+    }
+
+    if (scannerBox && headerIcon) {
+        if (isActive) {
+            scannerBox.classList.add('active-shield');
+            headerIcon.className = 'material-symbols-outlined text-[26px] text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,0.6)] transition-colors duration-300';
+            scannerBox.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+            scannerBox.style.boxShadow = '0 0 25px rgba(52, 211, 153, 0.3)';
+        } else {
+            scannerBox.classList.remove('active-shield');
+            headerIcon.className = 'material-symbols-outlined text-[26px] text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)] transition-colors duration-300';
+            scannerBox.style.borderColor = 'rgba(244, 63, 94, 0.4)';
+            scannerBox.style.boxShadow = '0 0 20px rgba(244, 63, 94, 0.3)';
+        }
+    }
+
+    if (badge) {
+        if (isActive) {
+            badge.innerText = 'AUTENTICACIÓN ACTIVA';
+            badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-400/15 text-emerald-400 border border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.3)] transition-all';
+        } else {
+            badge.innerText = 'SIN AUTENTICACIÓN';
+            badge.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant border border-outline-variant/40 shadow-sm transition-all';
+        }
+    }
+}
+window.toggleCloudAuthFields = toggleCloudAuthFields;
+
+function generarTokenTelemetriaAleatorio() {
+    const array = new Uint8Array(24);
+    window.crypto.getRandomValues(array);
+    const token = 'sk-telemetry-' + Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    const input = document.getElementById('cfg-sec-telemetry-token');
+    if (input) {
+        input.value = token;
+        showConfigToast('¡Token secreto de telemetría generado!');
+    }
+}
+window.generarTokenTelemetriaAleatorio = generarTokenTelemetriaAleatorio;
+
+function copiarTokenTelemetria() {
+    const input = document.getElementById('cfg-sec-telemetry-token');
+    if (!input || !input.value.trim()) {
+        showConfigToast('No hay token de telemetría para copiar.', true);
+        return;
+    }
+    navigator.clipboard.writeText(input.value.trim()).then(() => {
+        showConfigToast('¡Token de telemetría copiado al portapapeles!');
+    }).catch(() => {
+        showConfigToast('No se pudo copiar automáticamente.');
+    });
+}
+window.copiarTokenTelemetria = copiarTokenTelemetria;
+
+function autocompletarMiRedIP() {
+    const input = document.getElementById('cfg-sec-ip-whitelist');
+    if (input) {
+        input.value = '127.0.0.1, 192.168.0.*, 10.2.0.*';
+        showConfigToast('¡IPs de tu PC y red local configuradas!');
+    }
+}
+window.autocompletarMiRedIP = autocompletarMiRedIP;
+
+function generarPasswordSeguraAleatoria() {
+    const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*';
+    let pass = '';
+    const array = new Uint8Array(16);
+    window.crypto.getRandomValues(array);
+    for (let i = 0; i < 16; i++) {
+        pass += chars[array[i] % chars.length];
+    }
+    const p1 = document.getElementById('cfg-sec-password');
+    const p2 = document.getElementById('cfg-sec-password-confirm');
+    if (p1) {
+        p1.value = pass;
+        p1.type = 'text'; // Reveal generated password so the user can read it
+    }
+    if (p2) {
+        p2.value = pass;
+        p2.type = 'text';
+    }
+    verificarCoincidenciaPassword();
+    showConfigToast('¡Contraseña segura generada y confirmada!');
+}
+window.generarPasswordSeguraAleatoria = generarPasswordSeguraAleatoria;
+
+function verificarCoincidenciaPassword() {
+    const p1 = document.getElementById('cfg-sec-password');
+    const p2 = document.getElementById('cfg-sec-password-confirm');
+    const msg = document.getElementById('cfg-sec-password-match-msg');
+    if (!p1 || !p2 || !msg) return;
+
+    const v1 = p1.value;
+    const v2 = p2.value;
+
+    if (!v1 && !v2) {
+        msg.innerText = '';
+        p2.classList.remove('border-emerald-500/60', 'border-error/60');
+        return;
+    }
+
+    if (v1 && v2 && v1 === v2) {
+        msg.innerText = '✓ Coinciden';
+        msg.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+        p2.classList.add('border-emerald-500/60');
+        p2.classList.remove('border-error/60');
+    } else if (v2 && v1 !== v2) {
+        msg.innerText = '✗ No coinciden';
+        msg.className = 'text-[10px] font-mono text-error font-bold';
+        p2.classList.add('border-error/60');
+        p2.classList.remove('border-emerald-500/60');
+    } else {
+        msg.innerText = '';
+        p2.classList.remove('border-emerald-500/60', 'border-error/60');
+    }
+}
+window.verificarCoincidenciaPassword = verificarCoincidenciaPassword;
+
+function openSecurityModal(show = true) {
+    const modal = document.getElementById('modal-security');
+    if (!modal) return;
+    if (show) {
+        modal.classList.remove('hidden');
+        if (cachedConfig && cachedConfig.seguridad) {
+            const sec = cachedConfig.seguridad;
+            const chk = document.getElementById('cfg-sec-auth-active');
+            if (chk) chk.checked = Boolean(sec.auth_active);
+            const setVal = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.value = val || '';
+            };
+            const userVal = sec.auth_user || 'admin';
+            setVal('cfg-sec-user', userVal);
+            setVal('cfg-sec-password', sec.auth_password || '');
+            setVal('cfg-sec-password-confirm', sec.auth_password || '');
+            setVal('cfg-sec-telemetry-token', sec.telemetry_token || '');
+            setVal('cfg-sec-ip-whitelist', sec.ip_whitelist || '');
+            verificarCoincidenciaPassword();
+            toggleCloudAuthFields();
+            updateProfileDisplayName(userVal);
+            if (sec.auth_avatar) {
+                updateProfileAvatar(sec.auth_avatar);
+            } else {
+                updateProfileAvatar(currentProfileAvatar);
+            }
+        } else {
+            loadConfigData();
+        }
+    } else {
+        modal.classList.add('hidden');
+    }
+}
+window.openSecurityModal = openSecurityModal;
+
+async function guardarSeguridadModal() {
+    const btn = document.getElementById('btn-modal-save-security');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Guardando...</span>';
+    }
+
+    try {
+        const getVal = id => {
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : '';
+        };
+
+        const chkAuth = document.getElementById('cfg-sec-auth-active');
+        const authUser = getVal('cfg-sec-user') || 'admin';
+        const authPass = getVal('cfg-sec-password') || '';
+        const authConfirm = getVal('cfg-sec-password-confirm') || '';
+        const isAuthActive = chkAuth ? chkAuth.checked : true;
+
+        if (isAuthActive) {
+            if (!authUser) {
+                showConfigToast('Debes ingresar un nombre de usuario.', true);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+                }
+                return;
+            }
+            if (authPass && authConfirm && authPass !== authConfirm) {
+                showConfigToast('Las contraseñas no coinciden. Por favor verifícalas.', true);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+                }
+                return;
+            }
+        }
+
+        const authAvatar = getVal('cfg-sec-avatar-url') || currentProfileAvatar;
+
+        const seguridadPayload = {
+            auth_active: isAuthActive,
+            auth_user: authUser,
+            auth_password: authPass,
+            auth_avatar: authAvatar,
+            telemetry_token: getVal('cfg-sec-telemetry-token') || '',
+            ip_whitelist: getVal('cfg-sec-ip-whitelist') || ''
+        };
+
+        const res = await fetch('/api/config/guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ seguridad: seguridadPayload })
+        });
+
+        const data = await res.json();
+        if (data.status === 'ok') {
+            if (!cachedConfig) cachedConfig = {};
+            cachedConfig.seguridad = seguridadPayload;
+            toggleCloudAuthFields();
+            updateProfileDisplayName(authUser);
+            updateProfileAvatar(authAvatar);
+            showConfigToast('¡Credenciales, avatar y parámetros de seguridad guardados!');
+            setTimeout(() => openSecurityModal(false), 500);
+        } else {
+            showConfigToast(data.message || 'Error guardando seguridad', true);
+        }
+    } catch (e) {
+        console.error('Error guardando seguridad:', e);
+        showConfigToast('Error al comunicar con el servidor.', true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+        }
+    }
+}
+window.guardarSeguridadModal = guardarSeguridadModal;
 
 async function guardarTodaLaConfiguracion() {
     const saveBtn = document.getElementById('btn-save-all-config');
@@ -3406,6 +3999,7 @@ async function guardarTodaLaConfiguracion() {
             }
         });
 
+        const chkAuth = document.getElementById('cfg-sec-auth-active');
         const payload = {
             keys,
             base_urls,
@@ -3422,6 +4016,14 @@ async function guardarTodaLaConfiguracion() {
             telegram: {
                 token: getVal('cfg-telegram-token'),
                 chat_id: getVal('cfg-telegram-chatid')
+            },
+            seguridad: {
+                auth_active: Boolean(!chkAuth || chkAuth.checked),
+                auth_user: getVal('cfg-sec-user') || 'admin',
+                auth_password: getVal('cfg-sec-password') || '',
+                auth_avatar: getVal('cfg-sec-avatar-url') || currentProfileAvatar,
+                telemetry_token: getVal('cfg-sec-telemetry-token') || '',
+                ip_whitelist: getVal('cfg-sec-ip-whitelist') || ''
             }
         };
 
@@ -3466,6 +4068,9 @@ async function guardarTodaLaConfiguracion() {
                     badge.innerText = hasKey ? 'CONECTADA' : 'SIN CLAVE';
                 }
             });
+
+            // Actualizar desplegables de modelos según las claves activas guardadas
+            actualizarSelectoresModelosDisponibles(keys);
         } else {
             showConfigToast(data.message || 'Error guardando cambios.', true);
         }
@@ -3519,19 +4124,67 @@ async function probarTelegramTest() {
 }
 window.probarTelegramTest = probarTelegramTest;
 
-async function resetearCostosMes() {
-    if (!confirm('¿Estás seguro de que deseas restablecer el acumulador de consumo y costos a $0.00?')) return;
+function abrirModalConfirmarResetCostos() {
+    const modal = document.getElementById('modal-confirm-reset-costos');
+    if (modal) modal.classList.remove('hidden');
+}
+window.abrirModalConfirmarResetCostos = abrirModalConfirmarResetCostos;
+
+function cerrarModalConfirmarResetCostos() {
+    const modal = document.getElementById('modal-confirm-reset-costos');
+    if (modal) modal.classList.add('hidden');
+}
+window.cerrarModalConfirmarResetCostos = cerrarModalConfirmarResetCostos;
+
+async function ejecutarResetearCostos() {
+    const btn = document.getElementById('btn-modal-confirm-reset-costos');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Restableciendo...</span>';
+    }
+
     try {
         const res = await fetch('/api/config/reset-costos', { method: 'POST' });
         const data = await res.json();
         if (data.status === 'ok') {
             showConfigToast(data.message);
+            // Actualizar métricas visuales inmediatamente en pantalla
+            const curPresMax = (window.cachedCostos && window.cachedCostos.presupuesto_maximo) ? window.cachedCostos.presupuesto_maximo : 100.0;
+            const elPresBadge = document.getElementById('cfg-presupuesto-consumo-badge');
+            if (elPresBadge) elPresBadge.innerText = `$0.00 / $${curPresMax.toFixed(2)} USD`;
+            const elPresBar = document.getElementById('cfg-presupuesto-bar');
+            if (elPresBar) {
+                elPresBar.style.width = '0%';
+                elPresBar.className = 'h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all duration-500';
+            }
+            const elPresPct = document.getElementById('cfg-presupuesto-pct-text');
+            if (elPresPct) {
+                elPresPct.innerText = '0.0% consumido';
+                elPresPct.className = '';
+            }
+            const elCost = document.getElementById('metric-cost');
+            if (elCost) elCost.innerText = '$0.00';
+            const elCostSub = document.getElementById('metric-cost-sub');
+            if (elCostSub) elCostSub.innerText = `Presupuesto ($${curPresMax.toFixed(2)}): 0.0%`;
+            const elAlerta = document.getElementById('cfg-presupuesto-alerta-bloqueo');
+            if (elAlerta) elAlerta.classList.add('hidden');
         } else {
-            showConfigToast(data.message, true);
+            showConfigToast(data.message || 'Error restableciendo costos.', true);
         }
     } catch (e) {
-        showConfigToast('Error restableciendo costos.', true);
+        showConfigToast('Error de comunicación con el servidor.', true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">restart_alt</span><span>Reiniciar Contador</span>';
+        }
+        cerrarModalConfirmarResetCostos();
     }
+}
+window.ejecutarResetearCostos = ejecutarResetearCostos;
+
+function resetearCostosMes() {
+    abrirModalConfirmarResetCostos();
 }
 window.resetearCostosMes = resetearCostosMes;
 
@@ -3544,5 +4197,250 @@ function copiarUrlTelemetria() {
     });
 }
 window.copiarUrlTelemetria = copiarUrlTelemetria;
+
+// ============================================================
+// SISTEMA CENTINELA: ALARMA DE INTRUSIÓN Y CONTROL REMOTO
+// ============================================================
+
+let audioCtx = null;
+let alarmOscillator = null;
+let alarmGain = null;
+let alarmInterval = null;
+let isAlarmMuted = false;
+let isAlarmActive = false;
+let lastSeenIncidentId = null;
+
+function initAudioContext() {
+    if (!audioCtx) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+}
+
+function playSecuritySiren() {
+    if (isAlarmMuted) return;
+    try {
+        initAudioContext();
+        if (!audioCtx) return;
+        
+        stopSecuritySiren();
+        
+        let toneHigh = true;
+        alarmOscillator = audioCtx.createOscillator();
+        alarmGain = audioCtx.createGain();
+        alarmOscillator.type = 'sawtooth';
+        alarmOscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        alarmGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        
+        alarmOscillator.connect(alarmGain);
+        alarmGain.connect(audioCtx.destination);
+        alarmOscillator.start();
+        
+        alarmInterval = setInterval(() => {
+            if (!alarmOscillator || !audioCtx) return;
+            toneHigh = !toneHigh;
+            alarmOscillator.frequency.setValueAtTime(toneHigh ? 880 : 587, audioCtx.currentTime);
+        }, 320);
+    } catch(e) {
+        console.warn('Audio siren error:', e);
+    }
+}
+window.playSecuritySiren = playSecuritySiren;
+
+function stopSecuritySiren() {
+    if (alarmInterval) {
+        clearInterval(alarmInterval);
+        alarmInterval = null;
+    }
+    if (alarmOscillator) {
+        try {
+            alarmOscillator.stop();
+            alarmOscillator.disconnect();
+        } catch(e){}
+        alarmOscillator = null;
+    }
+}
+window.stopSecuritySiren = stopSecuritySiren;
+
+function handleIntrusionAlarmUpdate(alerta, incidentes) {
+    // 1. Actualizar lista de incidentes en modal de seguridad
+    renderIncidentesSeguridad(incidentes || []);
+
+    const banner = document.getElementById('security-alarm-banner');
+    const overlay = document.getElementById('security-alarm-overlay');
+    const details = document.getElementById('alarm-banner-details');
+    const timeEl = document.getElementById('alarm-banner-time');
+
+    if (alerta && alerta.ip) {
+        isAlarmActive = true;
+        if (banner) banner.classList.remove('hidden');
+        if (overlay) overlay.classList.remove('hidden');
+        if (details) {
+            details.innerText = `Intento de acceso desde IP no autorizada: ${alerta.ip} [${alerta.metodo || 'GET'} ${alerta.ruta || '/'}] bloqueado de inmediato.`;
+        }
+        if (timeEl) {
+            timeEl.innerText = alerta.hora || 'En vivo';
+        }
+
+        if (alerta.id !== lastSeenIncidentId) {
+            lastSeenIncidentId = alerta.id;
+            playSecuritySiren();
+        }
+    } else {
+        isAlarmActive = false;
+        if (banner) banner.classList.add('hidden');
+        if (overlay) overlay.classList.add('hidden');
+        stopSecuritySiren();
+    }
+}
+window.handleIntrusionAlarmUpdate = handleIntrusionAlarmUpdate;
+
+function renderIncidentesSeguridad(incidentes) {
+    const list = document.getElementById('sec-incidentes-list');
+    const empty = document.getElementById('sec-incidentes-empty');
+    if (!list) return;
+
+    if (!incidentes || incidentes.length === 0) {
+        list.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        return;
+    }
+
+    if (empty) empty.classList.add('hidden');
+    list.innerHTML = incidentes.map(inc => `
+        <div class="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-surface-container-low/70 border border-red-500/25 text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                <span class="font-bold text-red-400 font-mono shrink-0">${inc.ip || '0.0.0.0'}</span>
+                <span class="text-on-surface-variant font-mono truncate max-w-[240px]">${inc.metodo || 'GET'} ${inc.ruta || '/'}</span>
+            </div>
+            <div class="flex items-center gap-3 shrink-0 font-mono text-[10px]">
+                <span class="text-on-surface-variant/70">${inc.hora || ''}</span>
+                <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 font-bold uppercase tracking-wider">403 Bloqueado</span>
+            </div>
+        </div>
+    `).join('');
+}
+window.renderIncidentesSeguridad = renderIncidentesSeguridad;
+
+async function descartarAlarmaIntrusion() {
+    stopSecuritySiren();
+    const banner = document.getElementById('security-alarm-banner');
+    const overlay = document.getElementById('security-alarm-overlay');
+    if (banner) banner.classList.add('hidden');
+    if (overlay) overlay.classList.add('hidden');
+    try {
+        await fetch('/api/seguridad/silenciar-alarma', { method: 'POST' });
+    } catch(e) {}
+}
+window.descartarAlarmaIntrusion = descartarAlarmaIntrusion;
+
+function toggleMuteSirena() {
+    isAlarmMuted = !isAlarmMuted;
+    const icon = document.getElementById('icon-sirena');
+    const text = document.getElementById('text-sirena');
+    if (isAlarmMuted) {
+        stopSecuritySiren();
+        if (icon) icon.innerText = 'volume_off';
+        if (text) text.innerText = 'Sirena Silenciada';
+    } else {
+        if (icon) icon.innerText = 'volume_up';
+        if (text) text.innerText = 'Silenciar Sirena';
+        if (isAlarmActive) playSecuritySiren();
+    }
+}
+window.toggleMuteSirena = toggleMuteSirena;
+
+function probarSirenaSeguridad() {
+    isAlarmMuted = false;
+    const icon = document.getElementById('icon-sirena');
+    const text = document.getElementById('text-sirena');
+    if (icon) icon.innerText = 'volume_up';
+    if (text) text.innerText = 'Silenciar Sirena';
+    playSecuritySiren();
+    setTimeout(() => {
+        if (!isAlarmActive) stopSecuritySiren();
+    }, 2800);
+}
+window.probarSirenaSeguridad = probarSirenaSeguridad;
+
+async function limpiarHistorialIncidentes() {
+    try {
+        await fetch('/api/seguridad/incidentes', { method: 'DELETE' });
+        renderIncidentesSeguridad([]);
+    } catch(e) {
+        console.error('Error limpiando incidentes:', e);
+    }
+}
+window.limpiarHistorialIncidentes = limpiarHistorialIncidentes;
+
+// Órdenes Remotas Bidireccionales (C2)
+async function enviarOrdenRemota(equipoId, accion, parametros = {}) {
+    try {
+        const res = await fetch('/api/remoto/comando', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ equipo_id: equipoId, accion: accion, parametros: parametros })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            showConfigToast(`Orden '${accion}' encolada con éxito hacia ${equipoId}.`);
+            // Actualizar vista del historial en el modal
+            if (!window.cachedComandosRemotos) window.cachedComandosRemotos = { pendientes: {}, historial: {} };
+            if (!window.cachedComandosRemotos.pendientes[equipoId]) window.cachedComandosRemotos.pendientes[equipoId] = [];
+            window.cachedComandosRemotos.pendientes[equipoId].push(data.comando);
+            const container = document.getElementById(`cmd-history-container-${equipoId}`);
+            if (container) container.innerHTML = renderCommandHistory(equipoId);
+        } else {
+            alert(`Error: ${data.message || 'No se pudo enviar la orden'}`);
+        }
+    } catch(e) {
+        alert(`Error al enviar orden remota: ${e.message}`);
+    }
+}
+window.enviarOrdenRemota = enviarOrdenRemota;
+
+function enviarOrdenPersonalizada(equipoId) {
+    const inp = document.getElementById(`input-custom-cmd-${equipoId}`);
+    if (!inp || !inp.value.trim()) return;
+    const accion = inp.value.trim();
+    inp.value = '';
+    enviarOrdenRemota(equipoId, accion);
+}
+window.enviarOrdenPersonalizada = enviarOrdenPersonalizada;
+
+function renderCommandHistory(equipoId) {
+    const store = window.cachedComandosRemotos || {};
+    const hist = (store.historial && store.historial[equipoId]) || [];
+    const pend = (store.pendientes && store.pendientes[equipoId]) || [];
+
+    if (pend.length === 0 && hist.length === 0) {
+        return `<div class="text-on-surface-variant/50 italic py-1 text-center">No hay órdenes despachadas recientemente para este equipo.</div>`;
+    }
+
+    let html = '';
+    pend.forEach(p => {
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-cyan-400/10 border border-cyan-400/25">
+                <span class="text-cyan-300 font-bold">⚡ ${p.accion}</span>
+                <span class="text-[10px] text-amber-300 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">En cola para latido</span>
+            </div>
+        `;
+    });
+    hist.slice(0, 4).forEach(h => {
+        const ok = h.exito !== false;
+        html += `
+            <div class="flex items-center justify-between p-1.5 rounded-lg bg-surface-container-high/60 border border-outline-variant/20">
+                <span class="text-on-surface font-semibold">${h.accion} <span class="text-on-surface-variant font-normal">(${h.salida || 'Ejecutado'})</span></span>
+                <span class="text-[10px] ${ok ? 'text-secondary' : 'text-error'} font-mono">${h.hora || ''}</span>
+            </div>
+        `;
+    });
+    return html;
+}
+window.renderCommandHistory = renderCommandHistory;
 
 
