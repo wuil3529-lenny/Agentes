@@ -4466,8 +4466,8 @@ function renderAuthAvatarSelector() {
     grid.innerHTML = BOT_AVATARS_LIST.map(bot => {
         const isSel = (bot.url === selectedRegisterAvatar);
         return `
-            <button type="button" onclick="selectAuthRegisterAvatar('${bot.url}')" title="${bot.name}" class="auth-avatar-opt w-10 h-10 rounded-xl overflow-hidden border-2 ${isSel ? 'border-secondary ring-2 ring-secondary/40 scale-105' : 'border-outline-variant/40 opacity-70 hover:opacity-100 hover:border-white'} transition-all cursor-pointer p-0.5 bg-surface-container-highest shrink-0">
-                <img src="${bot.url}" alt="${bot.name}" class="w-full h-full object-cover rounded-lg">
+            <button type="button" onclick="selectAuthRegisterAvatar('${bot.url}')" title="${bot.name}" class="auth-avatar-opt w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 ${isSel ? 'border-secondary ring-4 ring-secondary/30 scale-105 shadow-[0_0_15px_rgba(0,255,204,0.4)]' : 'border-outline-variant/40 opacity-70 hover:opacity-100 hover:border-white'} transition-all cursor-pointer p-0.5 bg-surface-container-highest shrink-0">
+                <img src="${bot.url}" alt="${bot.name}" class="w-full h-full object-cover rounded-xl">
             </button>
         `;
     }).join('');
