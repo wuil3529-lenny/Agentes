@@ -4443,4 +4443,392 @@ function renderCommandHistory(equipoId) {
 }
 window.renderCommandHistory = renderCommandHistory;
 
+// ============================================================
+// SISTEMA DE AUTENTICACIÓN CRIPTOGRÁFICA (LOGIN & REGISTRO)
+// ============================================================
+
+const BOT_AVATARS_LIST = [
+    { id: 'bot_cyan', url: '/static/avatars/bot_cyan.jpg', name: 'Cyan' },
+    { id: 'bot_blue', url: '/static/avatars/bot_blue.jpg', name: 'Azul' },
+    { id: 'bot_green', url: '/static/avatars/bot_green.jpg', name: 'Verde' },
+    { id: 'bot_orange', url: '/static/avatars/bot_orange.jpg', name: 'Naranja' },
+    { id: 'bot_purple', url: '/static/avatars/bot_purple.jpg', name: 'Púrpura' },
+    { id: 'bot_pink', url: '/static/avatars/bot_pink.jpg', name: 'Rosa' },
+    { id: 'bot_dark', url: '/static/avatars/bot_dark.jpg', name: 'Dark' }
+];
+
+let selectedRegisterAvatar = '/static/avatars/bot_cyan.jpg';
+
+function renderAuthAvatarSelector() {
+    const grid = document.getElementById('auth-reg-avatar-grid');
+    if (!grid) return;
+
+    grid.innerHTML = BOT_AVATARS_LIST.map(bot => {
+        const isSel = (bot.url === selectedRegisterAvatar);
+        return `
+            <button type="button" onclick="selectAuthRegisterAvatar('${bot.url}')" title="${bot.name}" class="auth-avatar-opt w-10 h-10 rounded-xl overflow-hidden border-2 ${isSel ? 'border-secondary ring-2 ring-secondary/40 scale-105' : 'border-outline-variant/40 opacity-70 hover:opacity-100 hover:border-white'} transition-all cursor-pointer p-0.5 bg-surface-container-highest shrink-0">
+                <img src="${bot.url}" alt="${bot.name}" class="w-full h-full object-cover rounded-lg">
+            </button>
+        `;
+    }).join('');
+}
+window.renderAuthAvatarSelector = renderAuthAvatarSelector;
+
+function selectAuthRegisterAvatar(url) {
+    selectedRegisterAvatar = url;
+    const hiddenInp = document.getElementById('auth-reg-avatar');
+    if (hiddenInp) hiddenInp.value = url;
+    renderAuthAvatarSelector();
+}
+window.selectAuthRegisterAvatar = selectAuthRegisterAvatar;
+
+function switchAuthTab(tab) {
+    const btnLogin = document.getElementById('auth-tab-btn-login');
+    const btnReg = document.getElementById('auth-tab-btn-register');
+    const formLogin = document.getElementById('auth-login-form');
+    const formReg = document.getElementById('auth-register-form');
+    const alertBox = document.getElementById('auth-alert-box');
+
+    if (alertBox) alertBox.classList.add('hidden');
+
+    if (tab === 'login') {
+        if (btnLogin) {
+            btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
+        }
+        if (btnReg) {
+            btnReg.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-white cursor-pointer';
+        }
+        if (formLogin) formLogin.classList.remove('hidden');
+        if (formReg) formReg.classList.add('hidden');
+        const userInp = document.getElementById('auth-login-username');
+        if (userInp) setTimeout(() => userInp.focus(), 80);
+    } else {
+        if (btnReg) {
+            btnReg.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-secondary text-[#0a0a12] shadow-[0_0_12px_rgba(0,255,204,0.4)] cursor-pointer';
+        }
+        if (btnLogin) {
+            btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-white cursor-pointer';
+        }
+        if (formLogin) formLogin.classList.add('hidden');
+        if (formReg) formReg.classList.remove('hidden');
+        renderAuthAvatarSelector();
+        const nameInp = document.getElementById('auth-reg-name');
+        if (nameInp) setTimeout(() => nameInp.focus(), 80);
+    }
+}
+window.switchAuthTab = switchAuthTab;
+
+function showAuthAlert(msg, type = 'error') {
+    const box = document.getElementById('auth-alert-box');
+    if (!box) return;
+    box.innerText = msg;
+    box.classList.remove('hidden');
+
+    if (type === 'error') {
+        box.className = 'p-3 rounded-xl border border-red-500/50 bg-red-500/15 text-red-300 text-xs font-mono transition-all animate-shake';
+    } else if (type === 'success') {
+        box.className = 'p-3 rounded-xl border border-emerald-400/50 bg-emerald-400/15 text-emerald-300 text-xs font-mono transition-all';
+    } else {
+        box.className = 'p-3 rounded-xl border border-amber-400/50 bg-amber-400/15 text-amber-300 text-xs font-mono transition-all';
+    }
+}
+window.showAuthAlert = showAuthAlert;
+
+function verificarRegistroPasswords() {
+    const p1 = document.getElementById('auth-reg-password');
+    const p2 = document.getElementById('auth-reg-confirm');
+    const msg = document.getElementById('auth-reg-match-msg');
+    if (!p1 || !p2 || !msg) return;
+
+    const v1 = p1.value;
+    const v2 = p2.value;
+
+    if (!v1 && !v2) {
+        msg.innerText = '';
+        p2.classList.remove('border-emerald-500/60', 'border-error/60');
+        return;
+    }
+
+    if (v1 && v2 && v1 === v2) {
+        msg.innerText = '✓ Coinciden';
+        msg.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+        p2.classList.add('border-emerald-500/60');
+        p2.classList.remove('border-error/60');
+    } else if (v2 && v1 !== v2) {
+        msg.innerText = '✗ No coinciden';
+        msg.className = 'text-[10px] font-mono text-error font-bold';
+        p2.classList.add('border-error/60');
+        p2.classList.remove('border-emerald-500/60');
+    } else {
+        msg.innerText = '';
+        p2.classList.remove('border-emerald-500/60', 'border-error/60');
+    }
+}
+window.verificarRegistroPasswords = verificarRegistroPasswords;
+
+async function checkAuthSession() {
+    const modal = document.getElementById('auth-gate-modal');
+    if (!modal) return;
+
+    try {
+        // 1. Verificar si la autenticación está activa en el sistema
+        const statusRes = await fetch('/api/auth/status');
+        if (statusRes.ok) {
+            const statusData = await statusRes.json();
+            if (statusData.auth_active === false) {
+                modal.classList.add('hidden');
+                return;
+            }
+        }
+
+        // 2. Comprobar si ya existe una sesión válida (JWT en cookie o Bearer token)
+        const token = localStorage.getItem('console_jwt_token');
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const meRes = await fetch('/api/auth/me', {
+            headers,
+            credentials: 'include'
+        });
+
+        if (meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.status === 'ok' && meData.user) {
+                window.currentUser = meData.user;
+                updateProfileDisplayName(meData.user.nombre || meData.user.username);
+                if (meData.user.avatar) {
+                    updateProfileAvatar(meData.user.avatar);
+                }
+                modal.classList.add('hidden');
+                return;
+            }
+        }
+
+        // 3. Si no hay sesión válida, mostrar la puerta de autenticación
+        modal.classList.remove('hidden');
+        renderAuthAvatarSelector();
+        const userInp = document.getElementById('auth-login-username');
+        if (userInp) setTimeout(() => userInp.focus(), 150);
+
+    } catch (e) {
+        console.warn('Error comprobando sesión de autenticación:', e);
+        modal.classList.remove('hidden');
+    }
+}
+window.checkAuthSession = checkAuthSession;
+
+async function ejecutarLogin(event) {
+    if (event) event.preventDefault();
+
+    const usernameInp = document.getElementById('auth-login-username');
+    const passInp = document.getElementById('auth-login-password');
+    const btn = document.getElementById('auth-login-btn');
+
+    const username = usernameInp ? usernameInp.value.trim() : '';
+    const password = passInp ? passInp.value : '';
+
+    if (!username || !password) {
+        showAuthAlert('Por favor completa todos los campos.');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span><span>Verificando credenciales...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            if (data.token) {
+                localStorage.setItem('console_jwt_token', data.token);
+            }
+            if (data.user) {
+                window.currentUser = data.user;
+                updateProfileDisplayName(data.user.nombre || data.user.username);
+                if (data.user.avatar) {
+                    updateProfileAvatar(data.user.avatar);
+                }
+            }
+
+            showAuthAlert(data.message || '¡Acceso concedido! Entrando a la consola...', 'success');
+
+            setTimeout(() => {
+                const modal = document.getElementById('auth-gate-modal');
+                if (modal) modal.classList.add('hidden');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">lock_open</span><span>Entrar a la Consola</span>';
+                }
+                showConfigToast(`¡Bienvenido a bordo, ${data.user?.nombre || username}!`);
+            }, 600);
+
+        } else if (res.status === 429) {
+            showAuthAlert(data.message || 'Bloqueo temporal por intentos fallidos. Por favor espera unos minutos.', 'warning');
+        } else {
+            showAuthAlert(data.message || 'Usuario o contraseña incorrectos.');
+            if (passInp) {
+                passInp.value = '';
+                passInp.focus();
+            }
+        }
+    } catch (e) {
+        console.error('Error en login:', e);
+        showAuthAlert('Error al conectar con el servidor de autenticación.');
+    } finally {
+        if (btn && !document.getElementById('auth-gate-modal')?.classList.contains('hidden')) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">lock_open</span><span>Entrar a la Consola</span>';
+        }
+    }
+}
+window.ejecutarLogin = ejecutarLogin;
+
+async function ejecutarRegistro(event) {
+    if (event) event.preventDefault();
+
+    const nameInp = document.getElementById('auth-reg-name');
+    const usernameInp = document.getElementById('auth-reg-username');
+    const avatarInp = document.getElementById('auth-reg-avatar');
+    const passInp = document.getElementById('auth-reg-password');
+    const confirmInp = document.getElementById('auth-reg-confirm');
+    const btn = document.getElementById('auth-reg-btn');
+
+    const nombre = nameInp ? nameInp.value.trim() : '';
+    const username = usernameInp ? usernameInp.value.trim() : '';
+    const avatar = avatarInp ? avatarInp.value : selectedRegisterAvatar;
+    const password = passInp ? passInp.value : '';
+    const confirm = confirmInp ? confirmInp.value : '';
+
+    if (!username || !password) {
+        showAuthAlert('Debes ingresar un nombre de usuario y contraseña.');
+        return;
+    }
+
+    if (username.length < 3) {
+        showAuthAlert('El nombre de usuario debe tener al menos 3 caracteres.');
+        if (usernameInp) usernameInp.focus();
+        return;
+    }
+
+    if (password.length < 6) {
+        showAuthAlert('La contraseña debe tener al menos 6 caracteres.');
+        if (passInp) passInp.focus();
+        return;
+    }
+
+    if (password !== confirm) {
+        showAuthAlert('Las contraseñas no coinciden. Por favor verifícalas.');
+        if (confirmInp) confirmInp.focus();
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">sync</span><span>Creando cuenta segura...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                nombre: nombre || username,
+                username,
+                password,
+                avatar
+            })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            if (data.token) {
+                localStorage.setItem('console_jwt_token', data.token);
+            }
+            if (data.user) {
+                window.currentUser = data.user;
+                updateProfileDisplayName(data.user.nombre || data.user.username);
+                if (data.user.avatar) {
+                    updateProfileAvatar(data.user.avatar);
+                }
+            }
+
+            showAuthAlert(data.message || '¡Cuenta creada con éxito! Entrando...', 'success');
+
+            setTimeout(() => {
+                const modal = document.getElementById('auth-gate-modal');
+                if (modal) modal.classList.add('hidden');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">how_to_reg</span><span>Crear Cuenta & Acceder</span>';
+                }
+                showConfigToast(`¡Cuenta creada con éxito! Bienvenido, ${data.user?.nombre || username}.`);
+            }, 700);
+
+        } else {
+            showAuthAlert(data.message || 'No se pudo crear la cuenta.');
+        }
+    } catch (e) {
+        console.error('Error en registro:', e);
+        showAuthAlert('Error al conectar con el servidor.');
+    } finally {
+        if (btn && !document.getElementById('auth-gate-modal')?.classList.contains('hidden')) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">how_to_reg</span><span>Crear Cuenta & Acceder</span>';
+        }
+    }
+}
+window.ejecutarRegistro = ejecutarRegistro;
+
+async function cerrarSesionConsola() {
+    // Cerrar menú dropdown si está abierto
+    const dropdown = document.getElementById('profile-dropdown');
+    if (dropdown) dropdown.classList.add('hidden');
+
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (e) {
+        console.warn('Error llamando logout endpoint:', e);
+    }
+
+    localStorage.removeItem('console_jwt_token');
+    window.currentUser = null;
+
+    const modal = document.getElementById('auth-gate-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        switchAuthTab('login');
+        const passInp = document.getElementById('auth-login-password');
+        if (passInp) passInp.value = '';
+        showAuthAlert('Sesión cerrada correctamente. Ingresa tus credenciales para continuar.', 'warning');
+    }
+}
+window.cerrarSesionConsola = cerrarSesionConsola;
+
+// Iniciar comprobación de sesión al cargar la página
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        renderAuthAvatarSelector();
+        checkAuthSession();
+    });
+} else {
+    renderAuthAvatarSelector();
+    checkAuthSession();
+}
+
 

@@ -6,6 +6,8 @@ from pathlib import Path
 from datetime import datetime
 import urllib.request
 import urllib.parse
+import bcrypt
+import jwt
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -177,10 +179,254 @@ async def ip_whitelist_middleware(request: Request, call_next):
 
     return await call_next(request)
 
-
 from pydantic import BaseModel
 import subprocess
 import os
+
+# ----------------- AUTENTICACIÓN Y GESTIÓN DE USUARIOS (BCRYPT + JWT) -----------------
+USUARIOS_DB_FILE = AGENTES_DIR / "usuarios.json"
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "tripulacion-ia-c2-jwt-token-secret-key-3529-2026-super-secure")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION_SECONDS = 7 * 24 * 3600  # 7 días de validez
+
+# Registro en memoria de intentos fallidos por IP (Anti Fuerza Bruta)
+INTENTOS_FALLIDOS: Dict[str, dict] = {}  # ip -> {"conteo": int, "bloqueado_hasta": float}
+
+def cargar_usuarios() -> List[dict]:
+    if USUARIOS_DB_FILE.exists():
+        try:
+            data = json.loads(USUARIOS_DB_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, list) and len(data) > 0:
+                return data
+        except Exception:
+            pass
+
+    # Inicializar con el usuario administrador por defecto desde .env
+    env_user = os.getenv("CONSOLE_AUTH_USER", "").strip() or "Wuilfredo"
+    env_pass = os.getenv("CONSOLE_AUTH_PASSWORD", "").strip() or "Igris3529#"
+    env_avatar = os.getenv("CONSOLE_AUTH_AVATAR", "/static/avatars/bot_dark.jpg").strip()
+
+    salt = bcrypt.gensalt(rounds=12)
+    hashed_pwd = bcrypt.hashpw(env_pass.encode("utf-8"), salt).decode("utf-8")
+
+    usuario_inicial = {
+        "id": "usr-admin-01",
+        "username": env_user,
+        "password_hash": hashed_pwd,
+        "nombre": f"Capitán {env_user}",
+        "avatar": env_avatar,
+        "rol": "admin",
+        "creado_en": datetime.now().isoformat()
+    }
+    guardar_usuarios([usuario_inicial])
+    return [usuario_inicial]
+
+def guardar_usuarios(usuarios: List[dict]):
+    try:
+        USUARIOS_DB_FILE.write_text(json.dumps(usuarios, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print(f"Error guardando usuarios: {e}")
+
+def verificar_bloqueo_fuerza_bruta(ip: str) -> Optional[str]:
+    ahora = time.time()
+    registro = INTENTOS_FALLIDOS.get(ip)
+    if registro and registro.get("bloqueado_hasta", 0) > ahora:
+        segundos_restantes = int(registro["bloqueado_hasta"] - ahora)
+        return f"Acceso temporalmente bloqueado por demasiados intentos fallidos. Por seguridad, espera {segundos_restantes} segundos antes de reintentar."
+    return None
+
+def registrar_intento_fallido(ip: str):
+    ahora = time.time()
+    registro = INTENTOS_FALLIDOS.get(ip, {"conteo": 0, "bloqueado_hasta": 0})
+    registro["conteo"] += 1
+    if registro["conteo"] >= 5:
+        registro["bloqueado_hasta"] = ahora + 300  # 5 minutos de bloqueo
+        registro["conteo"] = 0
+    INTENTOS_FALLIDOS[ip] = registro
+
+def resetear_intentos_fallidos(ip: str):
+    if ip in INTENTOS_FALLIDOS:
+        del INTENTOS_FALLIDOS[ip]
+
+def generar_jwt_token(usuario: dict) -> str:
+    ahora = time.time()
+    payload = {
+        "sub": usuario["id"],
+        "username": usuario["username"],
+        "nombre": usuario.get("nombre", usuario["username"]),
+        "avatar": usuario.get("avatar", "/static/avatars/bot_cyan.jpg"),
+        "rol": usuario.get("rol", "usuario"),
+        "iat": int(ahora),
+        "exp": int(ahora + JWT_EXPIRATION_SECONDS)
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+def validar_jwt_token(token: str) -> Optional[dict]:
+    try:
+        return jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        return None
+
+def obtener_usuario_actual(request: Request) -> Optional[dict]:
+    auth_header = request.headers.get("authorization", "")
+    token = None
+    if auth_header.lower().startswith("bearer "):
+        token = auth_header[7:].strip()
+    if not token:
+        token = request.headers.get("x-auth-token")
+    if not token:
+        token = request.cookies.get("access_token")
+    if not token:
+        return None
+    return validar_jwt_token(token)
+
+class LoginPayload(BaseModel):
+    username: str
+    password: str
+
+class RegisterPayload(BaseModel):
+    username: str
+    password: str
+    nombre: Optional[str] = None
+    avatar: Optional[str] = "/static/avatars/bot_cyan.jpg"
+
+@app.post("/api/auth/login")
+async def auth_login(payload: LoginPayload, request: Request):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    bloqueo = verificar_bloqueo_fuerza_bruta(client_ip)
+    if bloqueo:
+        return JSONResponse(status_code=429, content={"status": "error", "message": bloqueo})
+
+    usuarios = cargar_usuarios()
+    usuario_encontrado = None
+    for u in usuarios:
+        u_name = u["username"].strip().lower()
+        input_name = payload.username.strip().lower()
+        if u_name == input_name or (u_name == "wuilfredo" and input_name == "wuil") or (u_name == "wuil" and input_name == "wuilfredo"):
+            usuario_encontrado = u
+            break
+
+    if not usuario_encontrado:
+        registrar_intento_fallido(client_ip)
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Usuario o contraseña incorrectos"})
+
+    try:
+        password_valida = bcrypt.checkpw(payload.password.encode("utf-8"), usuario_encontrado["password_hash"].encode("utf-8"))
+    except Exception:
+        password_valida = False
+
+    if not password_valida:
+        registrar_intento_fallido(client_ip)
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Usuario o contraseña incorrectos"})
+
+    resetear_intentos_fallidos(client_ip)
+    token = generar_jwt_token(usuario_encontrado)
+
+    user_safe = {
+        "id": usuario_encontrado["id"],
+        "username": usuario_encontrado["username"],
+        "nombre": usuario_encontrado.get("nombre", usuario_encontrado["username"]),
+        "avatar": usuario_encontrado.get("avatar", "/static/avatars/bot_cyan.jpg"),
+        "rol": usuario_encontrado.get("rol", "usuario")
+    }
+
+    resp = JSONResponse(content={
+        "status": "ok",
+        "message": f"¡Bienvenido, {user_safe['nombre']}!",
+        "token": token,
+        "user": user_safe
+    })
+    resp.set_cookie(key="access_token", value=token, max_age=JWT_EXPIRATION_SECONDS, httponly=True, samesite="lax")
+    return resp
+
+@app.post("/api/auth/register")
+async def auth_register(payload: RegisterPayload, request: Request):
+    username_clean = payload.username.strip()
+    if len(username_clean) < 3:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "El nombre de usuario debe tener al menos 3 caracteres"})
+
+    if len(payload.password) < 6:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe tener al menos 6 caracteres para ser segura"})
+
+    usuarios = cargar_usuarios()
+    for u in usuarios:
+        if u["username"].strip().lower() == username_clean.lower():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Ese nombre de usuario ya está en uso. Por favor elige otro."})
+
+    salt = bcrypt.gensalt(rounds=12)
+    hashed_pwd = bcrypt.hashpw(payload.password.encode("utf-8"), salt).decode("utf-8")
+
+    nuevo_id = f"usr-{int(time.time()*1000)}"
+    nombre_display = payload.nombre.strip() if (payload.nombre and payload.nombre.strip()) else username_clean
+    avatar_elegido = payload.avatar if (payload.avatar and payload.avatar.strip()) else "/static/avatars/bot_cyan.jpg"
+
+    rol = "admin" if len(usuarios) == 0 else "usuario"
+
+    nuevo_usuario = {
+        "id": nuevo_id,
+        "username": username_clean,
+        "password_hash": hashed_pwd,
+        "nombre": nombre_display,
+        "avatar": avatar_elegido,
+        "rol": rol,
+        "creado_en": datetime.now().isoformat()
+    }
+
+    usuarios.append(nuevo_usuario)
+    guardar_usuarios(usuarios)
+
+    token = generar_jwt_token(nuevo_usuario)
+    user_safe = {
+        "id": nuevo_usuario["id"],
+        "username": nuevo_usuario["username"],
+        "nombre": nuevo_usuario["nombre"],
+        "avatar": nuevo_usuario["avatar"],
+        "rol": nuevo_usuario["rol"]
+    }
+
+    resp = JSONResponse(content={
+        "status": "ok",
+        "message": f"¡Cuenta creada con éxito! Bienvenido, {user_safe['nombre']}.",
+        "token": token,
+        "user": user_safe
+    })
+    resp.set_cookie(key="access_token", value=token, max_age=JWT_EXPIRATION_SECONDS, httponly=True, samesite="lax")
+    return resp
+
+@app.get("/api/auth/me")
+async def auth_me(request: Request):
+    user_payload = obtener_usuario_actual(request)
+    if not user_payload:
+        return JSONResponse(status_code=401, content={"status": "error", "message": "Sesión no válida o expirada"})
+    return {"status": "ok", "user": user_payload}
+
+@app.post("/api/auth/logout")
+async def auth_logout():
+    resp = JSONResponse(content={"status": "ok", "message": "Sesión cerrada correctamente"})
+    resp.delete_cookie(key="access_token")
+    return resp
+
+@app.get("/api/auth/status")
+async def auth_status():
+    env_path = AGENTES_DIR / ".env"
+    auth_active = True
+    if env_path.exists():
+        try:
+            for l in env_path.read_text(encoding="utf-8").splitlines():
+                if l.strip().startswith("CONSOLE_AUTH_ACTIVE="):
+                    auth_active = (l.strip().split("=", 1)[1].strip().strip('"').strip("'").lower() == "true")
+                    break
+        except Exception:
+            pass
+    usuarios = cargar_usuarios()
+    return {
+        "auth_active": auth_active,
+        "total_usuarios": len(usuarios)
+    }
 
 class ChatMessage(BaseModel):
     texto: str
