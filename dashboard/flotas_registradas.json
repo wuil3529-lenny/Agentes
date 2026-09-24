@@ -1,0 +1,30 @@
+[
+  {
+    "id": "flota-casa-fd9b94",
+    "nombre": "Casa",
+    "cliente": "Cliente General",
+    "descripcion": "",
+    "api_key": "key_Omv6CViHiRLDT8MwDqZsG3N9XkTN-0cO",
+    "secret_key": "c43ede7213fbb777f02803bab0bc72fc4eb9a5f198b2ce79011b04ff0f845706",
+    "session_token": "tok_mOMpFSTU98ahsviahcX2qaYlIbY9ONKQRV_rspnaBUc",
+    "session_token_expires_at": 1790217607.8117285,
+    "creado_en": "2026-09-23 21:40:07",
+    "ultimo_reporte": null,
+    "rotaciones_realizadas": 0,
+    "estado": "pendiente_conexion"
+  },
+  {
+    "id": "flota-casa-a73b27",
+    "nombre": "Casa",
+    "cliente": "Cliente General",
+    "descripcion": "",
+    "api_key": "key_THtwhTI2PaVmA64iueug22eMbo9Cr6Wn",
+    "secret_key": "52a8359f50775e0adc833e8e651c97148ee5625060a9aa3253f8e1891bbac62f",
+    "session_token": "tok_nlUeXHffJXNejRMQi2STOTF_J8zJODB0zbkypxr8J2Y",
+    "session_token_expires_at": 1790219531.3080442,
+    "creado_en": "2026-09-23 22:12:11",
+    "ultimo_reporte": null,
+    "rotaciones_realizadas": 0,
+    "estado": "pendiente_conexion"
+  }
+]

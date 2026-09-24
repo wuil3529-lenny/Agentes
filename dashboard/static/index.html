@@ -1,11 +1,82 @@
 <!DOCTYPE html><html class="dark h-full overflow-hidden" lang="es" style="height: 100%; overflow: hidden;"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>AgenticOS - Vista General</title>
+<title>TripulacionIA - Vista General</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Sora:wght@400;600;700&amp;family=Space+Grotesk:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+/* HUD Glass Card & Orbital Animations */
+@keyframes radarSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes radarPulse {
+  0%, 100% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.04); opacity: 0.25; }
+}
+@keyframes pinOrbitalSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes pinOrbitalCollapse {
+  0% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 1; filter: drop-shadow(0 0 10px #00ffcc); }
+  60% { transform: translate(calc(var(--tx) * 0.35), calc(var(--ty) * 0.35)) scale(0.6); opacity: 0.95; }
+  100% { transform: translate(0, 0) scale(0); opacity: 0; filter: drop-shadow(0 0 25px #10b981); }
+}
+@keyframes shockwaveExpand {
+  0% { transform: scale(0.6); opacity: 1; border-color: #10b981; }
+  100% { transform: scale(1.6); opacity: 0; border-color: #00ffcc; }
+}
+.animate-radar-spin { animation: radarSpin 12s linear infinite; }
+.animate-radar-pulse { animation: radarPulse 3s ease-in-out infinite; }
+.animate-orbit-spin { animation: pinOrbitalSpin 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.animate-orbit-collapse { animation: pinOrbitalCollapse 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.animate-pin-shockwave { animation: shockwaveExpand 0.7s cubic-bezier(0.1, 0.9, 0.2, 1) forwards; }
+
+.pin-digit-cell {
+  width: 36px !important;
+  height: 42px !important;
+  max-width: 36px !important;
+  min-width: 36px !important;
+  background-color: #0b111e !important;
+  border: 1.5px solid rgba(6, 182, 212, 0.45) !important;
+  color: #67e8f9 !important;
+  text-align: center !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  font-family: monospace !important;
+  border-radius: 0.5rem !important;
+  outline: none !important;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.2s ease !important;
+  padding: 0 !important;
+  display: inline-block !important;
+}
+.pin-digit-cell:focus {
+  border-color: #22d3ee !important;
+  box-shadow: 0 0 15px rgba(6, 182, 212, 0.6), inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  transform: translateY(-2px);
+  background-color: #0f172a !important;
+}
+.pin-digit-cell.is-filled {
+  border-color: rgba(16, 185, 129, 0.7) !important;
+  color: #34d399 !important;
+}
+@keyframes pinShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.pin-digit-cell.is-error {
+  border-color: rgba(239, 68, 68, 0.9) !important;
+  color: #f87171 !important;
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5), inset 0 2px 6px rgba(0, 0, 0, 0.6) !important;
+  animation: pinShake 0.45s ease-in-out !important;
+}
+</style>
 <script id="tailwind-config">
         tailwind.config = {
           darkMode: "class",
@@ -1192,11 +1263,7 @@
       <div class="flex items-center gap-2.5">
         <button onclick="toggleConnectModal(true)" type="button" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-cyan-400/15 border border-cyan-400/40 text-cyan-400 hover:bg-cyan-400/25 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] transition-all text-xs font-bold cursor-pointer">
           <span class="material-symbols-outlined text-[16px]">add_link</span>
-          <span>Conectar Equipo Remoto</span>
-        </button>
-        <button onclick="simularEquiposFlota()" type="button" class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface-container-high/60 border border-outline-variant/40 text-on-surface hover:text-secondary hover:border-secondary/40 transition-all text-xs font-bold cursor-pointer" title="Cargar equipos simulados para pruebas de alerta y monitoreo">
-          <span class="material-symbols-outlined text-[16px]">hub</span>
-          <span>Simular Flota de Prueba</span>
+          <span>Conectar Flota Remota</span>
         </button>
       </div>
     </div>
@@ -1273,30 +1340,6 @@
 
     </div>
 
-    <!-- FLEET FILTER & SEARCH TOOLBAR -->
-    <div class="glass-panel rounded-2xl p-3 sm:p-4 border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3 shadow-md">
-      <!-- Search Input -->
-      <div class="relative flex-1 min-w-[220px]">
-        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-[18px]">search</span>
-        <input id="fleet-search-input" oninput="filterFleetCards()" type="text" placeholder="Buscar por nombre de equipo, cliente o IP..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2 pl-9 pr-3 text-xs text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-cyan-400/60 transition-colors">
-      </div>
-
-      <!-- Filter Buttons -->
-      <div class="flex items-center bg-surface-container-low/70 p-1 rounded-xl border border-outline-variant/30 gap-1 text-xs">
-        <button id="fleet-filter-todos" onclick="setFleetFilter('todos')" type="button" class="px-3 py-1 rounded-lg font-bold transition-all text-cyan-400 bg-cyan-400/15 border border-cyan-400/40 shadow-sm cursor-pointer">
-          <span>Todos</span> (<span id="count-filter-todos">1</span>)
-        </button>
-        <button id="fleet-filter-saludables" onclick="setFleetFilter('saludables')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent cursor-pointer">
-          <span>Saludables</span> (<span id="count-filter-saludables">1</span>)
-        </button>
-        <button id="fleet-filter-alertas" onclick="setFleetFilter('alertas')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-error hover:bg-error/10 border border-transparent cursor-pointer">
-          <span>Con Alertas</span> (<span id="count-filter-alertas">0</span>)
-        </button>
-        <button id="fleet-filter-offline" onclick="setFleetFilter('offline')" type="button" class="px-3 py-1 rounded-lg font-medium transition-all text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high/60 border border-transparent cursor-pointer">
-          <span>Desconectados</span> (<span id="count-filter-offline">0</span>)
-        </button>
-      </div>
-    </div>
 
     <!-- FLEET CARDS GRID (Live Deployed Teams) -->
     <div id="fleet-cards-container" class="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -1909,63 +1952,163 @@ window.toggleRightSidebar = toggleRightSidebar;
     });
 })();
 </script>
-<!-- MODAL: CONECTAR EQUIPO REMOTO -->
-<div id="fleet-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-  <div class="glass-panel w-full max-w-2xl rounded-2xl p-6 border border-cyan-400/30 shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto">
-    <div class="flex items-center justify-between pb-3 border-b border-outline-variant/30">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-cyan-400/15 border border-cyan-400/30 flex items-center justify-center text-cyan-400">
-          <span class="material-symbols-outlined text-[20px]">add_link</span>
-        </div>
-        <div>
-          <h3 class="font-bold text-base text-on-surface">Conectar Tripulación Remota</h3>
-          <p class="text-xs text-on-surface-variant/70">Instrucciones para reportar telemetría desde clientes o servidores</p>
-        </div>
+<!-- MODAL: CONECTAR FLOTA REMOTA (MASTER-CLIENT & ROTACIÓN CRIPTOGRÁFICA) -->
+<!-- MODAL: CONECTAR FLOTA REMOTA -->
+<div id="fleet-connect-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-xl select-none transition-all duration-200">
+  <div class="flota-remota glass-panel w-full max-w-lg rounded-3xl p-6 sm:p-7 border border-cyan-400/40 shadow-[0_0_50px_rgba(34,211,238,0.25)] flex flex-col items-center text-center gap-4 max-h-[92vh] overflow-y-auto relative animate-in fade-in duration-200">
+    <!-- Top Cyber Accent Line -->
+    <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-80"></div>
+    <!-- Tactical Corner Accents -->
+    <div class="absolute top-2 left-2 w-3.5 h-3.5 border-t border-l border-cyan-400/60 rounded-tl pointer-events-none"></div>
+    <div class="absolute bottom-2 right-2 w-3.5 h-3.5 border-b border-r border-cyan-400/60 rounded-br pointer-events-none"></div>
+
+    <!-- Close button top-right -->
+    <button onclick="toggleConnectModal(false)" class="absolute top-4 right-4 text-on-surface-variant hover:text-white p-1.5 rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer" title="Cerrar">
+      <span class="material-symbols-outlined text-[20px]">close</span>
+    </button>
+
+    <!-- Header Centered with Conceptual Map Icon -->
+    <div class="flex flex-col items-center text-center gap-2 pt-1 w-full">
+      <!-- Icono Mapa Conceptual (Cuadro arriba conectado a cuadros abajo interconectados) -->
+      <div class="w-14 h-14 rounded-2xl bg-cyan-400/10 border border-cyan-400/40 p-2.5 flex items-center justify-center text-cyan-400 shadow-[0_0_25px_rgba(34,211,238,0.3)]">
+        <svg viewBox="0 0 40 40" class="w-full h-full stroke-cyan-400 fill-none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <!-- Nodo superior (Maestro / HQ) -->
+          <rect x="14" y="4" width="12" height="9" rx="2" class="fill-cyan-400/20" />
+          <!-- Línea vertical desde nodo superior -->
+          <line x1="20" y1="13" x2="20" y2="20" />
+          <!-- Bus horizontal de distribución -->
+          <line x1="8" y1="20" x2="32" y2="20" />
+          <!-- Conectores verticales hacia nodos inferiores -->
+          <line x1="8" y1="20" x2="8" y2="24" />
+          <line x1="20" y1="20" x2="20" y2="24" />
+          <line x1="32" y1="20" x2="32" y2="24" />
+          <!-- 3 Nodos inferiores (Flotas remotas) -->
+          <rect x="3" y="24" width="10" height="8" rx="1.5" class="fill-cyan-400/15" />
+          <rect x="15" y="24" width="10" height="8" rx="1.5" class="fill-cyan-400/15" />
+          <rect x="27" y="24" width="10" height="8" rx="1.5" class="fill-cyan-400/15" />
+          <!-- Líneas de interconexión entre nodos inferiores -->
+          <line x1="13" y1="28" x2="15" y2="28" />
+          <line x1="25" y1="28" x2="27" y2="28" />
+          <path d="M 8 32 C 8 37, 32 37, 32 32" stroke-dasharray="2 2" />
+        </svg>
       </div>
-      <button onclick="toggleConnectModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer">
-        <span class="material-symbols-outlined text-[20px]">close</span>
-      </button>
+
+      <div>
+        <div class="flex items-center justify-center gap-2">
+          <h3 class="font-bold text-lg text-white">Conectar Flota Remota</h3>
+          <span class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-400/15 text-cyan-300 border border-cyan-400/30">Master-Client</span>
+        </div>
+        <p class="text-xs text-on-surface-variant/75 mt-0.5">Vinculación criptográfica y comando de arranque Docker</p>
+      </div>
     </div>
 
-    <div class="flex flex-col gap-3 text-xs text-on-surface-variant/90 leading-relaxed">
-      <p>Cualquier equipo de agentes que instales en un servidor o máquina remota puede reportar su estado, salud de los agentes y fallos en tiempo real enviando un ping periódico por HTTP POST a este endpoint:</p>
-      
-      <div class="p-3 rounded-xl bg-[#090914] border border-outline-variant/40 font-mono text-cyan-400 text-xs flex items-center justify-between">
-        <span id="endpoint-url-display">POST http://&lt;TU-IP&gt;:8000/api/telemetria/reportar</span>
-        <button onclick="navigator.clipboard.writeText('http://' + window.location.host + '/api/telemetria/reportar'); alert('Enlace de webhook copiado al portapapeles');" class="text-xs text-secondary hover:underline cursor-pointer">Copiar</button>
+    <!-- FORMULARIO ULTRA DIRECTO (SOLO NOMBRE Y BOTÓN) -->
+    <form id="fleet-reg-form" onsubmit="ejecutarRegistroFlota(event)" class="w-full flex flex-col gap-3.5 py-1">
+      <div class="flex flex-col gap-1.5 text-left">
+        <label class="text-xs font-bold text-on-surface">
+          Nombre de la Flota Remota
+        </label>
+        <div class="relative flex items-center">
+          <span class="material-symbols-outlined absolute left-3.5 text-on-surface-variant/70 text-[18px]">badge</span>
+          <input id="new-fleet-name" type="text" required placeholder="Nombre de la flota" class="w-full bg-[#080d16] border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/70 focus:shadow-[0_0_12px_rgba(34,211,238,0.25)] transition-all">
+        </div>
       </div>
 
-      <p class="font-semibold text-on-surface pt-1">Ejemplo de código en Python (insertar en el bucle del agente remoto):</p>
-      <pre class="p-3.5 rounded-xl bg-[#080812] border border-outline-variant/40 font-mono text-[11px] text-cyan-300 overflow-x-auto leading-normal">
-import requests, time
+      <button id="btn-crear-flota" type="submit" class="w-full mt-1 py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-400 via-secondary to-cyan-400 hover:brightness-110 text-[#070b14] font-black text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(34,211,238,0.35)] cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">vpn_key</span>
+        <span>Generar Llaves de Comando</span>
+      </button>
+    </form>
 
-payload = {
-    "id": "cliente-01",
-    "nombre": "Equipo Alpha • Cliente X",
-    "tipo": "Cloud VPS",
-    "ip": "198.51.100.24",
-    "version": "v1.0",
-    "estado": "activa", # 'activa', 'espera', 'error', 'desconectada'
-    "agentes": {
-        "luffy": "activo", "zoro": "activo", "sanji": "espera", "robin": "activo", "nami": "activo"
-    },
-    "tarea_actual": "Generación de informes de ventas nocturnos",
-    "error_critico": None, # o string con mensaje de error si falla
-    "tokens": 45000,
-    "cpu": 22.5,
-    "ram": 58.0
-}
+    <!-- CREDENTIALS RESULT PANEL (Hidden until generated) -->
+    <div id="fleet-credentials-result" class="hidden w-full flex flex-col gap-3.5 p-4 rounded-2xl bg-gradient-to-b from-cyan-950/40 via-surface-container-low to-surface-container-low border border-cyan-400/50 shadow-xl text-left">
+      <div class="flex items-center justify-between pb-2.5 border-b border-cyan-400/30">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-400 text-[18px]">verified</span>
+          <span class="font-bold text-white text-xs">Credenciales de Flota Generadas</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="res-fleet-id" class="hidden">--</span>
+          <span id="res-fleet-badge" class="px-3 py-0.5 rounded-full text-[11px] font-mono font-bold bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 shadow-sm">Nueva Flota</span>
+        </div>
+      </div>
 
-# Enviar latido cada 10 segundos (incluir token si la consola en la nube lo requiere)
-headers = {"X-Telemetry-Token": "&lt;TU-TOKEN-SECRETO&gt;"}
-requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload, headers=headers)
-      </pre>
+      <!-- Credential Fields Grid: Clave API and Secreto Criptográfico -->
+      <div class="grid grid-cols-1 gap-2.5 font-mono">
+        <div class="p-3 rounded-xl bg-[#080c14] border border-outline-variant/30 flex flex-col gap-1.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-cyan-400">key</span>
+              <span>Clave API (API Key)</span>
+            </span>
+            <button onclick="copiarTexto(document.getElementById('res-fleet-api-key').innerText, 'Clave API copiada')" type="button" class="px-2.5 py-1 rounded-lg bg-cyan-400/15 hover:bg-cyan-400/25 text-cyan-300 border border-cyan-400/40 text-[10px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="Copiar Clave API">
+              <span class="material-symbols-outlined text-[13px]">content_copy</span>
+              <span>Copiar</span>
+            </button>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[#05080e] border border-white/5 font-mono text-cyan-300 font-bold select-all break-all text-xs">
+            <span id="res-fleet-api-key">--</span>
+          </div>
+        </div>
+
+        <div class="p-3 rounded-xl bg-[#080c14] border border-outline-variant/30 flex flex-col gap-1.5 shadow-sm">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-on-surface-variant/80 uppercase tracking-wider flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-emerald-400">lock</span>
+              <span>Secreto Criptográfico (Shared Secret)</span>
+            </span>
+            <button onclick="copiarTexto(document.getElementById('res-fleet-secret').innerText, 'Secreto copiado')" type="button" class="px-2.5 py-1 rounded-lg bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-300 border border-emerald-400/40 text-[10px] font-mono font-bold flex items-center gap-1 transition-all cursor-pointer shadow-sm" title="Copiar Secreto">
+              <span class="material-symbols-outlined text-[13px]">content_copy</span>
+              <span>Copiar</span>
+            </button>
+          </div>
+          <div class="p-2.5 rounded-lg bg-[#05080e] border border-white/5 font-mono text-emerald-300 font-bold select-all break-all text-xs">
+            <span id="res-fleet-secret">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pairing Status Container (Hidden initially, shown when 'Emparejar Flota' is clicked) -->
+      <div id="fleet-pairing-box" class="hidden flex flex-col gap-2.5 p-3.5 rounded-xl bg-[#080c14]/90 border border-cyan-400/40 animate-fade-in shadow-inner">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div id="fleet-pairing-pulse" class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></div>
+            <span id="fleet-pairing-title" class="font-bold text-xs text-cyan-200">Esperando señal de la flota remota...</span>
+          </div>
+          <div class="flex items-center gap-1.5 font-mono text-xs font-black text-cyan-300 bg-cyan-400/15 px-2.5 py-1 rounded-lg border border-cyan-400/30">
+            <span class="material-symbols-outlined text-[14px]">timer</span>
+            <span id="fleet-pairing-timer">05:00</span>
+          </div>
+        </div>
+        <p id="fleet-pairing-desc" class="text-[11px] text-on-surface-variant/80 leading-relaxed font-sans">
+          Ingrese la Clave API y el Secreto en la consola remota y presione &quot;Emparejar con Torre Central&quot;. La sincronización se activará en cuanto se detecte el apretón de manos.
+        </p>
+      </div>
+
+      <!-- Botón para Registrar Otra Flota -->
+      <div class="pt-0.5 flex justify-end">
+        <button onclick="resetFleetModalForm()" type="button" class="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:underline flex items-center gap-1 cursor-pointer">
+          <span class="material-symbols-outlined text-[14px]">add_circle</span>
+          <span>Dar de alta otra flota</span>
+        </button>
+      </div>
     </div>
 
-    <div class="pt-3 border-t border-outline-variant/30 flex justify-end">
-      <button onclick="toggleConnectModal(false)" type="button" class="px-5 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
-        Entendido y Cerrar
-      </button>
+    <!-- Modal Footer -->
+    <div class="pt-2.5 border-t border-outline-variant/30 flex justify-between items-center w-full shrink-0">
+      <span class="text-[10px] text-on-surface-variant/60 font-mono flex items-center gap-1">
+        <span class="material-symbols-outlined text-[13px] text-cyan-400">shield</span>
+        <span>Torre de Control • Enlace C2</span>
+      </span>
+      <div class="flex items-center gap-2">
+        <button id="btn-emparejar-flota" onclick="iniciarEmparejamientoFlota()" type="button" class="hidden px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 via-secondary to-emerald-400 hover:brightness-110 text-[#070b14] font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(34,211,238,0.35)] cursor-pointer">
+          <span class="material-symbols-outlined text-[16px]">sensors</span>
+          <span>Emparejar Flota</span>
+        </button>
+        <button onclick="toggleConnectModal(false)" type="button" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+          Cerrar
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -2553,150 +2696,234 @@ requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload,
 </div>
 
 <!-- MODAL DE ACCESO / LOGIN Y REGISTRO (AUTH GATEWAY CRIPTOGRÁFICO) -->
-<div id="auth-gate-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-[#07070f]/95 backdrop-blur-2xl select-none transition-all duration-300">
-  <!-- Glowing Cyberpunk Card (Wider 2x panel) -->
-  <div class="glass-panel w-full max-w-4xl rounded-3xl p-6 sm:p-10 border border-primary/40 shadow-[0_0_60px_rgba(255,45,120,0.25)] flex flex-col gap-6 relative overflow-hidden animate-in fade-in duration-200">
+<div id="auth-gate-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-[#07070f]/95 backdrop-blur-2xl select-none transition-all duration-300">
+  <!-- Glowing Cyberpunk Card (Compact Balanced Panel) -->
+  <div class="glass-panel w-full max-w-2xl rounded-3xl p-4 sm:p-6 border border-primary/40 shadow-[0_0_50px_rgba(255,45,120,0.25)] flex flex-col gap-3 relative overflow-hidden animate-in fade-in duration-200">
     <!-- Top Cyber Accent Line -->
     <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80"></div>
     
     <!-- Header with Sombrero Logo & System Title -->
-    <div class="flex flex-col items-center text-center gap-2.5">
-      <div class="w-24 h-24 rounded-2xl bg-surface-container-highest/60 border border-primary/30 p-2.5 flex items-center justify-center shadow-[0_0_30px_rgba(255,45,120,0.35)] relative group">
-        <img src="/static/logo_hat_centered.png?v=2" alt="Logo Sombrero" class="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(255,45,120,0.65)]">
+    <div class="flex flex-col items-center text-center gap-1">
+      <div class="w-12 h-12 rounded-xl bg-surface-container-highest/60 border border-primary/30 p-1.5 flex items-center justify-center shadow-[0_0_20px_rgba(255,45,120,0.35)] relative group">
+        <img src="/static/logo_hat_centered.png?v=2" alt="Logo Sombrero" class="w-full h-full object-contain drop-shadow-[0_0_10px_rgba(255,45,120,0.65)]">
       </div>
       <div>
-        <h2 class="text-2xl font-black tracking-wide text-white flex items-center justify-center gap-2.5">
-          <span>AgenticOS</span>
-          <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/40">Bcrypt + JWT</span>
+        <h2 class="text-lg sm:text-xl font-black tracking-wide text-white flex items-center justify-center">
+          <span>TripulacionIA</span>
         </h2>
-        <p class="text-xs sm:text-sm text-on-surface-variant/80 mt-1">Control de Mando & Autenticación Criptográfica</p>
+        <p class="text-[11px] text-on-surface-variant/80 mt-0.5">Control de Mando & Autenticación Criptográfica</p>
       </div>
     </div>
 
     <!-- Tabs Switcher: Iniciar Sesión / Registrarse -->
-    <div class="flex rounded-2xl bg-surface-container-highest/70 p-1.5 border border-outline-variant/30 max-w-md mx-auto w-full">
-      <button id="auth-tab-btn-login" onclick="switchAuthTab('login')" type="button" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer">
-        <span class="material-symbols-outlined text-[16px]">login</span>
+    <div class="flex rounded-xl bg-surface-container-highest/70 p-1 border border-outline-variant/30 max-w-xs mx-auto w-full">
+      <button id="auth-tab-btn-login" onclick="switchAuthTab('login')" type="button" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer">
+        <span class="material-symbols-outlined text-[15px]">login</span>
         <span>Iniciar Sesión</span>
       </button>
-      <button id="auth-tab-btn-register" onclick="switchAuthTab('register')" type="button" class="flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-white cursor-pointer">
-        <span class="material-symbols-outlined text-[16px]">person_add</span>
+      <button id="auth-tab-btn-register" onclick="switchAuthTab('register')" type="button" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-white cursor-pointer">
+        <span class="material-symbols-outlined text-[15px]">person_add</span>
         <span>Crear Cuenta</span>
       </button>
     </div>
 
     <!-- Error / Status Message Box -->
-    <div id="auth-alert-box" class="hidden p-3.5 rounded-xl border text-xs font-mono transition-all max-w-md mx-auto w-full"></div>
+    <div id="auth-alert-box" class="hidden p-2.5 rounded-xl border text-xs font-mono transition-all max-w-md mx-auto w-full"></div>
 
     <!-- TAB 1: FORMULARIO DE INICIO DE SESIÓN -->
-    <form id="auth-login-form" onsubmit="ejecutarLogin(event)" class="flex flex-col gap-4 max-w-md mx-auto w-full">
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-bold text-on-surface flex items-center justify-between">
+    <form id="auth-login-form" onsubmit="ejecutarLogin(event)" class="flex flex-col gap-3 max-w-md mx-auto w-full py-1">
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-bold text-on-surface flex items-center justify-between">
           <span>Usuario / Alias</span>
           <span class="text-[10px] font-mono text-on-surface-variant/60">admin o alias</span>
         </label>
         <div class="relative flex items-center">
-          <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">badge</span>
-          <input id="auth-login-username" type="text" required placeholder="Ej: Wuilfredo" autocomplete="username" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/60 transition-colors">
+          <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[17px]">badge</span>
+          <input id="auth-login-username" type="text" required placeholder="Escribe tu usuario o apodo" autocomplete="username" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-9 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/60 transition-colors h-[38px]">
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <label class="text-xs font-bold text-on-surface flex items-center justify-between">
+      <div class="flex flex-col gap-1">
+        <label class="text-[11px] font-bold text-on-surface flex items-center justify-between">
           <span>Contraseña Maestra</span>
           <span class="text-[10px] font-mono text-on-surface-variant/60">Bcrypt Salted</span>
         </label>
         <div class="relative flex items-center">
-          <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">lock</span>
-          <input id="auth-login-password" type="password" required placeholder="••••••••••••" autocomplete="current-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-10 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/60 transition-colors">
-          <button onclick="toggleKeyVisibility('auth-login-password')" type="button" class="absolute right-2.5 text-on-surface-variant hover:text-white p-1 transition-colors cursor-pointer" title="Mostrar u ocultar contraseña">
-            <span class="material-symbols-outlined text-[18px]">visibility</span>
+          <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[17px]">lock</span>
+          <input id="auth-login-password" type="password" required placeholder="••••••••••••" autocomplete="current-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-9 pr-9 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-primary/60 transition-colors h-[38px]">
+          <button onclick="toggleKeyVisibility('auth-login-password')" type="button" class="absolute right-2 text-on-surface-variant hover:text-white p-1 transition-colors cursor-pointer" title="Mostrar u ocultar contraseña">
+            <span class="material-symbols-outlined text-[17px]">visibility</span>
           </button>
         </div>
       </div>
 
-      <button id="auth-login-btn" type="submit" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-primary via-primary to-primary-container hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(255,45,120,0.4)] cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">lock_open</span>
+      <button id="auth-login-btn" type="submit" class="w-full mt-1.5 py-2.5 px-4 rounded-xl bg-gradient-to-r from-primary via-primary to-primary-container hover:brightness-110 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(255,45,120,0.4)] cursor-pointer">
+        <span class="material-symbols-outlined text-[17px]">lock_open</span>
         <span>Entrar a la Consola</span>
       </button>
     </form>
 
     <!-- TAB 2: FORMULARIO DE REGISTRO DE CUENTA -->
-    <form id="auth-register-form" onsubmit="ejecutarRegistro(event)" class="hidden flex flex-col gap-4 max-w-2xl mx-auto w-full max-h-[65vh] overflow-y-auto pr-1">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-on-surface flex items-center justify-between">
-            <span>Nombre Completo / Apodo</span>
-            <span class="text-[10px] font-mono text-cyan-400">Público</span>
+    <form id="auth-register-form" onsubmit="ejecutarRegistro(event)" class="hidden flex flex-col gap-2.5 max-w-xl mx-auto w-full">
+      <!-- FILA 1: NOMBRE DE USUARIO Y ROBOT AVATAR (2 COLUMNAS) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+        <!-- Columna 1: Nombre de Usuario / Apodo -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-bold text-on-surface flex items-center justify-between">
+            <span>Nombre de Usuario / Apodo</span>
+            <span class="text-[9px] font-mono text-cyan-400">Mín. 3 caracteres</span>
           </label>
           <div class="relative flex items-center">
-            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">sentiment_satisfied</span>
-            <input id="auth-reg-name" type="text" placeholder="Ej: Capitán Wuilfredo" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
+            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[17px]">person</span>
+            <input id="auth-reg-username" type="text" required placeholder="Escribe tu usuario o apodo" autocomplete="username" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-9 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors h-[38px]">
           </div>
         </div>
 
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-on-surface flex items-center justify-between">
-            <span>Nombre de Usuario (Login)</span>
-            <span class="text-[10px] font-mono text-on-surface-variant/60">Min. 3 letras</span>
-          </label>
-          <div class="relative flex items-center">
-            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">alternate_email</span>
-            <input id="auth-reg-username" type="text" required placeholder="Ej: wuil3529" autocomplete="username" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
+        <!-- Columna 2: Selector de Avatar Robot -->
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-on-surface">Robot Avatar</label>
+            <span class="text-[9px] font-mono text-cyan-400">7 Modelos</span>
           </div>
+          <input type="hidden" id="auth-reg-avatar" value="/static/avatars/bot_cyan.jpg">
+          
+          <!-- Botón Desplegable -->
+          <button id="auth-avatar-picker-btn" onclick="toggleAuthAvatarDropdown(event)" type="button" class="w-full h-[38px] flex items-center justify-between px-3 py-1 rounded-xl bg-surface-container-highest/60 border border-outline-variant/40 hover:border-cyan-400/60 transition-all cursor-pointer group">
+            <div class="flex items-center gap-2 min-w-0">
+              <div class="w-6 h-6 rounded-md overflow-hidden border border-cyan-400/50 p-0.5 bg-surface-container-high shrink-0 shadow-sm group-hover:border-cyan-400">
+                <img id="auth-reg-avatar-preview" src="/static/avatars/bot_cyan.jpg" alt="Avatar Seleccionado" class="w-full h-full object-cover rounded">
+              </div>
+              <span id="auth-reg-avatar-name" class="text-xs font-bold text-white font-mono truncate">Robot Cyan</span>
+            </div>
+            <div class="flex items-center gap-1 px-2 py-0.5 rounded bg-surface-container-high/80 border border-outline-variant/30 text-[10px] font-mono text-cyan-400 group-hover:bg-cyan-400/10 transition-colors shrink-0">
+              <span>Elegir</span>
+              <span id="auth-avatar-arrow" class="material-symbols-outlined text-[16px] transition-transform duration-200">expand_more</span>
+            </div>
+          </button>
         </div>
       </div>
 
-      <!-- Selector de Avatar Robot -->
-      <div class="flex flex-col gap-2">
-        <div class="flex items-center justify-between">
-          <label class="text-xs font-bold text-on-surface">Selecciona tu Robot Avatar</label>
-          <span class="text-[10px] font-mono text-secondary">7 Modelos Oficiales</span>
+      <!-- Panel Desplegable con los 7 Robots (Abre a todo el ancho) -->
+      <div id="auth-avatar-dropdown-panel" class="hidden flex-col gap-1.5 p-2.5 rounded-xl bg-[#12111d]/98 border border-cyan-400/40 shadow-[0_10px_35px_rgba(0,0,0,0.85)] backdrop-blur-xl animate-in fade-in duration-150">
+        <div class="flex items-center justify-between pb-1 border-b border-outline-variant/20">
+          <span class="text-[10px] font-bold text-white font-mono">Selecciona tu Tripulante Robot</span>
+          <span class="text-[9px] font-mono text-cyan-400">Haz clic en uno para seleccionarlo</span>
         </div>
-        <input type="hidden" id="auth-reg-avatar" value="/static/avatars/bot_cyan.jpg">
-        <div class="flex flex-wrap items-center justify-center sm:justify-between gap-2.5 p-3 rounded-2xl bg-surface-container-highest/50 border border-outline-variant/30" id="auth-reg-avatar-grid">
+        <div class="grid grid-cols-7 gap-1.5 pt-1" id="auth-reg-avatar-grid">
           <!-- Inyectado por script.js -->
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div class="flex flex-col gap-1.5">
-          <label class="text-xs font-bold text-on-surface flex items-center justify-between">
+      <!-- FILA 2: CONTRASEÑAS (2 COLUMNAS) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-bold text-on-surface flex items-center justify-between">
             <span>Contraseña</span>
-            <span class="text-[10px] font-mono text-on-surface-variant/60">Min. 6 caracteres</span>
+            <span id="auth-reg-pass-hint" class="text-[9px] font-mono text-cyan-400">Mín. 8 (Mayús, Núm, Símbolo)</span>
           </label>
           <div class="relative flex items-center">
-            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">key</span>
-            <input id="auth-reg-password" type="password" required oninput="verificarRegistroPasswords()" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-10 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
-            <button onclick="toggleKeyVisibility('auth-reg-password')" type="button" class="absolute right-2.5 text-on-surface-variant hover:text-white p-1 transition-colors cursor-pointer" title="Mostrar u ocultar contraseña">
-              <span class="material-symbols-outlined text-[18px]">visibility</span>
+            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[17px]">key</span>
+            <input id="auth-reg-password" type="password" required oninput="verificarRegistroPasswords()" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-9 pr-9 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors h-[38px]">
+            <button onclick="toggleKeyVisibility('auth-reg-password')" type="button" class="absolute right-2 text-on-surface-variant hover:text-white p-1 transition-colors cursor-pointer" title="Mostrar u ocultar contraseña">
+              <span class="material-symbols-outlined text-[17px]">visibility</span>
             </button>
           </div>
         </div>
 
-        <div class="flex flex-col gap-1.5">
+        <div class="flex flex-col gap-1">
           <div class="flex items-center justify-between">
-            <label class="text-xs font-bold text-on-surface">Confirmar Contraseña</label>
-            <span id="auth-reg-match-msg" class="text-[10px] font-mono"></span>
+            <label class="text-[11px] font-bold text-on-surface">Confirmar Contraseña</label>
+            <span id="auth-reg-match-msg" class="text-[9px] font-mono"></span>
           </div>
           <div class="relative flex items-center">
-            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[18px]">verified</span>
-            <input id="auth-reg-confirm" type="password" required oninput="verificarRegistroPasswords()" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-2.5 pl-10 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
+            <span class="material-symbols-outlined absolute left-3 text-on-surface-variant/70 text-[17px]">verified</span>
+            <input id="auth-reg-confirm" type="password" required oninput="verificarRegistroPasswords()" placeholder="••••••••••••" autocomplete="new-password" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-9 pr-3 text-xs font-mono text-white placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors h-[38px]">
           </div>
         </div>
       </div>
 
-      <button id="auth-reg-btn" type="submit" class="w-full mt-2 py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-secondary to-cyan-500 hover:brightness-110 text-black font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,255,204,0.35)] cursor-pointer">
-        <span class="material-symbols-outlined text-[18px]">how_to_reg</span>
-        <span>Crear Cuenta & Acceder</span>
+      <!-- TARJETA HUD FUTURISTA DE VERIFICACIÓN PIN (TELEGRAM 2FA COMPACTA) -->
+      <div id="auth-pin-card" class="bg-[#0c121e]/90 border border-emerald-500/35 rounded-2xl p-3 backdrop-blur-2xl shadow-[0_0_30px_rgba(0,0,0,0.85)] relative overflow-hidden flex flex-col items-center gap-1.5 transition-all duration-500">
+        <!-- Esquinas tácticas Sci-Fi -->
+        <div class="absolute top-2 left-2 w-4 h-4 border-t border-l border-emerald-400/80 rounded-tl pointer-events-none"></div>
+        <div class="absolute bottom-2 right-2 w-4 h-4 border-b border-r border-emerald-400/80 rounded-br pointer-events-none"></div>
+
+        <!-- Encabezado con Escudo Holográfico -->
+        <div class="w-full flex items-center justify-between pb-1.5 border-b border-emerald-400/20">
+          <div class="flex items-center gap-2">
+            <div id="auth-pin-top-icon" class="w-6 h-6 rounded-lg bg-emerald-500/15 border border-emerald-400/60 flex items-center justify-center text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.35)] transition-all duration-300">
+              <span class="material-symbols-outlined text-[15px]">verified_user</span>
+            </div>
+            <div class="flex flex-col text-left">
+              <span id="auth-pin-title" class="text-[11px] font-bold text-white font-mono tracking-wide">PIN de Autorización</span>
+              <span id="auth-pin-subtitle" class="text-[9px] text-on-surface-variant font-mono">Solicitud 2FA directa a Telegram</span>
+            </div>
+          </div>
+          <span class="text-[9px] font-mono text-emerald-300 font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-400/30">Telegram 2FA</span>
+        </div>
+
+        <!-- ANILLO RADAR CON ÓRBITA CIRCULAR Y SHIELD CENTRAL (COMPACTO 96px) -->
+        <div class="relative w-24 h-24 rounded-full border border-emerald-400/40 flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.25)] bg-gradient-to-b from-emerald-500/5 to-transparent my-0.5">
+          <!-- Ondas concéntricas de pulso radar -->
+          <div class="absolute inset-1 rounded-full border border-emerald-400/20 animate-radar-pulse pointer-events-none"></div>
+          <div class="absolute inset-3 rounded-full border border-cyan-400/20 pointer-events-none"></div>
+          <div class="absolute inset-5 rounded-full border border-emerald-400/30 border-dashed animate-radar-spin pointer-events-none"></div>
+
+          <!-- Contenedor para los 6 orbes orbitales -->
+          <div id="auth-pin-orbit-container" class="absolute inset-0 flex items-center justify-center pointer-events-none"></div>
+
+          <!-- Onda expansiva shockwave al autenticar -->
+          <div id="auth-pin-shockwave" class="hidden absolute inset-0 rounded-full border-2 border-emerald-400 pointer-events-none"></div>
+
+          <!-- Emblema central de seguridad -->
+          <div id="auth-pin-central-badge" class="relative z-10 w-10 h-10 rounded-xl bg-[#080d16] border border-emerald-400/80 flex items-center justify-center text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-500">
+            <span id="auth-pin-central-icon" class="material-symbols-outlined text-[20px]">vpn_key</span>
+          </div>
+        </div>
+
+        <!-- Mensaje de estado dinámico -->
+        <div id="auth-pin-status-box" class="text-center min-h-[16px]">
+          <span id="auth-pin-status-msg" class="text-[10px] font-mono text-cyan-300 transition-all">
+            Presiona el botón para recibir tu código PIN en Telegram
+          </span>
+        </div>
+
+        <!-- 6 CASILLAS DIGITALES OSCURAS PARA EL PIN -->
+        <div class="flex flex-col items-center gap-1.5 w-full">
+          <input type="hidden" id="auth-reg-pin" value="">
+          <div class="flex items-center justify-center gap-1.5 sm:gap-2">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="0" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="1" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="2" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="3" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="4" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+            <input type="text" maxlength="1" inputmode="numeric" class="pin-digit-cell" data-idx="5" autocomplete="off" style="width:36px!important; height:42px!important; background-color:#0b111e!important; color:#67e8f9!important;">
+          </div>
+        </div>
+
+        <!-- Temporizador y Enlace de Reenvío (Estilo HUD Réplica) -->
+        <div id="auth-pin-resend-box" class="flex items-center justify-center gap-1.5 text-[11px] font-mono mt-0.5 text-on-surface-variant/80">
+          <span>¿No recibiste el código?</span>
+          <button id="btn-solicitar-pin" onclick="solicitarPinRegistro(event)" type="button" class="text-[#facc15] hover:text-amber-300 font-bold transition-colors cursor-pointer underline underline-offset-4 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[13px]" id="icon-solicitar-pin">send</span>
+            <span id="text-solicitar-pin">Solicitar PIN</span>
+          </button>
+          <span id="auth-pin-countdown-text" class="hidden text-[#facc15] font-bold font-mono tracking-wider"></span>
+        </div>
+      </div>
+
+      <!-- BOTÓN PRINCIPAL DE ACCESO -->
+      <button id="auth-reg-btn" type="submit" class="w-full mt-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-secondary to-cyan-500 hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,255,204,0.35)] cursor-pointer">
+        <span class="material-symbols-outlined text-[17px]" id="auth-reg-btn-icon">how_to_reg</span>
+        <span id="auth-reg-btn-text">Crear Cuenta & Acceder</span>
       </button>
     </form>
 
     <!-- Footer info -->
-    <div class="pt-3 border-t border-outline-variant/20 flex flex-col items-center gap-1 text-[10px] text-on-surface-variant/60 font-mono text-center">
+    <div class="pt-2 border-t border-outline-variant/20 flex flex-col items-center gap-0.5 text-[9px] text-on-surface-variant/60 font-mono text-center">
       <div class="flex items-center gap-2">
         <span class="flex items-center gap-1 text-emerald-400">
-          <span class="material-symbols-outlined text-[13px]">shield</span>
+          <span class="material-symbols-outlined text-[12px]">shield</span>
           <span>Anti-Fuerza Bruta</span>
         </span>
         <span>•</span>
@@ -2708,6 +2935,6 @@ requests.post("http://&lt;TU-IP&gt;:8000/api/telemetria/reportar", json=payload,
   </div>
 </div>
 
-<script src="/static/script.js?v=77"></script>
+<script src="/static/script.js?v=85"></script>
 </body>
 </html>

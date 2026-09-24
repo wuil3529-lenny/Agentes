@@ -2411,18 +2411,15 @@ function renderFleetCards() {
             statusBadge = `<span class="flex items-center gap-1.5 py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/15 text-secondary border border-secondary/40 shadow-[0_0_10px_rgba(0,255,204,0.2)]"><span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>EN LÍNEA</span>`;
         }
 
-        // Mini Agentes Roster con colores característicos y estado real
-        const agNames = ['luffy', 'zoro', 'sanji', 'robin', 'nami'];
-        const agentThemeColors = {
-            luffy: 'text-primary',
-            zoro: 'text-secondary',
-            sanji: 'text-amber-400',
-            robin: 'text-purple-400',
-            nami: 'text-yellow-400'
-        };
+        // Mini Agentes Roster Dinámico (Soporta nombres personalizados como Angel Lead, Hunter, etc.)
+        const agentThemePalette = [
+            'text-primary', 'text-secondary', 'text-amber-400', 'text-purple-400', 'text-yellow-400', 'text-cyan-400', 'text-emerald-400'
+        ];
+        const defaultAgents = ['luffy', 'zoro', 'sanji', 'robin', 'nami'];
+        const agNames = (eq.agentes && Object.keys(eq.agentes).length > 0) ? Object.keys(eq.agentes) : defaultAgents;
         const isCrewOff = isOff || (est !== 'activa' && est !== 'conectada');
 
-        const agHtml = agNames.map(ag => {
+        const agHtml = agNames.map((ag, idx) => {
             const agSt = eq.agentes ? (eq.agentes[ag] || 'off') : 'off';
             let dotColor = 'bg-secondary shadow-[0_0_6px_#00ffcc]';
             let labelColor = 'text-secondary';
@@ -2439,12 +2436,12 @@ function renderFleetCards() {
                 dotColor = 'bg-secondary shadow-[0_0_6px_#00ffcc] animate-pulse';
                 labelColor = 'text-secondary font-semibold';
             }
-            const nameColor = agentThemeColors[ag] || 'text-on-surface';
+            const nameColor = agentThemePalette[idx % agentThemePalette.length] || 'text-on-surface';
             return `
                 <div class="flex flex-col items-center gap-0.5 p-1.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/20 flex-1 min-w-[50px]">
                     <div class="flex items-center gap-1">
                         <span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span>
-                        <span class="font-bold text-[10px] uppercase ${nameColor}">${ag}</span>
+                        <span class="font-bold text-[10px] uppercase truncate max-w-[85px] ${nameColor}" title="${ag}">${ag}</span>
                     </div>
                     <span class="text-[9px] font-mono ${labelColor}">${agSt}</span>
                 </div>
@@ -2562,17 +2559,348 @@ function renderFleetCards() {
     }).join('');
 }
 
+function setFleetPreset(nombre, entorno) {
+    const n = document.getElementById('new-fleet-name');
+    const d = document.getElementById('new-fleet-desc');
+    if (n) {
+        n.value = nombre;
+        n.focus();
+    }
+    if (d) d.value = entorno;
+}
+window.setFleetPreset = setFleetPreset;
+
+let fleetPairingTimerInterval = null;
+let fleetPairingPollInterval = null;
+
+function detenerEmparejamientoFlota() {
+    if (fleetPairingTimerInterval) {
+        clearInterval(fleetPairingTimerInterval);
+        fleetPairingTimerInterval = null;
+    }
+    if (fleetPairingPollInterval) {
+        clearInterval(fleetPairingPollInterval);
+        fleetPairingPollInterval = null;
+    }
+}
+
+function resetFleetModalForm() {
+    detenerEmparejamientoFlota();
+
+    const resPanel = document.getElementById('fleet-credentials-result');
+    if (resPanel) resPanel.classList.add('hidden');
+    const form = document.getElementById('fleet-reg-form');
+    if (form) form.classList.remove('hidden');
+
+    const pairingBox = document.getElementById('fleet-pairing-box');
+    if (pairingBox) pairingBox.classList.add('hidden');
+
+    const btnEmp = document.getElementById('btn-emparejar-flota');
+    if (btnEmp) {
+        btnEmp.classList.add('hidden');
+        btnEmp.disabled = false;
+        btnEmp.className = 'px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 via-secondary to-emerald-400 hover:brightness-110 text-[#070b14] font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(34,211,238,0.35)] cursor-pointer';
+        btnEmp.innerHTML = '<span class="material-symbols-outlined text-[16px]">sensors</span><span>Emparejar Flota</span>';
+    }
+
+    const n = document.getElementById('new-fleet-name');
+    if (n) {
+        n.value = '';
+        setTimeout(() => n.focus(), 60);
+    }
+}
+window.resetFleetModalForm = resetFleetModalForm;
+
 function toggleConnectModal(show) {
     const modal = document.getElementById('fleet-connect-modal');
     if (!modal) return;
     if (show) {
         modal.classList.remove('hidden');
-        const disp = document.getElementById('endpoint-url-display');
-        if (disp) disp.innerText = `POST http://${window.location.host}/api/telemetria/reportar`;
+        resetFleetModalForm();
     } else {
+        detenerEmparejamientoFlota();
         modal.classList.add('hidden');
     }
 }
+window.toggleConnectModal = toggleConnectModal;
+
+function switchFleetModalTab(tab) {}
+window.switchFleetModalTab = switchFleetModalTab;
+
+async function ejecutarRegistroFlota(event) {
+    if (event) event.preventDefault();
+    const nameInp = document.getElementById('new-fleet-name');
+    const btn = document.getElementById('btn-crear-flota');
+
+    const nombre = nameInp ? nameInp.value.trim() : '';
+
+    if (!nombre) {
+        alert('Por favor escribe el nombre de la flota remota.');
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[17px] animate-spin">sync</span><span>Generando llaves...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/flotas/registrar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre, cliente: '', descripcion: '' })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            const f = data.flota;
+            const form = document.getElementById('fleet-reg-form');
+            if (form) form.classList.add('hidden');
+
+            const resPanel = document.getElementById('fleet-credentials-result');
+            if (resPanel) resPanel.classList.remove('hidden');
+
+            const idEl = document.getElementById('res-fleet-id');
+            const keyEl = document.getElementById('res-fleet-api-key');
+            const secEl = document.getElementById('res-fleet-secret');
+            const badgeEl = document.getElementById('res-fleet-badge');
+
+            if (idEl) idEl.innerText = f.id;
+            if (keyEl) keyEl.innerText = f.api_key;
+            if (secEl) secEl.innerText = f.secret_key;
+            if (badgeEl) badgeEl.innerText = f.nombre;
+
+            // Make sure pairing box is hidden initially
+            const pairingBox = document.getElementById('fleet-pairing-box');
+            if (pairingBox) pairingBox.classList.add('hidden');
+
+            // Show 'Emparejar Flota' button in footer
+            const btnEmp = document.getElementById('btn-emparejar-flota');
+            if (btnEmp) {
+                btnEmp.classList.remove('hidden');
+                btnEmp.disabled = false;
+                btnEmp.className = 'px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-400 via-secondary to-emerald-400 hover:brightness-110 text-[#070b14] font-black text-xs flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(34,211,238,0.35)] cursor-pointer';
+                btnEmp.innerHTML = '<span class="material-symbols-outlined text-[16px]">sensors</span><span>Emparejar Flota</span>';
+            }
+
+            if (nameInp) nameInp.value = '';
+        } else {
+            alert(data.message || 'Error al registrar la flota');
+        }
+    } catch (e) {
+        console.error('Error registrando flota:', e);
+        alert('Error de conexión al registrar flota');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">vpn_key</span><span>Generar Llaves de Comando</span>';
+        }
+    }
+}
+window.ejecutarRegistroFlota = ejecutarRegistroFlota;
+
+function iniciarEmparejamientoFlota() {
+    const fleetIdEl = document.getElementById('res-fleet-id');
+    const fleetId = fleetIdEl ? fleetIdEl.innerText.trim() : '';
+
+    if (!fleetId || fleetId === '--') {
+        alert('No se detectó un identificador de flota válido.');
+        return;
+    }
+
+    const pairingBox = document.getElementById('fleet-pairing-box');
+    const timerEl = document.getElementById('fleet-pairing-timer');
+    const titleEl = document.getElementById('fleet-pairing-title');
+    const descEl = document.getElementById('fleet-pairing-desc');
+    const pulseEl = document.getElementById('fleet-pairing-pulse');
+    const btn = document.getElementById('btn-emparejar-flota');
+
+    if (pairingBox) pairingBox.classList.remove('hidden');
+    if (titleEl) {
+        titleEl.innerText = 'Esperando señal de la flota remota...';
+        titleEl.className = 'font-bold text-xs text-cyan-200';
+    }
+    if (pulseEl) {
+        pulseEl.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping';
+    }
+    if (descEl) {
+        descEl.innerHTML = 'Ingrese la Clave API y el Secreto en la consola remota y presione "Emparejar con Torre Central". La sincronización se activará en cuanto se detecte el apretón de manos.';
+    }
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Buscando Señal...</span>';
+        btn.classList.add('opacity-80');
+    }
+
+    detenerEmparejamientoFlota();
+
+    let timeLeft = 300; // 5 minutos de tiempo de emparejamiento
+    if (timerEl) timerEl.innerText = '05:00';
+
+    fleetPairingTimerInterval = setInterval(() => {
+        timeLeft--;
+        if (timeLeft <= 0) {
+            detenerEmparejamientoFlota();
+            if (timerEl) timerEl.innerText = '00:00';
+            if (titleEl) {
+                titleEl.innerText = 'Tiempo de espera agotado';
+                titleEl.className = 'font-bold text-xs text-rose-400';
+            }
+            if (pulseEl) {
+                pulseEl.className = 'w-2.5 h-2.5 rounded-full bg-rose-400';
+            }
+            if (descEl) {
+                descEl.innerHTML = 'No se recibió la conexión dentro de la ventana de seguridad (5 min). Puede reintentar el emparejamiento cuando el nodo remoto esté listo.';
+            }
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-80');
+                btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">refresh</span><span>Reintentar Emparejamiento</span>';
+            }
+            return;
+        }
+        const mins = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+        const secs = String(timeLeft % 60).padStart(2, '0');
+        if (timerEl) timerEl.innerText = `${mins}:${secs}`;
+    }, 1000);
+
+    // Polling cada 2.5s para detectar apretón de manos
+    fleetPairingPollInterval = setInterval(async () => {
+        try {
+            const res = await fetch(`/api/flotas/estado/${encodeURIComponent(fleetId)}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data.status === 'ok' && data.vinculada) {
+                detenerEmparejamientoFlota();
+
+                if (timerEl) timerEl.innerText = 'Sincronizado';
+                if (titleEl) {
+                    titleEl.innerText = '¡Flota Remota Emparejada con Éxito!';
+                    titleEl.className = 'font-bold text-xs text-emerald-400';
+                }
+                if (pulseEl) {
+                    pulseEl.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+                }
+                if (descEl) {
+                    descEl.innerHTML = '<span class="text-emerald-300 font-bold">Enlace seguro C2 establecido.</span> Esta flota remota ya está transmitiendo telemetría en tiempo real a tu Torre Central.';
+                }
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.remove('opacity-80');
+                    btn.className = 'px-4 py-2 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center gap-1.5 shadow-sm';
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px] text-emerald-400">verified</span><span>Flota Emparejada</span>';
+                }
+
+                if (typeof showConfigToast === 'function') {
+                    showConfigToast('¡Flota remota emparejada y enlazada con éxito!');
+                }
+                if (typeof cargarListadoFlotasModal === 'function') {
+                    cargarListadoFlotasModal();
+                }
+            }
+        } catch (e) {
+            console.error('Error verificando estado de emparejamiento:', e);
+        }
+    }, 2500);
+}
+window.iniciarEmparejamientoFlota = iniciarEmparejamientoFlota;
+
+async function cargarListadoFlotasModal() {
+    const container = document.getElementById('modal-fleets-container');
+    const countEl = document.getElementById('modal-fleet-count');
+    if (!container) return;
+
+    try {
+        const res = await fetch('/api/flotas/lista');
+        const data = await res.json();
+        const flotas = data.flotas || [];
+
+        if (countEl) countEl.innerText = flotas.length;
+
+        if (flotas.length === 0) {
+            container.innerHTML = `
+                <div class="p-6 text-center text-on-surface-variant/50 italic border border-outline-variant/20 rounded-xl bg-black/20">
+                    No hay flotas registradas aún. Genera las credenciales de tu primera flota en la pestaña anterior.
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = flotas.map(f => {
+            const isVinculada = f.estado === 'activa' || f.estado === 'vinculada';
+            const statusColor = isVinculada ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+            const statusLabel = isVinculada ? 'Vinculada & Activa' : 'Pendiente Conexión';
+
+            return `
+                <div class="p-3 rounded-xl bg-surface-container-low/70 border border-outline-variant/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div class="flex flex-col gap-0.5 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-white text-sm font-sans truncate">${f.nombre}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border ${statusColor}">${statusLabel}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-[10px] text-on-surface-variant">
+                            <span>ID: <code class="text-cyan-300 font-mono">${f.id}</code></span>
+                            <span>•</span>
+                            <span>Cliente: ${f.cliente || 'General'}</span>
+                            <span>•</span>
+                            <span>Rotaciones: ${f.rotaciones_realizadas || 0}</span>
+                        </div>
+                        ${f.ultimo_reporte ? `<span class="text-[9px] text-emerald-400/80">Último reporte: Hace unos momentos</span>` : `<span class="text-[9px] text-on-surface-variant/50">Creada: ${f.creado_en}</span>`}
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        <button onclick="copiarTexto('${f.api_key}', 'API Key copiada')" type="button" class="p-1.5 rounded-lg bg-cyan-400/10 hover:bg-cyan-400/20 text-cyan-300 border border-cyan-400/30 cursor-pointer" title="Copiar API Key">
+                            <span class="material-symbols-outlined text-[14px]">key</span>
+                        </button>
+                        <button onclick="copiarTexto('${f.secret_key}', 'Secret Key copiada')" type="button" class="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 cursor-pointer" title="Copiar Secret HMAC">
+                            <span class="material-symbols-outlined text-[14px]">lock</span>
+                        </button>
+                        <button onclick="eliminarFlotaRegistrada('${f.id}')" type="button" class="p-1.5 rounded-lg bg-error/10 hover:bg-error/20 text-error border border-error/30 cursor-pointer" title="Revocar y eliminar flota">
+                            <span class="material-symbols-outlined text-[14px]">delete</span>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Error cargando flotas:', e);
+    }
+}
+window.cargarListadoFlotasModal = cargarListadoFlotasModal;
+
+async function eliminarFlotaRegistrada(fleetId) {
+    if (!confirm(`¿Estás seguro de que deseas revocar el acceso y eliminar la flota ${fleetId}?`)) return;
+    try {
+        const res = await fetch(`/api/flotas/eliminar/${fleetId}`, { method: 'DELETE' });
+        if (res.ok) {
+            cargarListadoFlotasModal();
+        }
+    } catch (e) {
+        console.error('Error eliminando flota:', e);
+    }
+}
+window.eliminarFlotaRegistrada = eliminarFlotaRegistrada;
+
+function copiarDockerRunCommand() {
+    const cmdEl = document.getElementById('res-docker-command');
+    if (cmdEl) {
+        copiarTexto(cmdEl.innerText, 'Comando Docker copiado al portapapeles');
+    }
+}
+window.copiarDockerRunCommand = copiarDockerRunCommand;
+
+function copiarTexto(text, msg) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        if (typeof showConfigToast === 'function') {
+            showConfigToast(msg || 'Copiado al portapapeles');
+        } else {
+            alert(msg || 'Copiado al portapapeles');
+        }
+    }).catch(() => {
+        alert(msg || 'Copiado al portapapeles');
+    });
+}
+window.copiarTexto = copiarTexto;
 
 function toggleInspectModal(show) {
     const modal = document.getElementById('fleet-inspect-modal');
@@ -4466,21 +4794,65 @@ function renderAuthAvatarSelector() {
     grid.innerHTML = BOT_AVATARS_LIST.map(bot => {
         const isSel = (bot.url === selectedRegisterAvatar);
         return `
-            <button type="button" onclick="selectAuthRegisterAvatar('${bot.url}')" title="${bot.name}" class="auth-avatar-opt w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 ${isSel ? 'border-secondary ring-4 ring-secondary/30 scale-105 shadow-[0_0_15px_rgba(0,255,204,0.4)]' : 'border-outline-variant/40 opacity-70 hover:opacity-100 hover:border-white'} transition-all cursor-pointer p-0.5 bg-surface-container-highest shrink-0">
-                <img src="${bot.url}" alt="${bot.name}" class="w-full h-full object-cover rounded-xl">
+            <button type="button" onclick="selectAuthRegisterAvatar('${bot.url}', '${bot.name}')" title="Seleccionar ${bot.name}" class="auth-avatar-opt flex flex-col items-center gap-1.5 p-2 rounded-2xl border-2 ${isSel ? 'border-secondary bg-secondary/15 ring-2 ring-secondary/40 scale-105 shadow-[0_0_15px_rgba(0,255,204,0.4)]' : 'border-outline-variant/30 bg-surface-container-high/60 opacity-75 hover:opacity-100 hover:border-cyan-400/80 hover:scale-102'} transition-all cursor-pointer group">
+                <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden p-0.5">
+                    <img src="${bot.url}" alt="${bot.name}" class="w-full h-full object-cover rounded-lg group-hover:scale-105 transition-transform">
+                </div>
+                <span class="text-[10px] font-mono ${isSel ? 'text-secondary font-bold' : 'text-on-surface-variant'} truncate max-w-full">${bot.name}</span>
             </button>
         `;
     }).join('');
 }
 window.renderAuthAvatarSelector = renderAuthAvatarSelector;
 
-function selectAuthRegisterAvatar(url) {
+function toggleAuthAvatarDropdown(event, forceClose) {
+    if (event) event.stopPropagation();
+    const panel = document.getElementById('auth-avatar-dropdown-panel');
+    const arrow = document.getElementById('auth-avatar-arrow');
+    if (!panel) return;
+
+    const shouldClose = (forceClose !== undefined) ? forceClose : !panel.classList.contains('hidden');
+    if (shouldClose) {
+        panel.classList.add('hidden');
+        if (arrow) arrow.style.transform = 'rotate(0deg)';
+    } else {
+        panel.classList.remove('hidden');
+        if (arrow) arrow.style.transform = 'rotate(180deg)';
+        renderAuthAvatarSelector();
+    }
+}
+window.toggleAuthAvatarDropdown = toggleAuthAvatarDropdown;
+
+function selectAuthRegisterAvatar(url, name) {
     selectedRegisterAvatar = url;
     const hiddenInp = document.getElementById('auth-reg-avatar');
     if (hiddenInp) hiddenInp.value = url;
+
+    const previewImg = document.getElementById('auth-reg-avatar-preview');
+    if (previewImg) previewImg.src = url;
+
+    const nameEl = document.getElementById('auth-reg-avatar-name');
+    if (nameEl) nameEl.innerText = name ? `Robot ${name}` : 'Robot Avatar';
+
     renderAuthAvatarSelector();
+
+    // Cerrar automáticamente el menú desplegable tras seleccionar
+    setTimeout(() => {
+        toggleAuthAvatarDropdown(null, true);
+    }, 200);
 }
 window.selectAuthRegisterAvatar = selectAuthRegisterAvatar;
+
+// Cerrar el menú desplegable de avatares al hacer clic afuera
+document.addEventListener('click', (e) => {
+    const btn = document.getElementById('auth-avatar-picker-btn');
+    const panel = document.getElementById('auth-avatar-dropdown-panel');
+    if (panel && !panel.classList.contains('hidden')) {
+        if (btn && !btn.contains(e.target) && !panel.contains(e.target)) {
+            toggleAuthAvatarDropdown(null, true);
+        }
+    }
+});
 
 function switchAuthTab(tab) {
     const btnLogin = document.getElementById('auth-tab-btn-login');
@@ -4512,8 +4884,9 @@ function switchAuthTab(tab) {
         if (formLogin) formLogin.classList.add('hidden');
         if (formReg) formReg.classList.remove('hidden');
         renderAuthAvatarSelector();
-        const nameInp = document.getElementById('auth-reg-name');
-        if (nameInp) setTimeout(() => nameInp.focus(), 80);
+        initPinDigitInputs();
+        const regUserInp = document.getElementById('auth-reg-username');
+        if (regUserInp) setTimeout(() => regUserInp.focus(), 80);
     }
 }
 window.switchAuthTab = switchAuthTab;
@@ -4538,9 +4911,37 @@ function verificarRegistroPasswords() {
     const p1 = document.getElementById('auth-reg-password');
     const p2 = document.getElementById('auth-reg-confirm');
     const msg = document.getElementById('auth-reg-match-msg');
-    if (!p1 || !p2 || !msg) return;
+    const hint = document.getElementById('auth-reg-pass-hint');
+    if (!p1) return;
 
     const v1 = p1.value;
+
+    if (hint) {
+        if (!v1) {
+            hint.innerText = 'Mín. 8 (Mayús, Núm, Símbolo)';
+            hint.className = 'text-[10px] font-mono text-cyan-400';
+        } else {
+            const hasLen = v1.length >= 8;
+            const hasUpper = /[A-Z]/.test(v1);
+            const hasNum = /[0-9]/.test(v1);
+            const hasSpec = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(v1);
+
+            if (hasLen && hasUpper && hasNum && hasSpec) {
+                hint.innerText = '✓ Clave Fuerte';
+                hint.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+            } else {
+                let missing = [];
+                if (!hasLen) missing.push('8+ car.');
+                if (!hasUpper) missing.push('Mayús');
+                if (!hasNum) missing.push('Núm');
+                if (!hasSpec) missing.push('Símbolo');
+                hint.innerText = 'Falta: ' + missing.join(', ');
+                hint.className = 'text-[10px] font-mono text-amber-400 font-bold';
+            }
+        }
+    }
+
+    if (!p2 || !msg) return;
     const v2 = p2.value;
 
     if (!v1 && !v2) {
@@ -4606,7 +5007,8 @@ async function checkAuthSession() {
             }
         }
 
-        // 3. Si no hay sesión válida, mostrar la puerta de autenticación
+        // 3. Si no hay sesión válida, limpiar token expirado y mostrar la puerta de autenticación
+        localStorage.removeItem('console_jwt_token');
         modal.classList.remove('hidden');
         renderAuthAvatarSelector();
         const userInp = document.getElementById('auth-login-username');
@@ -4614,6 +5016,7 @@ async function checkAuthSession() {
 
     } catch (e) {
         console.warn('Error comprobando sesión de autenticación:', e);
+        localStorage.removeItem('console_jwt_token');
         modal.classList.remove('hidden');
     }
 }
@@ -4694,35 +5097,513 @@ async function ejecutarLogin(event) {
 }
 window.ejecutarLogin = ejecutarLogin;
 
-async function ejecutarRegistro(event) {
-    if (event) event.preventDefault();
+// --- Control de Casillas de PIN y Animación Orbital HUD ---
+function initPinDigitInputs() {
+    const boxes = document.querySelectorAll('.pin-digit-cell, .pin-digit-box');
+    const hiddenPin = document.getElementById('auth-reg-pin');
+    if (!boxes.length) return;
 
-    const nameInp = document.getElementById('auth-reg-name');
-    const usernameInp = document.getElementById('auth-reg-username');
-    const avatarInp = document.getElementById('auth-reg-avatar');
-    const passInp = document.getElementById('auth-reg-password');
-    const confirmInp = document.getElementById('auth-reg-confirm');
-    const btn = document.getElementById('auth-reg-btn');
+    boxes.forEach((box, idx) => {
+        if (!box.dataset.hasListener) {
+            box.dataset.hasListener = 'true';
 
-    const nombre = nameInp ? nameInp.value.trim() : '';
-    const username = usernameInp ? usernameInp.value.trim() : '';
-    const avatar = avatarInp ? avatarInp.value : selectedRegisterAvatar;
-    const password = passInp ? passInp.value : '';
-    const confirm = confirmInp ? confirmInp.value : '';
+            box.addEventListener('input', () => {
+                const val = box.value.replace(/[^0-9]/g, '');
+                box.value = val;
+                if (val) {
+                    box.classList.add('is-filled');
+                    if (idx < boxes.length - 1) {
+                        boxes[idx + 1].focus();
+                    }
+                } else {
+                    box.classList.remove('is-filled');
+                }
+                syncPinValue();
+            });
 
-    if (!username || !password) {
-        showAuthAlert('Debes ingresar un nombre de usuario y contraseña.');
-        return;
+            box.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace') {
+                    if (!box.value && idx > 0) {
+                        boxes[idx - 1].focus();
+                        boxes[idx - 1].value = '';
+                        boxes[idx - 1].classList.remove('is-filled');
+                        syncPinValue();
+                    } else if (box.value) {
+                        box.value = '';
+                        box.classList.remove('is-filled');
+                        syncPinValue();
+                    }
+                } else if (e.key === 'ArrowLeft' && idx > 0) {
+                    boxes[idx - 1].focus();
+                } else if (e.key === 'ArrowRight' && idx < boxes.length - 1) {
+                    boxes[idx + 1].focus();
+                }
+            });
+
+            box.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const pasted = (e.clipboardData || window.clipboardData).getData('text').trim().replace(/[^0-9]/g, '');
+                if (pasted) {
+                    pasted.split('').slice(0, 6).forEach((ch, i) => {
+                        if (boxes[i]) {
+                            boxes[i].value = ch;
+                            boxes[i].classList.add('is-filled');
+                        }
+                    });
+                    const targetIdx = Math.min(pasted.length, 5);
+                    if (boxes[targetIdx]) {
+                        boxes[targetIdx].focus();
+                    }
+                    syncPinValue();
+                }
+            });
+        }
+    });
+
+    let isPinVerifying = false;
+
+    async function syncPinValue() {
+        const pin = Array.from(boxes).map(b => b.value).join('');
+        if (hiddenPin) hiddenPin.value = pin;
+
+        if (pin.length === 6) {
+            if (isPinVerifying) return;
+            const usernameInp = document.getElementById('auth-reg-username');
+            const username = usernameInp ? usernameInp.value.trim() : '';
+            const statusMsg = document.getElementById('auth-pin-status-msg');
+
+            if (!username) {
+                mostrarErrorPin('Escribe tu usuario antes de validar el PIN');
+                if (usernameInp) usernameInp.focus();
+                return;
+            }
+
+            if (statusMsg) {
+                statusMsg.innerText = 'Validando PIN con el servidor...';
+                statusMsg.className = 'text-[11px] font-mono text-cyan-300 font-bold block animate-pulse';
+            }
+
+            isPinVerifying = true;
+            try {
+                const res = await fetch('/api/auth/validar-pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, pin })
+                });
+                const data = await res.json();
+                if (res.ok && data.status === 'ok') {
+                    window.isPinPreValidated = true;
+                    ejecutarAnimacionOrbitalPin(pin);
+                } else {
+                    window.isPinPreValidated = false;
+                    mostrarErrorPin(data.message || 'PIN incorrecto o expirado');
+                }
+            } catch (err) {
+                console.error('Error validando PIN:', err);
+                window.isPinPreValidated = false;
+                mostrarErrorPin('Error de conexión al validar PIN');
+            } finally {
+                isPinVerifying = false;
+            }
+        } else {
+            window.isPinPreValidated = false;
+            resetPinVerificationState();
+        }
+    }
+}
+window.initPinDigitInputs = initPinDigitInputs;
+
+let isPinAnimRunning = false;
+function ejecutarAnimacionOrbitalPin(pin) {
+    if (isPinAnimRunning) return;
+    isPinAnimRunning = true;
+
+    const orbitContainer = document.getElementById('auth-pin-orbit-container');
+    const centralBadge = document.getElementById('auth-pin-central-badge');
+    const centralIcon = document.getElementById('auth-pin-central-icon');
+    const shockwave = document.getElementById('auth-pin-shockwave');
+    const statusMsg = document.getElementById('auth-pin-status-msg');
+    const titleEl = document.getElementById('auth-pin-title');
+    const subtitleEl = document.getElementById('auth-pin-subtitle');
+    const card = document.getElementById('auth-pin-card');
+    const regBtn = document.getElementById('auth-reg-btn');
+    const regBtnIcon = document.getElementById('auth-reg-btn-icon');
+    const regBtnText = document.getElementById('auth-reg-btn-text');
+
+    if (!orbitContainer) return;
+    orbitContainer.innerHTML = '';
+    orbitContainer.classList.remove('animate-orbit-spin');
+
+    // Radio de la órbita (en píxeles adaptado a radar w-24 h-24)
+    const radius = 34;
+    const digits = pin.split('');
+
+    digits.forEach((digit, i) => {
+        const angleDeg = i * 60;
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const tx = Math.round(radius * Math.cos(angleRad));
+        const ty = Math.round(radius * Math.sin(angleRad));
+
+        const orb = document.createElement('div');
+        orb.className = 'auth-orbit-node absolute w-5 h-5 rounded-full bg-gradient-to-tr from-cyan-400 to-emerald-300 text-black font-extrabold font-mono flex items-center justify-center text-[10px] shadow-[0_0_15px_#00ffcc] transition-all duration-300';
+        orb.innerText = digit;
+        orb.style.setProperty('--tx', `${tx}px`);
+        orb.style.setProperty('--ty', `${ty}px`);
+        orb.style.transform = `translate(${tx}px, ${ty}px)`;
+        orbitContainer.appendChild(orb);
+    });
+
+    // Iniciar rotación de 360 grados
+    orbitContainer.classList.add('animate-orbit-spin');
+
+    if (statusMsg) {
+        statusMsg.innerText = 'Autenticando PIN...';
+        statusMsg.className = 'text-[10px] font-mono text-cyan-300 font-bold animate-pulse';
     }
 
-    if (username.length < 3) {
-        showAuthAlert('El nombre de usuario debe tener al menos 3 caracteres.');
+    // Al terminar el giro de 360 grados (850ms), colapsar hacia el centro
+    setTimeout(() => {
+        const nodes = orbitContainer.querySelectorAll('.auth-orbit-node');
+        nodes.forEach(node => {
+            node.classList.add('animate-orbit-collapse');
+        });
+    }, 850);
+
+    // Al colapsar al centro (1300ms), activar destello, onda expansiva y estado exitoso
+    setTimeout(() => {
+        orbitContainer.innerHTML = '';
+        orbitContainer.classList.remove('animate-orbit-spin');
+
+        if (shockwave) {
+            shockwave.classList.remove('hidden');
+            shockwave.classList.remove('animate-pin-shockwave');
+            void shockwave.offsetWidth;
+            shockwave.classList.add('animate-pin-shockwave');
+            setTimeout(() => shockwave.classList.add('hidden'), 700);
+        }
+
+        if (centralBadge) {
+            centralBadge.className = 'relative z-10 w-10 h-10 rounded-xl bg-emerald-950/80 border-2 border-emerald-400 flex flex-col items-center justify-center text-emerald-300 shadow-[0_0_35px_rgba(16,185,129,0.8)] scale-110 transition-all duration-500';
+        }
+        if (centralIcon) {
+            centralIcon.innerText = 'verified';
+            centralIcon.className = 'material-symbols-outlined text-[20px] text-emerald-300 animate-bounce';
+            setTimeout(() => centralIcon.classList.remove('animate-bounce'), 1000);
+        }
+
+        if (card) card.classList.add('verified-state');
+
+        if (titleEl) {
+            titleEl.innerText = 'PIN Autenticado con Éxito';
+            titleEl.className = 'text-[11px] font-bold text-emerald-300 font-mono tracking-wide';
+        }
+        if (subtitleEl) {
+            subtitleEl.innerText = 'Código validado y asegurado criptográficamente';
+            subtitleEl.className = 'text-[9px] text-emerald-400/80 font-mono';
+        }
+
+        if (statusMsg) {
+            statusMsg.innerText = '✓ Verificación Exitosa: Todo listo';
+            statusMsg.className = 'text-[10px] font-mono text-emerald-400 font-bold';
+        }
+
+        // Transformar botón a Verified & Secured
+        if (regBtn) {
+            regBtn.className = 'w-full mt-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_30px_rgba(16,185,129,0.6)] cursor-pointer';
+        }
+        if (regBtnIcon) regBtnIcon.innerText = 'verified_user';
+        if (regBtnText) regBtnText.innerText = 'Verified & Secured — Crear Cuenta';
+
+        window.isPinPreValidated = true;
+        isPinAnimRunning = false;
+    }, 1300);
+}
+window.ejecutarAnimacionOrbitalPin = ejecutarAnimacionOrbitalPin;
+
+function resetPinVerificationState() {
+    window.isPinPreValidated = false;
+    const orbitContainer = document.getElementById('auth-pin-orbit-container');
+    if (orbitContainer) {
+        orbitContainer.innerHTML = '';
+        orbitContainer.classList.remove('animate-orbit-spin');
+    }
+    const card = document.getElementById('auth-pin-card');
+    if (card) card.classList.remove('verified-state');
+
+    const centralBadge = document.getElementById('auth-pin-central-badge');
+    if (centralBadge) {
+        centralBadge.className = 'relative z-10 w-10 h-10 rounded-xl bg-[#090e17] border-2 border-cyan-400/60 flex flex-col items-center justify-center text-cyan-300 shadow-[0_0_25px_rgba(6,182,212,0.35)] transition-all duration-500';
+    }
+    const centralIcon = document.getElementById('auth-pin-central-icon');
+    if (centralIcon) {
+        centralIcon.innerText = 'vpn_key';
+        centralIcon.className = 'material-symbols-outlined text-[20px]';
+    }
+
+    const titleEl = document.getElementById('auth-pin-title');
+    if (titleEl) {
+        titleEl.innerText = 'PIN de Autorización';
+        titleEl.className = 'text-[11px] font-bold text-white font-mono tracking-wide';
+    }
+    const subtitleEl = document.getElementById('auth-pin-subtitle');
+    if (subtitleEl) {
+        subtitleEl.innerText = 'Solicitud 2FA directa a Telegram';
+        subtitleEl.className = 'text-[9px] text-on-surface-variant/80 font-mono';
+    }
+
+    const regBtn = document.getElementById('auth-reg-btn');
+    if (regBtn) {
+        regBtn.className = 'w-full mt-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-secondary to-cyan-500 hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,255,204,0.35)] cursor-pointer';
+    }
+    const regBtnIcon = document.getElementById('auth-reg-btn-icon');
+    if (regBtnIcon) regBtnIcon.innerText = 'how_to_reg';
+    const regBtnText = document.getElementById('auth-reg-btn-text');
+    if (regBtnText) regBtnText.innerText = 'Crear Cuenta & Acceder';
+
+    isPinAnimRunning = false;
+}
+window.resetPinVerificationState = resetPinVerificationState;
+
+function mostrarErrorPin(mensaje) {
+    window.isPinPreValidated = false;
+    const boxes = document.querySelectorAll('.pin-digit-cell, .pin-digit-box');
+    boxes.forEach(b => {
+        b.classList.remove('is-filled');
+        b.classList.add('is-error');
+    });
+
+    const statusMsg = document.getElementById('auth-pin-status-msg');
+    if (statusMsg) {
+        statusMsg.innerText = '✗ ' + mensaje;
+        statusMsg.className = 'text-[10px] font-mono text-red-400 font-bold block animate-pulse';
+    }
+
+    const centralBadge = document.getElementById('auth-pin-central-badge');
+    if (centralBadge) {
+        centralBadge.className = 'relative z-10 w-10 h-10 rounded-xl bg-red-950/80 border-2 border-red-500/80 flex flex-col items-center justify-center text-red-400 shadow-[0_0_25px_rgba(239,68,68,0.5)] transition-all duration-300';
+    }
+    const centralIcon = document.getElementById('auth-pin-central-icon');
+    if (centralIcon) {
+        centralIcon.innerText = 'gpp_bad';
+        centralIcon.className = 'material-symbols-outlined text-[20px] text-red-400';
+    }
+
+    const titleEl = document.getElementById('auth-pin-title');
+    if (titleEl) {
+        titleEl.innerText = 'PIN No Autorizado';
+        titleEl.className = 'text-[11px] font-bold text-red-400 font-mono tracking-wide';
+    }
+    const subtitleEl = document.getElementById('auth-pin-subtitle');
+    if (subtitleEl) {
+        subtitleEl.innerText = 'Código rechazado por el servidor';
+        subtitleEl.className = 'text-[9px] text-red-400/80 font-mono';
+    }
+
+    const card = document.getElementById('auth-pin-card');
+    if (card) card.classList.remove('verified-state');
+
+    const regBtn = document.getElementById('auth-reg-btn');
+    const regBtnIcon = document.getElementById('auth-reg-btn-icon');
+    const regBtnText = document.getElementById('auth-reg-btn-text');
+    if (regBtn) {
+        regBtn.className = 'w-full mt-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-cyan-500 via-secondary to-cyan-500 hover:brightness-110 text-black font-extrabold text-xs flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,255,204,0.35)] cursor-pointer';
+    }
+    if (regBtnIcon) regBtnIcon.innerText = 'how_to_reg';
+    if (regBtnText) regBtnText.innerText = 'Crear Cuenta & Acceder';
+
+    setTimeout(() => {
+        boxes.forEach(b => {
+            b.value = '';
+            b.classList.remove('is-error', 'is-filled');
+        });
+        const hiddenPin = document.getElementById('auth-reg-pin');
+        if (hiddenPin) hiddenPin.value = '';
+        resetPinVerificationState();
+        if (boxes[0]) boxes[0].focus();
+    }, 1400);
+}
+window.mostrarErrorPin = mostrarErrorPin;
+
+let pinRequestCooldownTimer = null;
+
+async function solicitarPinRegistro(event) {
+    if (event) event.preventDefault();
+
+    const usernameInp = document.getElementById('auth-reg-username');
+    const pinInp = document.getElementById('auth-reg-pin');
+    const btn = document.getElementById('btn-solicitar-pin');
+    const textEl = document.getElementById('text-solicitar-pin');
+    const iconEl = document.getElementById('icon-solicitar-pin');
+    const statusMsg = document.getElementById('auth-pin-status-msg');
+    const countdownEl = document.getElementById('auth-pin-countdown-text');
+
+    const username = usernameInp ? usernameInp.value.trim() : '';
+
+    if (!username || username.length < 3) {
+        showAuthAlert('Escribe tu nombre de usuario o apodo (mínimo 3 caracteres) antes de solicitar el PIN.');
         if (usernameInp) usernameInp.focus();
         return;
     }
 
-    if (password.length < 6) {
-        showAuthAlert('La contraseña debe tener al menos 6 caracteres.');
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('opacity-70', 'cursor-not-allowed');
+    }
+    if (iconEl) {
+        iconEl.innerText = 'sync';
+        iconEl.classList.add('animate-spin');
+    }
+    if (textEl) textEl.innerText = 'Enviando...';
+
+    try {
+        const res = await fetch('/api/auth/solicitar-pin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, nombre: username })
+        });
+
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            showAuthAlert(data.message, 'success');
+            if (statusMsg) {
+                statusMsg.className = 'text-[10px] font-mono text-emerald-400 font-bold block animate-pulse';
+                statusMsg.innerText = '✓ Solicitud enviada por Telegram. Escribe el PIN aquí.';
+            }
+
+            // Limpiar casillas de PIN y enfocar la primera
+            const boxes = document.querySelectorAll('.pin-digit-cell, .pin-digit-box');
+            boxes.forEach(b => {
+                b.value = '';
+                b.classList.remove('is-filled');
+            });
+            if (pinInp) pinInp.value = '';
+            resetPinVerificationState();
+
+            if (boxes[0]) {
+                setTimeout(() => boxes[0].focus(), 150);
+            }
+
+            let countdown = 60;
+            if (btn) btn.classList.add('hidden');
+            if (countdownEl) {
+                countdownEl.classList.remove('hidden');
+                countdownEl.innerText = `Reenviar en 00:${countdown < 10 ? '0' + countdown : countdown}`;
+            }
+
+            if (pinRequestCooldownTimer) clearInterval(pinRequestCooldownTimer);
+            pinRequestCooldownTimer = setInterval(() => {
+                countdown--;
+                if (countdown <= 0) {
+                    clearInterval(pinRequestCooldownTimer);
+                    pinRequestCooldownTimer = null;
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-70', 'cursor-not-allowed', 'hidden');
+                    }
+                    if (textEl) textEl.innerText = 'Reenviar PIN';
+                    if (iconEl) {
+                        iconEl.classList.remove('animate-spin');
+                        iconEl.innerText = 'send';
+                    }
+                    if (countdownEl) countdownEl.classList.add('hidden');
+                } else {
+                    if (countdownEl) {
+                        countdownEl.innerText = `Reenviar en 00:${countdown < 10 ? '0' + countdown : countdown}`;
+                    }
+                }
+            }, 1000);
+
+        } else if (res.status === 429) {
+            showAuthAlert(data.message || 'Espera un momento antes de solicitar otro PIN.', 'warning');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70', 'cursor-not-allowed', 'hidden');
+            }
+            if (countdownEl) countdownEl.classList.add('hidden');
+            if (textEl) textEl.innerText = 'Solicitar PIN';
+            if (iconEl) {
+                iconEl.classList.remove('animate-spin');
+                iconEl.innerText = 'send';
+            }
+        } else {
+            showAuthAlert(data.message || 'Error al solicitar el PIN.');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('opacity-70', 'cursor-not-allowed', 'hidden');
+            }
+            if (countdownEl) countdownEl.classList.add('hidden');
+            if (textEl) textEl.innerText = 'Solicitar PIN';
+            if (iconEl) {
+                iconEl.classList.remove('animate-spin');
+                iconEl.innerText = 'send';
+            }
+        }
+    } catch (e) {
+        console.error('Error solicitando PIN:', e);
+        showAuthAlert('Error al conectar con el servidor.');
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-not-allowed', 'hidden');
+        }
+        if (countdownEl) countdownEl.classList.add('hidden');
+        if (textEl) textEl.innerText = 'Solicitar PIN';
+        if (iconEl) {
+            iconEl.classList.remove('animate-spin');
+            iconEl.innerText = 'send';
+        }
+    }
+}
+window.solicitarPinRegistro = solicitarPinRegistro;
+
+async function ejecutarRegistro(event) {
+    if (event) event.preventDefault();
+
+    const usernameInp = document.getElementById('auth-reg-username');
+    const avatarInp = document.getElementById('auth-reg-avatar');
+    const passInp = document.getElementById('auth-reg-password');
+    const confirmInp = document.getElementById('auth-reg-confirm');
+    const pinInp = document.getElementById('auth-reg-pin');
+    const btn = document.getElementById('auth-reg-btn');
+
+    const username = usernameInp ? usernameInp.value.trim() : '';
+    const nombre = username;
+    const avatar = avatarInp ? avatarInp.value : selectedRegisterAvatar;
+    const password = passInp ? passInp.value : '';
+    const confirm = confirmInp ? confirmInp.value : '';
+    const pin = pinInp ? pinInp.value.trim() : '';
+
+    if (!username || !password) {
+        showAuthAlert('Debes ingresar tu nombre de usuario o apodo y contraseña.');
+        return;
+    }
+
+    if (username.length < 3) {
+        showAuthAlert('El nombre de usuario o apodo debe tener al menos 3 caracteres.');
+        if (usernameInp) usernameInp.focus();
+        return;
+    }
+
+    if (password.length < 8) {
+        showAuthAlert('La contraseña debe tener al menos 8 caracteres.');
+        if (passInp) passInp.focus();
+        return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+        showAuthAlert('La contraseña debe incluir al menos una letra mayúscula (A-Z).');
+        if (passInp) passInp.focus();
+        return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+        showAuthAlert('La contraseña debe incluir al menos un número (0-9).');
+        if (passInp) passInp.focus();
+        return;
+    }
+
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) {
+        showAuthAlert('La contraseña debe incluir al menos un carácter especial o símbolo (!@#$%&*...).');
         if (passInp) passInp.focus();
         return;
     }
@@ -4730,6 +5611,13 @@ async function ejecutarRegistro(event) {
     if (password !== confirm) {
         showAuthAlert('Las contraseñas no coinciden. Por favor verifícalas.');
         if (confirmInp) confirmInp.focus();
+        return;
+    }
+
+    if (!pin || pin.length < 6 || !window.isPinPreValidated) {
+        showAuthAlert('Debes ingresar un PIN de autorización válido y verificado.');
+        const firstDigit = document.querySelector('.pin-digit-cell, .pin-digit-box');
+        if (firstDigit) firstDigit.focus();
         return;
     }
 
@@ -4744,10 +5632,11 @@ async function ejecutarRegistro(event) {
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-                nombre: nombre || username,
+                nombre: username,
                 username,
                 password,
-                avatar
+                avatar,
+                pin
             })
         });
 
@@ -4815,7 +5704,8 @@ async function cerrarSesionConsola() {
         switchAuthTab('login');
         const passInp = document.getElementById('auth-login-password');
         if (passInp) passInp.value = '';
-        showAuthAlert('Sesión cerrada correctamente. Ingresa tus credenciales para continuar.', 'warning');
+        const alertBox = document.getElementById('auth-alert-box');
+        if (alertBox) alertBox.classList.add('hidden');
     }
 }
 window.cerrarSesionConsola = cerrarSesionConsola;
@@ -4824,10 +5714,12 @@ window.cerrarSesionConsola = cerrarSesionConsola;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         renderAuthAvatarSelector();
+        initPinDigitInputs();
         checkAuthSession();
     });
 } else {
     renderAuthAvatarSelector();
+    initPinDigitInputs();
     checkAuthSession();
 }
 

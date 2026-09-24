@@ -529,7 +529,7 @@ def funcion_nodo_luffy(estado: dict) -> dict:
         mensajes_langgraph[-1].content = ultimo_contenido + contexto_mensajes
 
     # ── LEER MODO DE OPERACIÓN SELECCIONADO (Auto, Entrevista, Plan) ──
-    modo_file = _APP_ROOT / "modo_agente.json"
+    modo_file = _APP_ROOT / "dashboard" / "modo_agente.json" if (_APP_ROOT / "dashboard" / "modo_agente.json").exists() else (_APP_ROOT / "modo_agente.json")
     modo_seleccionado = "auto"
     if modo_file.exists():
         try:

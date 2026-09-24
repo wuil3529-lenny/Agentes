@@ -328,3 +328,121 @@ input:focus, select:focus {
     border-color: var(--accent-blue);
 }
 .hidden { display: none !important; }
+
+/* ============================================================== */
+/* --- FUTURISTIC SCI-FI HUD PIN GLASS CARD & ORBITAL RADAR --- */
+/* ============================================================== */
+
+.pin-glass-card {
+    background: radial-gradient(130% 130% at 50% 0%, rgba(6, 182, 212, 0.14) 0%, rgba(10, 14, 24, 0.94) 85%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    box-shadow: 0 0 40px rgba(6, 182, 212, 0.12), inset 0 0 25px rgba(6, 182, 212, 0.05);
+    border-radius: 1.5rem;
+    overflow: hidden;
+}
+
+.pin-glass-card.verified-state {
+    border-color: rgba(16, 185, 129, 0.6);
+    box-shadow: 0 0 45px rgba(16, 185, 129, 0.25), inset 0 0 30px rgba(16, 185, 129, 0.08);
+}
+
+.pin-corner-tl {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    border-top: 2px solid rgba(6, 182, 212, 0.85);
+    border-left: 2px solid rgba(6, 182, 212, 0.85);
+    border-top-left-radius: 10px;
+    pointer-events: none;
+}
+
+.pin-corner-br {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-bottom: 2px solid rgba(6, 182, 212, 0.85);
+    border-right: 2px solid rgba(6, 182, 212, 0.85);
+    border-bottom-right-radius: 10px;
+    pointer-events: none;
+}
+
+@keyframes radarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes radarPulseRing {
+    0% { transform: scale(0.88); opacity: 0.7; }
+    50% { transform: scale(1.06); opacity: 0.25; }
+    100% { transform: scale(0.88); opacity: 0.7; }
+}
+
+@keyframes pinOrbitalSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes pinOrbitalCollapse {
+    0% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 1; filter: drop-shadow(0 0 10px #00ffcc); }
+    60% { transform: translate(calc(var(--tx) * 0.4), calc(var(--ty) * 0.4)) scale(0.7); opacity: 0.95; }
+    100% { transform: translate(0, 0) scale(0); opacity: 0; filter: drop-shadow(0 0 25px #10b981); }
+}
+
+@keyframes pinShockwave {
+    0% { transform: scale(0.6); opacity: 1; border-color: #10b981; }
+    100% { transform: scale(1.8); opacity: 0; border-color: #00ffcc; }
+}
+
+.animate-radar-spin {
+    animation: radarSpin 14s linear infinite;
+}
+
+.animate-radar-pulse {
+    animation: radarPulseRing 3.5s ease-in-out infinite;
+}
+
+.animate-orbit-spin {
+    animation: pinOrbitalSpin 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-orbit-collapse {
+    animation: pinOrbitalCollapse 0.45s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.animate-pin-shockwave {
+    animation: pinShockwave 0.7s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+
+.pin-digit-box {
+    width: 2.5rem;
+    height: 3rem;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-family: monospace;
+    border-radius: 0.75rem;
+    background: rgba(22, 27, 34, 0.85);
+    border: 1px solid rgba(6, 182, 212, 0.45);
+    color: #67e8f9;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.pin-digit-box:focus {
+    border-color: #22d3ee;
+    transform: translateY(-2px);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.5);
+    background: rgba(22, 27, 34, 0.95);
+}
+
+.pin-digit-box.is-filled {
+    border-color: rgba(16, 185, 129, 0.6);
+    color: #34d399;
+}

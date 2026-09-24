@@ -36,7 +36,7 @@ SHARED_MEMORY_PATH.mkdir(parents=True, exist_ok=True)
 
 # ─── Archivos de memoria (JSON - Solo Canal) ──────────────────────────────────
 CANAL_FILE    = _APP_ROOT / "canal_comunicacion.json"
-CANAL_USUARIO_FILE = _APP_ROOT / "canal_usuario.json"
+CANAL_USUARIO_FILE = _APP_ROOT / "dashboard" / "canal_usuario.json" if (_APP_ROOT / "dashboard" / "canal_usuario.json").exists() else (_APP_ROOT / "canal_usuario.json")
 
 # ─── Archivos Obsidian (Living Vault .md) ──────────────────────────────────────
 MEMORIA_MD_PATH = _APP_ROOT / "memoria"

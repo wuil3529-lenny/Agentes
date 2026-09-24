@@ -121,12 +121,12 @@ def ejecutar_comando_recibido(comando: dict) -> dict:
                 salida = "Caché de errores de ejecución restablecida."
                 
         elif accion == "pausar_flota":
-            modo_path = BASE_DIR / "modo_agente.json"
+            modo_path = BASE_DIR / "dashboard" / "modo_agente.json" if (BASE_DIR / "dashboard").exists() else (BASE_DIR / "modo_agente.json")
             modo_path.write_text(json.dumps({"modo": "pausado"}, indent=2), encoding="utf-8")
             salida = "Flota de agentes pausada con éxito."
             
         elif accion == "reanudar_flota":
-            modo_path = BASE_DIR / "modo_agente.json"
+            modo_path = BASE_DIR / "dashboard" / "modo_agente.json" if (BASE_DIR / "dashboard").exists() else (BASE_DIR / "modo_agente.json")
             modo_path.write_text(json.dumps({"modo": "auto"}, indent=2), encoding="utf-8")
             salida = "Flota de agentes reanudada a modo autónomo."
             

@@ -8,6 +8,10 @@ import urllib.request
 import urllib.parse
 import bcrypt
 import jwt
+import secrets
+import hmac
+import hashlib
+import re
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -31,7 +35,7 @@ LUFFY_DIR = AGENTES_DIR / "Luffy"
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 # ----------------- REGISTRO Y ALARMA DE INTRUSIÓN -----------------
-INCIDENTES_SEGURIDAD_FILE = AGENTES_DIR / "incidentes_seguridad.json"
+INCIDENTES_SEGURIDAD_FILE = BASE_DIR / "incidentes_seguridad.json"
 HISTORIAL_INTRUSIONES = []
 if INCIDENTES_SEGURIDAD_FILE.exists():
     try:
@@ -184,13 +188,21 @@ import subprocess
 import os
 
 # ----------------- AUTENTICACIÓN Y GESTIÓN DE USUARIOS (BCRYPT + JWT) -----------------
-USUARIOS_DB_FILE = AGENTES_DIR / "usuarios.json"
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "tripulacion-ia-c2-jwt-token-secret-key-3529-2026-super-secure")
+USUARIOS_DB_FILE = BASE_DIR / "usuarios.json"
+# Generar una clave de firma dinámica y única por cada arranque del servidor
+# para invalidar de inmediato todas las sesiones anteriores al reiniciar la consola
+SERVER_BOOT_INSTANCE_ID = secrets.token_hex(16)
+JWT_SECRET_KEY = f"{os.getenv('JWT_SECRET_KEY', 'tripulacion-ia-c2')}-{SERVER_BOOT_INSTANCE_ID}"
 JWT_ALGORITHM = "HS256"
-JWT_EXPIRATION_SECONDS = 7 * 24 * 3600  # 7 días de validez
+JWT_EXPIRATION_SECONDS = 4 * 3600  # Máximo 4 horas de validez de sesión
 
 # Registro en memoria de intentos fallidos por IP (Anti Fuerza Bruta)
 INTENTOS_FALLIDOS: Dict[str, dict] = {}  # ip -> {"conteo": int, "bloqueado_hasta": float}
+
+# Registro en memoria de PINs de autorización de registro (10 min TTL)
+PINS_REGISTRO: Dict[str, dict] = {}  # pin -> {"username": str, "nombre": str, "ip": str, "creado_en": float, "expira_en": float}
+ULTIMA_SOLICITUD_PIN_POR_IP: Dict[str, float] = {}  # ip -> timestamp (cooldown 60s)
+
 
 def cargar_usuarios() -> List[dict]:
     if USUARIOS_DB_FILE.exists():
@@ -284,11 +296,20 @@ class LoginPayload(BaseModel):
     username: str
     password: str
 
+class SolicitarPinPayload(BaseModel):
+    username: str
+    nombre: Optional[str] = None
+
 class RegisterPayload(BaseModel):
     username: str
     password: str
     nombre: Optional[str] = None
     avatar: Optional[str] = "/static/avatars/bot_cyan.jpg"
+    pin: str
+
+class ValidarPinPayload(BaseModel):
+    username: str
+    pin: str
 
 @app.post("/api/auth/login")
 async def auth_login(payload: LoginPayload, request: Request):
@@ -343,14 +364,127 @@ async def auth_login(payload: LoginPayload, request: Request):
     resp.set_cookie(key="access_token", value=token, max_age=JWT_EXPIRATION_SECONDS, httponly=True, samesite="lax")
     return resp
 
+@app.post("/api/auth/solicitar-pin")
+async def auth_solicitar_pin(payload: SolicitarPinPayload, request: Request):
+    client_ip = request.client.host if request.client else "127.0.0.1"
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    username_clean = payload.username.strip()
+    if len(username_clean) < 3:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Ingresa al menos 3 caracteres en el nombre de usuario para solicitar el PIN"})
+
+    usuarios = cargar_usuarios()
+    for u in usuarios:
+        if u["username"].strip().lower() == username_clean.lower():
+            return JSONResponse(status_code=400, content={"status": "error", "message": "Ese nombre de usuario ya está registrado en el sistema"})
+
+    ahora = time.time()
+    ultimo = ULTIMA_SOLICITUD_PIN_POR_IP.get(client_ip, 0)
+    if ahora - ultimo < 60:
+        espera = int(60 - (ahora - ultimo))
+        return JSONResponse(status_code=429, content={"status": "error", "message": f"Por favor espera {espera} segundos antes de solicitar otro PIN."})
+
+    ULTIMA_SOLICITUD_PIN_POR_IP[client_ip] = ahora
+
+    import random
+    pin = f"{random.randint(100000, 999999)}"
+    nombre_display = payload.nombre.strip() if (payload.nombre and payload.nombre.strip()) else username_clean
+    expira_en = ahora + 600  # 10 minutos de validez
+
+    # Limpiar pines expirados
+    pines_a_borrar = [p for p, d in PINS_REGISTRO.items() if d.get("expira_en", 0) < ahora]
+    for p in pines_a_borrar:
+        del PINS_REGISTRO[p]
+
+    PINS_REGISTRO[pin] = {
+        "username": username_clean.lower(),
+        "nombre": nombre_display,
+        "ip": client_ip,
+        "creado_en": ahora,
+        "expira_en": expira_en
+    }
+
+    hora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    mensaje_telegram = (
+        f"🔐 *SOLICITUD DE REGISTRO EN AGENTICOS*\n\n"
+        f"👤 *Tripulante:* `{username_clean}`\n"
+        f"🌐 *Dirección IP:* `{client_ip}`\n"
+        f"⏰ *Hora:* `{hora_str}`\n\n"
+        f"🔑 *PIN DE AUTORIZACIÓN:* `{pin}`\n"
+        f"⏳ *Validez:* 10 minutos (un solo uso)\n\n"
+        f"⚡ _Si autorizas a este tripulante a registrarse en la consola, compártele este PIN._"
+    )
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, enviar_telegram_alerta_sync, mensaje_telegram)
+    except Exception as e:
+        print(f"Error enviando PIN a Telegram: {e}")
+
+    print(f"=== PIN DE REGISTRO GENERADO === [Usuario: {username_clean}] PIN: {pin} (Expira en 10 min)")
+
+    return {
+        "status": "ok",
+        "message": "Solicitud enviada al Capitán vía Telegram. Contacta al Capitán para obtener tu PIN de acceso de 6 dígitos.",
+        "ttl_segundos": 600
+    }
+
+@app.post("/api/auth/validar-pin")
+async def auth_validar_pin(payload: ValidarPinPayload):
+    username_clean = payload.username.strip().lower()
+    pin_clean = payload.pin.strip()
+    if not pin_clean or len(pin_clean) != 6:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "El PIN debe tener 6 dígitos numéricos"})
+    
+    if not username_clean:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "El nombre de usuario es requerido para validar el PIN"})
+
+    registro_pin = PINS_REGISTRO.get(pin_clean)
+    ahora = time.time()
+    if not registro_pin or registro_pin.get("expira_en", 0) < ahora:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "PIN incorrecto o ha expirado. Solicita uno nuevo."})
+
+    if registro_pin.get("username") != username_clean:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "El PIN de autorización no corresponde a este usuario"})
+
+    return {"status": "ok", "message": "PIN verificado y autorizado por el Capitán"}
+
 @app.post("/api/auth/register")
 async def auth_register(payload: RegisterPayload, request: Request):
     username_clean = payload.username.strip()
     if len(username_clean) < 3:
         return JSONResponse(status_code=400, content={"status": "error", "message": "El nombre de usuario debe tener al menos 3 caracteres"})
 
-    if len(payload.password) < 6:
-        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe tener al menos 6 caracteres para ser segura"})
+    if len(payload.password) < 8:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe tener al menos 8 caracteres"})
+
+    import re
+    if not re.search(r"[A-Z]", payload.password):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe incluir al menos una letra mayúscula (A-Z)"})
+
+    if not re.search(r"[0-9]", payload.password):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe incluir al menos un número (0-9)"})
+
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?`~]", payload.password):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña debe incluir al menos un carácter especial o símbolo (!@#$%&*...)"})
+
+    # Validar PIN de autorización del Capitán
+    pin_ingresado = payload.pin.strip() if (payload.pin and payload.pin.strip()) else ""
+    if not pin_ingresado:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Debes solicitar e ingresar el PIN de autorización de 6 dígitos"})
+
+    registro_pin = PINS_REGISTRO.get(pin_ingresado)
+    ahora = time.time()
+    if not registro_pin or registro_pin.get("expira_en", 0) < ahora:
+        return JSONResponse(status_code=403, content={"status": "error", "message": "El PIN de autorización es inválido o ha expirado. Solicita un nuevo PIN al Capitán."})
+
+    if registro_pin.get("username") != username_clean.lower():
+        return JSONResponse(status_code=403, content={"status": "error", "message": "El PIN de autorización no corresponde a este nombre de usuario"})
+
+    # Destruir PIN inmediatamente (un solo uso)
+    del PINS_REGISTRO[pin_ingresado]
 
     usuarios = cargar_usuarios()
     for u in usuarios:
@@ -437,7 +571,7 @@ class ModeConfig(BaseModel):
 
 @app.get("/api/modo")
 async def get_modo():
-    modo_path = AGENTES_DIR / "modo_agente.json"
+    modo_path = BASE_DIR / "modo_agente.json"
     if modo_path.exists():
         try:
             return json.loads(modo_path.read_text(encoding="utf-8"))
@@ -447,7 +581,7 @@ async def get_modo():
 
 @app.post("/api/modo")
 async def set_modo(cfg: ModeConfig):
-    modo_path = AGENTES_DIR / "modo_agente.json"
+    modo_path = BASE_DIR / "modo_agente.json"
     data = {"modo": cfg.modo}
     modo_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"status": "ok", "modo": cfg.modo}
@@ -455,7 +589,7 @@ async def set_modo(cfg: ModeConfig):
 @app.post("/api/chat")
 async def send_chat(msg: ChatMessage):
     import datetime
-    canal_path = AGENTES_DIR / "canal_usuario.json"
+    canal_path = BASE_DIR / "canal_usuario.json"
     try:
         if canal_path.exists():
             with open(canal_path, "r", encoding="utf-8") as f:
@@ -474,7 +608,7 @@ async def send_chat(msg: ChatMessage):
 
     # Guardar modo activo seleccionado
     if msg.modo:
-        modo_path = AGENTES_DIR / "modo_agente.json"
+        modo_path = BASE_DIR / "modo_agente.json"
         try:
             modo_path.write_text(json.dumps({"modo": msg.modo}, indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
@@ -670,7 +804,7 @@ async def guardar_config(payload: FullConfigPayload):
         if "PRESUPUESTO_MAXIMO" not in ordered_keys:
             ordered_keys.append("PRESUPUESTO_MAXIMO")
         # Actualizar costos.json y si el presupuesto supera el costo actual, desmarcar bloqueo
-        costos_path = AGENTES_DIR / "costos.json"
+        costos_path = BASE_DIR / "costos.json"
         if costos_path.exists():
             try:
                 c_data = json.loads(costos_path.read_text(encoding="utf-8"))
@@ -840,7 +974,7 @@ def detener_tripulacion_emergencia():
 async def reset_costos():
     from datetime import datetime
     mes_actual = datetime.now().strftime("%Y-%m")
-    costos_path = AGENTES_DIR / "costos.json"
+    costos_path = BASE_DIR / "costos.json"
     default_costos = {
         "mes_activo": mes_actual,
         "tokens": 0,
@@ -947,9 +1081,32 @@ async def limpiar_incidentes_seguridad():
 
 # ----------------- MONITOREO Y CONTROL DE FLOTA REMOTA -----------------
 FLOTA_REMOTA_DB = {}
-COMANDOS_FILE = AGENTES_DIR / "comandos_remotos.json"
+COMANDOS_FILE = BASE_DIR / "comandos_remotos.json"
 COMANDOS_PENDIENTES: Dict[str, List[dict]] = {}
 HISTORIAL_COMANDOS: Dict[str, List[dict]] = {}
+
+FLOTAS_REGISTRADAS_FILE = BASE_DIR / "flotas_registradas.json"
+FLOTAS_REGISTRADAS: Dict[str, dict] = {}
+
+def cargar_flotas_registradas():
+    global FLOTAS_REGISTRADAS
+    if FLOTAS_REGISTRADAS_FILE.exists():
+        try:
+            data = json.loads(FLOTAS_REGISTRADAS_FILE.read_text(encoding="utf-8"))
+            if isinstance(data, list):
+                FLOTAS_REGISTRADAS = {f["id"]: f for f in data if isinstance(f, dict) and "id" in f}
+            elif isinstance(data, dict):
+                FLOTAS_REGISTRADAS = data
+        except Exception:
+            FLOTAS_REGISTRADAS = {}
+
+def guardar_flotas_registradas():
+    try:
+        FLOTAS_REGISTRADAS_FILE.write_text(json.dumps(list(FLOTAS_REGISTRADAS.values()), indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+cargar_flotas_registradas()
 
 if COMANDOS_FILE.exists():
     try:
@@ -976,6 +1133,7 @@ class ReporteTelemetria(BaseModel):
     version: Optional[str] = "v1.0"
     estado: Optional[str] = "activa" # activa | espera | error | desconectada
     agentes: Optional[dict] = None
+    docker: Optional[dict] = None
     tarea_actual: Optional[str] = "En ejecución..."
     error_critico: Optional[str] = None
     tokens: Optional[int] = 0
@@ -984,6 +1142,16 @@ class ReporteTelemetria(BaseModel):
     ram: Optional[float] = 0.0
     logs: Optional[List[dict]] = None
     resultado_comando: Optional[dict] = None
+
+class RegistrarFlotaPayload(BaseModel):
+    nombre: str
+    cliente: Optional[str] = "Cliente General"
+    descripcion: Optional[str] = ""
+
+class HandshakePayload(BaseModel):
+    fleet_id: Optional[str] = None
+    api_key: str
+    timestamp: Optional[float] = None
 
 class ComandoRemotoPayload(BaseModel):
     equipo_id: str
@@ -1027,39 +1195,214 @@ async def get_comandos_remotos(equipo_id: str):
         "historial": HISTORIAL_COMANDOS.get(equipo_id, [])
     }
 
-@app.post("/api/telemetria/reportar")
-async def reportar_telemetria(data: ReporteTelemetria, request: Request):
-    # Validación de Token Secreto de Telemetría si está activo en .env
-    env_path = AGENTES_DIR / ".env"
-    expected_token = os.getenv("TELEMETRY_SECRET_TOKEN", "").strip()
-    if not expected_token and env_path.exists():
+# ----------------- REGISTRO Y CRIPTOGRAFÍA DE FLOTAS REMOTAS -----------------
+@app.post("/api/flotas/registrar")
+async def registrar_nueva_flota(payload: RegistrarFlotaPayload):
+    slug = re.sub(r'[^a-zA-Z0-9]+', '-', payload.nombre.lower().strip()).strip('-')
+    if not slug:
+        slug = "flota"
+    rand_suffix = secrets.token_hex(3)
+    fleet_id = f"flota-{slug}-{rand_suffix}"
+    
+    api_key = f"key_{secrets.token_urlsafe(24)}"
+    secret_key = secrets.token_hex(32)
+    session_token = f"tok_{secrets.token_urlsafe(32)}"
+    expires_at = time.time() + 3600
+    
+    nueva_flota = {
+        "id": fleet_id,
+        "nombre": payload.nombre.strip(),
+        "cliente": (payload.cliente or "Cliente General").strip(),
+        "descripcion": (payload.descripcion or "").strip(),
+        "api_key": api_key,
+        "secret_key": secret_key,
+        "session_token": session_token,
+        "session_token_expires_at": expires_at,
+        "creado_en": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "ultimo_reporte": None,
+        "rotaciones_realizadas": 0,
+        "estado": "pendiente_conexion"
+    }
+    
+    FLOTAS_REGISTRADAS[fleet_id] = nueva_flota
+    guardar_flotas_registradas()
+    
+    return {
+        "status": "ok",
+        "message": f"Flota '{payload.nombre}' registrada con éxito",
+        "flota": nueva_flota
+    }
+
+@app.get("/api/flotas/lista")
+async def listar_flotas_registradas():
+    cargar_flotas_registradas()
+    return {
+        "status": "ok",
+        "flotas": list(FLOTAS_REGISTRADAS.values())
+    }
+
+@app.delete("/api/flotas/eliminar/{fleet_id}")
+async def eliminar_flota_registrada(fleet_id: str):
+    cargar_flotas_registradas()
+    if fleet_id in FLOTAS_REGISTRADAS:
+        del FLOTAS_REGISTRADAS[fleet_id]
+        guardar_flotas_registradas()
+    if fleet_id in FLOTA_REMOTA_DB:
+        del FLOTA_REMOTA_DB[fleet_id]
+        equipos_path = BASE_DIR / "equipos_remotos.json"
         try:
-            for l in env_path.read_text(encoding="utf-8").splitlines():
-                if l.strip().startswith("TELEMETRY_SECRET_TOKEN="):
-                    expected_token = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
-                    break
+            equipos_path.write_text(json.dumps(list(FLOTA_REMOTA_DB.values()), indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
             pass
+    return {"status": "ok", "message": f"Flota {fleet_id} eliminada"}
 
-    if expected_token:
-        received_token = request.headers.get("x-telemetry-token") or request.headers.get("x-api-key")
-        if not received_token:
-            auth_header = request.headers.get("authorization", "")
-            if auth_header.lower().startswith("bearer "):
-                received_token = auth_header[7:].strip()
+@app.post("/api/flotas/handshake")
+async def handshake_flota(payload: HandshakePayload, request: Request):
+    cargar_flotas_registradas()
+    if payload.fleet_id:
+        flota = FLOTAS_REGISTRADAS.get(payload.fleet_id)
+    else:
+        flota = next((f for f in FLOTAS_REGISTRADAS.values() if f.get("api_key") == payload.api_key), None)
+
+    if not flota:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Flota no registrada o clave API incorrecta"})
+    
+    if payload.api_key != flota.get("api_key"):
+        return JSONResponse(status_code=401, content={"status": "error", "message": "API Key de flota inválida"})
+    
+    # Si viene con firma HMAC, verificarla
+    sig_header = request.headers.get("x-fleet-signature")
+    if sig_header:
+        secret = flota.get("secret_key", "").encode("utf-8")
+        ts = request.headers.get("x-fleet-timestamp", str(time.time()))
+        msg_raw = f"{flota['id']}:{ts}".encode("utf-8")
+        expected_sig = hmac.new(secret, msg_raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(sig_header, expected_sig):
+            return JSONResponse(status_code=401, content={"status": "error", "message": "Firma HMAC inválida"})
+    
+    # Generar nuevo session token efímero
+    nuevo_token = f"tok_{secrets.token_urlsafe(32)}"
+    expires_at = time.time() + 3600
+    flota["session_token"] = nuevo_token
+    flota["session_token_expires_at"] = expires_at
+    flota["estado"] = "vinculada"
+    flota["ultimo_reporte"] = time.time()
+    guardar_flotas_registradas()
+    
+    return {
+        "status": "ok",
+        "message": f"Handshake exitoso con {flota['nombre']}",
+        "fleet_id": flota["id"],
+        "session_token": nuevo_token,
+        "expires_in": 3600
+    }
+
+@app.get("/api/flotas/estado/{fleet_id}")
+async def obtener_estado_flota_registro(fleet_id: str):
+    cargar_flotas_registradas()
+    flota = FLOTAS_REGISTRADAS.get(fleet_id)
+    if not flota:
+        return {"status": "error", "message": "Flota no encontrada"}
+    esta_vinculada = flota.get("estado") in ["vinculada", "activa"]
+    return {
+        "status": "ok",
+        "id": fleet_id,
+        "nombre": flota.get("nombre"),
+        "estado": flota.get("estado", "pendiente_conexion"),
+        "vinculada": esta_vinculada,
+        "ultimo_reporte": flota.get("ultimo_reporte")
+    }
+
+@app.post("/api/flotas/emparejar/simular/{fleet_id}")
+async def simular_emparejamiento_flota(fleet_id: str):
+    cargar_flotas_registradas()
+    flota = FLOTAS_REGISTRADAS.get(fleet_id)
+    if not flota:
+        return {"status": "error", "message": "Flota no encontrada"}
+    flota["estado"] = "vinculada"
+    flota["ultimo_reporte"] = time.time()
+    guardar_flotas_registradas()
+    return {"status": "ok", "message": f"Flota '{flota['nombre']}' vinculada con éxito"}
+
+@app.post("/api/telemetria/reportar")
+async def reportar_telemetria(data: ReporteTelemetria, request: Request):
+    cargar_flotas_registradas()
+    
+    # 1. Verificar si corresponde a una Flota Registrada Criptográficamente
+    bearer_token = None
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        bearer_token = auth_header[7:].strip()
+    
+    fleet_id = request.headers.get("x-fleet-id") or data.id
+    fleet_auth = FLOTAS_REGISTRADAS.get(fleet_id)
+    new_token_to_send = None
+
+    if fleet_auth:
+        # Validar Token o API Key
+        token_valido = False
+        received = bearer_token or request.headers.get("x-api-key")
+        if received in (fleet_auth.get("session_token"), fleet_auth.get("api_key")):
+            token_valido = True
         
-        if received_token != expected_token:
+        # Validar por firma HMAC si se proveyó
+        sig_header = request.headers.get("x-fleet-signature")
+        if sig_header:
+            secret = fleet_auth.get("secret_key", "").encode("utf-8")
+            ts = request.headers.get("x-fleet-timestamp", "")
+            expected_sig = hmac.new(secret, f"{fleet_id}:{ts}".encode("utf-8"), hashlib.sha256).hexdigest()
+            if hmac.compare_digest(sig_header, expected_sig):
+                token_valido = True
+        
+        if not token_valido:
             return JSONResponse(
                 status_code=401,
-                content={"status": "error", "message": "Acceso denegado: Token secreto de telemetría no válido o ausente"}
+                content={"status": "error", "message": f"Acceso denegado a flota {fleet_id}: Token no válido o sesión expirada"}
             )
+        
+        # Rotación automática de sesión si faltan menos de 15 minutos de vigencia
+        ahora_ts = time.time()
+        expires_at = fleet_auth.get("session_token_expires_at", 0)
+        if (expires_at - ahora_ts) < 900:
+            nuevo_session_token = f"tok_{secrets.token_urlsafe(32)}"
+            fleet_auth["session_token"] = nuevo_session_token
+            fleet_auth["session_token_expires_at"] = ahora_ts + 3600
+            fleet_auth["rotaciones_realizadas"] = fleet_auth.get("rotaciones_realizadas", 0) + 1
+            new_token_to_send = nuevo_session_token
+        
+        fleet_auth["ultimo_reporte"] = ahora_ts
+        fleet_auth["estado"] = "activa"
+        guardar_flotas_registradas()
+    else:
+        # Validación legado de Token Secreto Global si está activo en .env
+        env_path = AGENTES_DIR / ".env"
+        expected_token = os.getenv("TELEMETRY_SECRET_TOKEN", "").strip()
+        if not expected_token and env_path.exists():
+            try:
+                for l in env_path.read_text(encoding="utf-8").splitlines():
+                    if l.strip().startswith("TELEMETRY_SECRET_TOKEN="):
+                        expected_token = l.strip().split("=", 1)[1].strip().strip('"').strip("'")
+                        break
+            except Exception:
+                pass
+
+        if expected_token:
+            received_token = request.headers.get("x-telemetry-token") or request.headers.get("x-api-key")
+            if not received_token and bearer_token:
+                received_token = bearer_token
+            
+            if received_token != expected_token:
+                return JSONResponse(
+                    status_code=401,
+                    content={"status": "error", "message": "Acceso denegado: Token secreto de telemetría no válido o ausente"}
+                )
 
     ahora_ts = time.time()
     eq_dict = data.dict()
     eq_dict["ultimo_ping"] = ahora_ts
     FLOTA_REMOTA_DB[data.id] = eq_dict
     
-    equipos_path = AGENTES_DIR / "equipos_remotos.json"
+    equipos_path = BASE_DIR / "equipos_remotos.json"
     try:
         equipos_path.write_text(json.dumps(list(FLOTA_REMOTA_DB.values()), indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception:
@@ -1087,11 +1430,16 @@ async def reportar_telemetria(data: ReporteTelemetria, request: Request):
     if cmds_a_entregar:
         guardar_comandos()
 
-    return {
+    res_data = {
         "status": "ok", 
         "message": f"Telemetría de {data.nombre} recibida",
         "comandos": cmds_a_entregar
     }
+    if new_token_to_send:
+        res_data["new_session_token"] = new_token_to_send
+        res_data["expires_in"] = 3600
+        
+    return res_data
 
 @app.post("/api/telemetria/simular")
 async def simular_telemetria():
@@ -1137,7 +1485,7 @@ async def simular_telemetria():
     for m in mock_nodes:
         FLOTA_REMOTA_DB[m["id"]] = m
     
-    equipos_path = AGENTES_DIR / "equipos_remotos.json"
+    equipos_path = BASE_DIR / "equipos_remotos.json"
     try:
         equipos_path.write_text(json.dumps(list(FLOTA_REMOTA_DB.values()), indent=2, ensure_ascii=False), encoding="utf-8")
     except Exception:
@@ -1148,7 +1496,7 @@ async def simular_telemetria():
 async def eliminar_equipo_remoto(equipo_id: str):
     if equipo_id in FLOTA_REMOTA_DB:
         del FLOTA_REMOTA_DB[equipo_id]
-        equipos_path = AGENTES_DIR / "equipos_remotos.json"
+        equipos_path = BASE_DIR / "equipos_remotos.json"
         try:
             equipos_path.write_text(json.dumps(list(FLOTA_REMOTA_DB.values()), indent=2, ensure_ascii=False), encoding="utf-8")
         except Exception:
@@ -1195,7 +1543,7 @@ def obtener_estado_flota(local_activo, local_estado, local_pizarra, local_metric
     }
 
     # Cargar equipos remotos persistidos
-    equipos_path = AGENTES_DIR / "equipos_remotos.json"
+    equipos_path = BASE_DIR / "equipos_remotos.json"
     if equipos_path.exists():
         try:
             equipos_guardados = json.loads(equipos_path.read_text(encoding="utf-8"))
@@ -1233,7 +1581,24 @@ def obtener_estado_flota(local_activo, local_estado, local_pizarra, local_metric
 @app.get("/", response_class=HTMLResponse)
 async def read_index():
     index_file = BASE_DIR / "static" / "index.html"
-    return index_file.read_text(encoding="utf-8")
+    content = index_file.read_text(encoding="utf-8")
+    import re
+    ts = str(int(time.time() * 1000))
+    content = re.sub(r'script\.js\?v=[^\"]+', f'script.js?v={ts}', content)
+    resp = HTMLResponse(content=content)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
+@app.get("/sw.js")
+async def get_sw():
+    content = "self.addEventListener('install', () => self.skipWaiting()); self.addEventListener('activate', () => self.registration.unregister());"
+    resp = HTMLResponse(content=content, media_type="application/javascript")
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 # Utilidad para leer archivos de forma segura
 def leer_archivo_json(ruta: Path):
@@ -1352,7 +1717,7 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
 def obtener_metricas_costos() -> dict:
     from datetime import datetime
     mes_actual = datetime.now().strftime("%Y-%m")
-    costos_path = AGENTES_DIR / "costos.json"
+    costos_path = BASE_DIR / "costos.json"
     default_costos = {
         "mes_activo": mes_actual,
         "tokens": 0,
@@ -1679,7 +2044,7 @@ async def websocket_endpoint(websocket: WebSocket):
             tareas_programadas = leer_archivo_json(programadas_path) if programadas_path.exists() else {"diarias":[], "semanales":[], "mensuales":[]}
             
             # 3. Chat de usuario
-            canal_path = AGENTES_DIR / "canal_usuario.json"
+            canal_path = BASE_DIR / "canal_usuario.json"
             chat_raw = leer_archivo_json(canal_path)
             if isinstance(chat_raw, dict):
                 chat = chat_raw.get("mensajes", [])
