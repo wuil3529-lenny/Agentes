@@ -3085,12 +3085,15 @@ function openConfigView() {
     const currentTheme = (typeof getActiveThemeId === 'function') ? getActiveThemeId() : 'cyberpunk';
     const isOcean = (currentTheme === 'ocean');
     const isAmber = (currentTheme === 'amber');
+    const isPurple = (currentTheme === 'purple');
 
     if (cfgBtn) {
         if (isOcean) {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#00d4ff]/15 border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else if (isAmber) {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#f59e0b]/15 border border-[#f59e0b]/50 shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        } else if (isPurple) {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#a855f7]/15 border border-[#a855f7]/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         }
@@ -3100,6 +3103,8 @@ function openConfigView() {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#00d4ff] border border-[#00d4ff] text-white shadow-[0_0_12px_rgba(0,212,255,0.7)] transition-all shrink-0";
         } else if (isAmber) {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] border border-[#f59e0b] text-[#0a0805] shadow-[0_0_12px_rgba(245,158,11,0.7)] transition-all shrink-0";
+        } else if (isPurple) {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#c084fc] to-[#a855f7] border border-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all shrink-0";
         } else {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
         }
@@ -3109,6 +3114,8 @@ function openConfigView() {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]";
         } else if (isAmber) {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+        } else if (isPurple) {
+            textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]";
         } else {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
         }
@@ -5068,6 +5075,8 @@ function switchAuthTab(tab) {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#00d4ff] text-[#050b14] shadow-[0_0_15px_rgba(0,212,255,0.5)] cursor-pointer';
             } else if (currentTheme === 'amber') {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#f59e0b] text-[#0a0805] shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer';
+            } else if (currentTheme === 'purple') {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#a855f7] text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] cursor-pointer';
             } else {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
             }
@@ -6061,8 +6070,51 @@ function aplicarTema(themeId, notify = false) {
             rimGlowEl.setAttribute('stroke', '#00d4ff');
         } else if (theme.id === 'amber') {
             rimGlowEl.setAttribute('stroke', '#f59e0b');
+        } else if (theme.id === 'purple') {
+            rimGlowEl.setAttribute('stroke', '#a855f7');
         } else {
             rimGlowEl.setAttribute('stroke', '#ff2d78');
+        }
+    }
+
+    // Si la vista actual es Configuración, actualizar estilos del botón del footer en caliente
+    const cfgView = document.getElementById('view-configuracion');
+    if (cfgView && !cfgView.classList.contains('hidden')) {
+        const cfgBtn = document.getElementById('footer-btn-config');
+        const iconBox = document.getElementById('footer-config-icon-box');
+        const textEl = document.getElementById('footer-config-text');
+        if (cfgBtn) {
+            if (theme.id === 'ocean') {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#00d4ff]/15 border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            } else if (theme.id === 'amber') {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#f59e0b]/15 border border-[#f59e0b]/50 shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            } else if (theme.id === 'purple') {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#a855f7]/15 border border-[#a855f7]/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            } else {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            }
+        }
+        if (iconBox) {
+            if (theme.id === 'ocean') {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#00d4ff] border border-[#00d4ff] text-white shadow-[0_0_12px_rgba(0,212,255,0.7)] transition-all shrink-0";
+            } else if (theme.id === 'amber') {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] border border-[#f59e0b] text-[#0a0805] shadow-[0_0_12px_rgba(245,158,11,0.7)] transition-all shrink-0";
+            } else if (theme.id === 'purple') {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#c084fc] to-[#a855f7] border border-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all shrink-0";
+            } else {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
+            }
+        }
+        if (textEl) {
+            if (theme.id === 'ocean') {
+                textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]";
+            } else if (theme.id === 'amber') {
+                textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+            } else if (theme.id === 'purple') {
+                textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]";
+            } else {
+                textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
+            }
         }
     }
     if (typeof renderMeniscusFrame === 'function') {

@@ -645,6 +645,14 @@
         html[data-theme="ocean"] .nav-item.active .nav-label {
             text-shadow: 0 0 12px rgba(0, 212, 255, 0.75) !important;
         }
+        html[data-theme="ocean"] #footer-config-icon-box {
+            background: rgba(0, 212, 255, 0.12) !important;
+            border-color: rgba(0, 212, 255, 0.4) !important;
+            color: #00d4ff !important;
+        }
+        html[data-theme="ocean"] #footer-btn-config:hover #footer-config-icon-box {
+            box-shadow: 0 0 12px rgba(0, 212, 255, 0.6) !important;
+        }
         html[data-theme="ocean"] #footer-security-icon-box {
             background: rgba(0, 212, 255, 0.12) !important;
             border-color: rgba(0, 212, 255, 0.4) !important;
@@ -787,6 +795,93 @@
             color: #ffffff !important;
             box-shadow: 0 0 24px rgba(245, 158, 11, 0.5) !important;
         }
+
+        /* Nebulosa Púrpura - Adaptación Neón para Sombrero y Menú Lateral */
+        html[data-theme="purple"] #sidebar-brand-logo {
+            filter: hue-rotate(285deg) brightness(1.2) drop-shadow(0 0 14px rgba(168, 85, 247, 0.75));
+        }
+        html[data-theme="purple"] #meniscus-bead .bead-inner {
+            background: radial-gradient(circle at 35% 35%, #d8b4fe 0%, #a855f7 60%, #7e22ce 100%) !important;
+            box-shadow: 0 0 22px rgba(168, 85, 247, 0.9), 0 0 38px rgba(236, 72, 153, 0.55), inset 0 2px 4px rgba(255, 255, 255, 0.7) !important;
+        }
+        html[data-theme="purple"] #meniscus-rim-glow {
+            stroke: #a855f7 !important;
+        }
+        html[data-theme="purple"] .nav-item:hover .icon-box {
+            background: rgba(168, 85, 247, 0.15) !important;
+            border-color: rgba(168, 85, 247, 0.5) !important;
+            box-shadow: 0 0 16px rgba(168, 85, 247, 0.35) !important;
+        }
+        html[data-theme="purple"] .nav-item.active .nav-label {
+            text-shadow: 0 0 12px rgba(168, 85, 247, 0.75) !important;
+        }
+        html[data-theme="purple"] #footer-config-icon-box {
+            background: rgba(168, 85, 247, 0.12) !important;
+            border-color: rgba(168, 85, 247, 0.4) !important;
+            color: #a855f7 !important;
+        }
+        html[data-theme="purple"] #footer-btn-config:hover #footer-config-icon-box {
+            box-shadow: 0 0 12px rgba(168, 85, 247, 0.6) !important;
+        }
+        html[data-theme="purple"] #footer-security-icon-box {
+            background: rgba(168, 85, 247, 0.12) !important;
+            border-color: rgba(168, 85, 247, 0.4) !important;
+            color: #a855f7 !important;
+        }
+        html[data-theme="purple"] #footer-btn-security:hover #footer-security-icon-box {
+            box-shadow: 0 0 14px rgba(168, 85, 247, 0.6) !important;
+        }
+
+        /* Nebulosa Púrpura - Modal de Seguridad & Blindaje */
+        html[data-theme="purple"] #modal-security .glass-panel {
+            border-color: rgba(168, 85, 247, 0.4) !important;
+            box-shadow: 0 0 60px rgba(168, 85, 247, 0.28) !important;
+        }
+        html[data-theme="purple"] #modal-sec-scanner-box {
+            border-color: rgba(168, 85, 247, 0.5) !important;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.35) !important;
+        }
+        html[data-theme="purple"] #modal-sec-scanner-box::before {
+            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(168, 85, 247, 0.3) 80%, rgba(168, 85, 247, 0.95) 98%, #ffffff 100%) !important;
+        }
+        html[data-theme="purple"] #modal-sec-scanner-box .shield-icon-content {
+            color: #a855f7 !important;
+        }
+        html[data-theme="purple"] #btn-modal-save-security {
+            background-color: #a855f7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 22px rgba(168, 85, 247, 0.5) !important;
+        }
+        html[data-theme="purple"] #btn-modal-save-security:hover {
+            background-color: #c084fc !important;
+        }
+
+        /* Nebulosa Púrpura - Modal de Inicio de Sesión & Registro */
+        html[data-theme="purple"] #auth-gate-modal .glass-panel {
+            border-color: rgba(168, 85, 247, 0.4) !important;
+            box-shadow: 0 0 65px rgba(168, 85, 247, 0.28) !important;
+        }
+        html[data-theme="purple"] #auth-gate-modal .glass-panel > div.absolute.top-0 {
+            background: linear-gradient(to right, transparent, #a855f7, transparent) !important;
+        }
+        html[data-theme="purple"] #auth-logo-badge {
+            border-color: rgba(168, 85, 247, 0.45) !important;
+            box-shadow: 0 0 22px rgba(168, 85, 247, 0.45) !important;
+        }
+        html[data-theme="purple"] #auth-logo-img {
+            filter: hue-rotate(285deg) brightness(1.2) drop-shadow(0 0 12px rgba(168, 85, 247, 0.8)) !important;
+        }
+        html[data-theme="purple"] #auth-tab-btn-login.bg-primary {
+            background-color: #a855f7 !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.5) !important;
+        }
+        html[data-theme="purple"] #auth-login-btn {
+            background: linear-gradient(to right, #a855f7, #9333ea) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 24px rgba(168, 85, 247, 0.5) !important;
+        }
+
         /* Cyber Security Shield Orbital Scanner & Reactive Animations */
         @keyframes shieldOrbitalSpin {
             0% { transform: rotate(0deg); }
@@ -3340,6 +3435,6 @@ window.toggleRightSidebar = toggleRightSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=85"></script>
+<script src="/static/script.js?v=86"></script>
 </body>
 </html>
