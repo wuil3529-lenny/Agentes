@@ -2216,13 +2216,13 @@
       <div class="xl:col-span-7 flex flex-col gap-6">
 
         <!-- SECTION 1: PROVEEDORES & API KEYS -->
-        <div class="glass-panel rounded-2xl p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
-          <div class="flex items-center justify-between pb-3 border-b border-outline-variant/20">
-            <div class="flex items-center gap-2.5">
+        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-4 shadow-lg">
+          <div class="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2 sm:gap-2.5">
               <span class="material-symbols-outlined text-cyan-400 text-[20px]">hub</span>
               <h3 class="font-bold text-sm text-on-surface">Proveedores de Inteligencia Artificial</h3>
             </div>
-            <button onclick="abrirModalAgregarProveedor()" type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/40 text-cyan-400 font-bold text-xs transition-all cursor-pointer shadow-[0_0_10px_rgba(34,211,238,0.15)]">
+            <button onclick="abrirModalAgregarProveedor()" type="button" class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-400/10 hover:bg-cyan-400/20 border border-cyan-400/40 text-cyan-400 font-bold text-xs transition-all cursor-pointer shadow-[0_0_10px_rgba(34,211,238,0.15)]">
               <span class="material-symbols-outlined text-[16px]">add</span>
               <span>Agregar Proveedor</span>
             </button>
@@ -2235,12 +2235,12 @@
 
         <!-- SECTION 2: ASIGNACIÓN DE MODELOS POR AGENTE -->
         <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3.5 shadow-lg">
-          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
-            <div class="flex items-center gap-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2 sm:gap-2.5">
               <span class="material-symbols-outlined text-secondary text-[20px]">smart_toy</span>
               <h3 class="font-bold text-sm text-on-surface">Asignación de Modelos por Agente</h3>
             </div>
-            <span class="text-[10px] font-mono text-secondary">Tripulación IA</span>
+            <span class="text-[10px] font-mono text-secondary shrink-0 whitespace-nowrap">Tripulación IA</span>
           </div>
 
           <p class="text-xs text-on-surface-variant/80 -mt-1">Selecciona el modelo específico con el que operará cada agente según su rol y requerimientos.</p>
@@ -3826,6 +3826,6 @@ window.toggleMobileSidebar = toggleMobileSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=95"></script>
+<script src="/static/script.js?v=96"></script>
 </body>
 </html>

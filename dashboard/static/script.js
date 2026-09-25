@@ -3531,9 +3531,9 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
         const hasKey = Boolean(valKey && String(valKey).trim().length > 0);
 
         return `
-            <div class="p-3.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-2.5 transition-all" id="provider-card-${provId}">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center gap-2.5">
+            <div class="p-3 sm:p-3.5 rounded-xl bg-surface-container-low/70 border border-outline-variant/25 flex flex-col gap-2.5 transition-all" id="provider-card-${provId}">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 sm:gap-2.5">
                         <div class="w-7 h-7 rounded-lg bg-surface-container-highest flex items-center justify-center p-1 border border-outline-variant/30 shrink-0 shadow-sm">
                             ${svgIcon}
                         </div>
@@ -3542,15 +3542,15 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
                             <span class="text-[9px] font-mono px-1.5 py-0.2 rounded bg-surface-container-highest text-on-surface-variant/80 uppercase">${provId}</span>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
                         <button onclick="probarConexionProveedor('${provId}')" id="btn-test-prov-${provId}" type="button" title="Probar conexión con ${meta.name}" class="px-2 py-0.5 rounded-lg bg-surface-container-high hover:bg-cyan-400/20 text-on-surface-variant hover:text-cyan-400 text-[10px] font-mono border border-outline-variant/30 flex items-center gap-1 transition-all cursor-pointer">
                             <span class="material-symbols-outlined text-[13px]">bolt</span>
                             <span>Probar</span>
                         </button>
-                        <span id="status-badge-${provId}" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${hasKey ? 'bg-surface-container-high text-cyan-300 border border-cyan-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}">
+                        <span id="status-badge-${provId}" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full shrink-0 ${hasKey ? 'bg-surface-container-high text-cyan-300 border border-cyan-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}">
                             ${hasKey ? 'CONFIGURADA' : 'SIN CLAVE'}
                         </span>
-                        <button onclick="abrirModalConfirmarEliminarProveedor('${provId}')" type="button" title="Retirar este proveedor" class="p-1 text-on-surface-variant hover:text-error rounded-lg hover:bg-error/10 transition-colors cursor-pointer">
+                        <button onclick="abrirModalConfirmarEliminarProveedor('${provId}')" type="button" title="Retirar este proveedor" class="p-1 text-on-surface-variant hover:text-error rounded-lg hover:bg-error/10 transition-colors cursor-pointer shrink-0">
                             <span class="material-symbols-outlined text-[16px]">delete</span>
                         </button>
                     </div>
