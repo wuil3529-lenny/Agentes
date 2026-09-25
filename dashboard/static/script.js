@@ -2111,6 +2111,13 @@ function selectMeniscusTab(targetView, clickedEl) {
         meniscusState.animating = true;
         requestAnimationFrame(animateMeniscusLoop);
     }
+
+    // 6. Automatically close mobile navigation drawer after selecting tab
+    if (window.innerWidth < 1024 && typeof toggleMobileSidebar === 'function') {
+        setTimeout(() => {
+            toggleMobileSidebar(false);
+        }, 220);
+    }
 }
 window.selectMeniscusTab = selectMeniscusTab;
 
@@ -3067,6 +3074,9 @@ async function eliminarEquipoRemoto(equipoId) {
 let cachedConfig = null;
 
 function openConfigView() {
+    if (window.innerWidth < 1024 && typeof toggleMobileSidebar === 'function') {
+        setTimeout(() => { toggleMobileSidebar(false); }, 150);
+    }
     switchCanvasView('configuracion');
     try {
         localStorage.setItem('activeDashboardView', 'configuracion');
@@ -3156,6 +3166,9 @@ function openContactModal(show = true) {
     const modal = document.getElementById('contact-modal');
     if (!modal) return;
     if (show) {
+        if (window.innerWidth < 1024 && typeof toggleMobileSidebar === 'function') {
+            toggleMobileSidebar(false);
+        }
         modal.classList.remove('hidden');
     } else {
         modal.classList.add('hidden');
@@ -4368,6 +4381,9 @@ function openSecurityModal(show = true) {
     const modal = document.getElementById('modal-security');
     if (!modal) return;
     if (show) {
+        if (window.innerWidth < 1024 && typeof toggleMobileSidebar === 'function') {
+            toggleMobileSidebar(false);
+        }
         modal.classList.remove('hidden');
         toggleSeccionCambioPassword(false);
         if (cachedConfig && cachedConfig.seguridad) {
