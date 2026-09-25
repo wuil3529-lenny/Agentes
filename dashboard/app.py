@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 import psutil
 import platform
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 # Intentar importar GPUtil para monitoreo de GPU
 try:
@@ -729,7 +729,8 @@ async def read_env():
             elif k == "CONSOLE_AUTH_USER":
                 data["seguridad"]["auth_user"] = val
             elif k == "CONSOLE_AUTH_PASSWORD":
-                data["seguridad"]["auth_password"] = val
+                data["seguridad"]["auth_password"] = ""
+                data["seguridad"]["has_password"] = bool(val)
             elif k == "CONSOLE_AUTH_AVATAR":
                 data["seguridad"]["auth_avatar"] = val
             elif k == "TELEMETRY_SECRET_TOKEN":
@@ -848,18 +849,82 @@ async def guardar_config(payload: FullConfigPayload):
             env_dict["CONSOLE_AUTH_ACTIVE"] = auth_act
             if "CONSOLE_AUTH_ACTIVE" not in ordered_keys:
                 ordered_keys.append("CONSOLE_AUTH_ACTIVE")
+
+        old_user = env_dict.get("CONSOLE_AUTH_USER", "admin")
         if "auth_user" in s and s["auth_user"] is not None:
-            env_dict["CONSOLE_AUTH_USER"] = str(s["auth_user"]).strip()
-            if "CONSOLE_AUTH_USER" not in ordered_keys:
-                ordered_keys.append("CONSOLE_AUTH_USER")
-        if "auth_password" in s and s["auth_password"] is not None:
-            env_dict["CONSOLE_AUTH_PASSWORD"] = str(s["auth_password"]).strip()
+            new_user = str(s["auth_user"]).strip()
+            if new_user:
+                env_dict["CONSOLE_AUTH_USER"] = new_user
+                if "CONSOLE_AUTH_USER" not in ordered_keys:
+                    ordered_keys.append("CONSOLE_AUTH_USER")
+                if new_user.lower() != old_user.lower():
+                    usuarios = cargar_usuarios()
+                    for u in usuarios:
+                        if u["username"].lower() == old_user.lower():
+                            u["username"] = new_user
+                            u["nombre"] = f"Capitán {new_user}"
+                    guardar_usuarios(usuarios)
+
+        # GESTIÓN SEGURA DE CAMBIO DE CONTRASEÑA
+        new_pass = str(s.get("new_password") or s.get("auth_password") or "").strip()
+        if new_pass:
+            old_pass = str(s.get("old_password") or "").strip()
+            current_pass = env_dict.get("CONSOLE_AUTH_PASSWORD", "")
+            
+            usuarios = cargar_usuarios()
+            admin_u = None
+            target_user = env_dict.get("CONSOLE_AUTH_USER", "admin").lower()
+            for u in usuarios:
+                if u["username"].lower() == target_user:
+                    admin_u = u
+                    break
+
+            valida = False
+            if current_pass and old_pass == current_pass:
+                valida = True
+            elif admin_u and "password_hash" in admin_u:
+                try:
+                    if bcrypt.checkpw(old_pass.encode("utf-8"), admin_u["password_hash"].encode("utf-8")):
+                        valida = True
+                except Exception:
+                    pass
+
+            if not valida:
+                return JSONResponse(status_code=400, content={"status": "error", "message": "La contraseña actual es incorrecta. No se autorizó el cambio de clave."})
+
+            env_dict["CONSOLE_AUTH_PASSWORD"] = new_pass
             if "CONSOLE_AUTH_PASSWORD" not in ordered_keys:
                 ordered_keys.append("CONSOLE_AUTH_PASSWORD")
+
+            # Actualizar bcrypt hash en usuarios.json
+            salt = bcrypt.gensalt(rounds=12)
+            new_hash = bcrypt.hashpw(new_pass.encode("utf-8"), salt).decode("utf-8")
+            if admin_u:
+                admin_u["password_hash"] = new_hash
+            else:
+                usuarios.append({
+                    "id": f"usr-{int(time.time())}",
+                    "username": target_user,
+                    "password_hash": new_hash,
+                    "nombre": f"Capitán {target_user}",
+                    "avatar": env_dict.get("CONSOLE_AUTH_AVATAR", "/static/avatars/bot_cyan.jpg"),
+                    "rol": "admin",
+                    "creado_en": datetime.now().isoformat()
+                })
+            guardar_usuarios(usuarios)
+
         if "auth_avatar" in s and s["auth_avatar"] is not None:
-            env_dict["CONSOLE_AUTH_AVATAR"] = str(s["auth_avatar"]).strip()
+            new_avatar = str(s["auth_avatar"]).strip()
+            env_dict["CONSOLE_AUTH_AVATAR"] = new_avatar
             if "CONSOLE_AUTH_AVATAR" not in ordered_keys:
                 ordered_keys.append("CONSOLE_AUTH_AVATAR")
+            usuarios = cargar_usuarios()
+            target_user = env_dict.get("CONSOLE_AUTH_USER", "admin").lower()
+            for u in usuarios:
+                if u["username"].lower() == target_user:
+                    u["avatar"] = new_avatar
+            guardar_usuarios(usuarios)
+
         if "telemetry_token" in s and s["telemetry_token"] is not None:
             env_dict["TELEMETRY_SECRET_TOKEN"] = str(s["telemetry_token"]).strip()
             if "TELEMETRY_SECRET_TOKEN" not in ordered_keys:
@@ -919,6 +984,108 @@ async def test_telegram():
     except Exception as e:
         return {"status": "error", "message": f"Error conectando con Telegram: {str(e)}"}
     return {"status": "error", "message": "No se pudo entregar el mensaje a Telegram"}
+
+class TestProviderPayload(BaseModel):
+    provider: str
+    api_key: str
+    base_url: Optional[str] = ""
+
+def validar_conexion_proveedor(provider: str, api_key: str, base_url: str = "") -> Tuple[bool, str]:
+    import urllib.request
+    import urllib.error
+
+    prov = (provider or "").strip().lower()
+    key = (api_key or "").strip()
+    url = (base_url or "").strip()
+
+    if not key and prov != "ollama":
+        return False, "La API Key no puede estar vacía"
+
+    default_urls = {
+        "groq": "https://api.groq.com/openai/v1",
+        "deepseek": "https://api.deepseek.com",
+        "openai": "https://api.openai.com/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+        "together": "https://api.together.xyz/v1",
+        "fireworks": "https://api.fireworks.ai/inference/v1",
+        "mistral": "https://api.mistral.ai/v1",
+        "cerebras": "https://api.cerebras.ai/v1",
+        "xai": "https://api.x.ai/v1",
+        "ollama": "http://localhost:11434"
+    }
+
+    if not url:
+        url = default_urls.get(prov, "")
+
+    try:
+        if prov in ("gemini", "google"):
+            test_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={key}"
+            req = urllib.request.Request(test_url, headers={"User-Agent": "AgenticOS-Validator/1.0"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if 200 <= resp.status < 300:
+                    return True, "API Key de Google Gemini verificada y autorizada con éxito"
+        elif prov in ("claude", "anthropic"):
+            test_url = "https://api.anthropic.com/v1/models"
+            headers = {
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "User-Agent": "AgenticOS-Validator/1.0"
+            }
+            req = urllib.request.Request(test_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if 200 <= resp.status < 300:
+                    return True, "API Key de Anthropic Claude verificada y autorizada con éxito"
+        elif prov == "ollama":
+            test_url = f"{url.rstrip('/')}/api/tags" if url else "http://localhost:11434/api/tags"
+            req = urllib.request.Request(test_url, headers={"User-Agent": "AgenticOS-Validator/1.0"})
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                if 200 <= resp.status < 300:
+                    return True, "Servidor local Ollama conectado correctamente"
+        else:
+            if not url:
+                url = "https://api.openai.com/v1"
+            clean_base = url.rstrip("/")
+            test_url = clean_base if clean_base.endswith("/models") else f"{clean_base}/models"
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "User-Agent": "AgenticOS-Validator/1.0"
+            }
+            req = urllib.request.Request(test_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if 200 <= resp.status < 300:
+                    return True, f"API Key de {prov.upper()} verificada y autorizada con éxito"
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return False, f"Autenticación fallida (Error 401): La API Key ingresada es inválida o expiró en {prov.upper()}."
+        elif e.code == 403:
+            return False, f"Acceso denegado (Error 403): La clave de {prov.upper()} no tiene permisos o saldo disponible."
+        elif e.code == 404:
+            return False, f"Ruta no encontrada (Error 404): Revisa la URL Base del proveedor ({url})."
+        elif e.code == 429:
+            return False, f"Límite de cuota alcanzado (Error 429): La cuenta en {prov.upper()} superó la tasa de peticiones o fondos."
+        else:
+            return False, f"El proveedor {prov.upper()} rechazó la conexión (Código HTTP {e.code}): {e.reason}"
+    except urllib.error.URLError as e:
+        return False, f"No se pudo conectar con el endpoint de {prov.upper()}: {e.reason}"
+    except Exception as e:
+        return False, f"Fallo al conectar con {prov.upper()}: {str(e)}"
+
+    return False, "Respuesta no concluyente del servidor del proveedor"
+
+@app.post("/api/config/test-provider")
+async def test_provider_endpoint(payload: TestProviderPayload):
+    loop = asyncio.get_running_loop()
+    valido, mensaje = await loop.run_in_executor(
+        None,
+        validar_conexion_proveedor,
+        payload.provider,
+        payload.api_key,
+        payload.base_url or ""
+    )
+    if valido:
+        return {"status": "ok", "message": mensaje}
+    else:
+        return JSONResponse(status_code=400, content={"status": "error", "message": mensaje})
 
 def obtener_presupuesto_maximo() -> float:
     env_path = AGENTES_DIR / ".env"

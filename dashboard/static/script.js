@@ -96,8 +96,6 @@ function updateMainMetrics(sys, costos, pizarra, tickets_archivados, tiempo_trab
             if (costos.tokens >= 1000000) tokensStr = (costos.tokens / 1000000).toFixed(1) + 'M';
             else if (costos.tokens >= 1000) tokensStr = (costos.tokens / 1000).toFixed(1) + 'K';
             mTokens.innerText = tokensStr;
-            const mTokSub = document.getElementById('metric-tokens-sub');
-            if (mTokSub) mTokSub.innerText = costos.tokens.toLocaleString() + ' tokens totales';
         }
         const presMax = (typeof costos.presupuesto_maximo === 'number' && costos.presupuesto_maximo > 0) ? costos.presupuesto_maximo : 10.0;
         const pctGasto = presMax > 0 ? ((costos.costo / presMax) * 100) : 0;
@@ -1819,14 +1817,14 @@ async function toggleVoiceSession() {
                 btnIcon.innerText = 'mic';
                 btnIcon.className = 'material-symbols-outlined text-[22px] text-error animate-pulse';
             }
-            if (btnText) btnText.innerText = 'Finalizar Comunicación Voz a Voz';
+            if (btnText) btnText.innerText = 'Finalizar Comunicación';
             if (badge) {
                 badge.innerText = 'Escuchando Voz';
                 badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
                 badge.style = '';
             }
             if (feedback) {
-                feedback.innerText = 'Micrófono activo • Háblale a la tripulación con confianza.';
+                feedback.innerText = 'Canal de voz activo';
                 feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-secondary font-bold pointer-events-none transition-all';
             }
 
@@ -1898,14 +1896,14 @@ async function toggleVoiceSession() {
             btnIcon.innerText = 'mic';
             btnIcon.className = 'material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all';
         }
-        if (btnText) btnText.innerText = 'Iniciar Comunicación Voz a Voz';
+        if (btnText) btnText.innerText = 'Iniciar Comunicación';
         if (badge) {
             badge.innerText = 'En Reposo';
             badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant';
             badge.style = '';
         }
         if (feedback) {
-            feedback.innerText = 'Canal de voz exclusivo con Luffy en espera. Pulsa el botón inferior para comenzar a hablar.';
+            feedback.innerText = 'Canal de voz en espera';
             feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none transition-all';
         }
     }
@@ -2135,6 +2133,7 @@ function switchCanvasView(targetView) {
                 }
                 if (targetView === 'configuracion' && typeof loadConfigData === 'function') {
                     loadConfigData();
+                    if (typeof renderConfigThemesGrid === 'function') renderConfigThemesGrid();
                 }
             } else {
                 viewEl.classList.add('hidden');
@@ -3079,18 +3078,40 @@ function openConfigView() {
         container.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
     }
 
-    // Highlight footer config button with sidebar primary magenta neon color
+    // Highlight footer config button according to active theme
     const cfgBtn = document.getElementById('footer-btn-config');
     const iconBox = document.getElementById('footer-config-icon-box');
     const textEl = document.getElementById('footer-config-text');
+    const currentTheme = (typeof getActiveThemeId === 'function') ? getActiveThemeId() : 'cyberpunk';
+    const isOcean = (currentTheme === 'ocean');
+    const isAmber = (currentTheme === 'amber');
+
     if (cfgBtn) {
-        cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        if (isOcean) {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#00d4ff]/15 border border-[#00d4ff]/50 shadow-[0_0_15px_rgba(0,212,255,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        } else if (isAmber) {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#f59e0b]/15 border border-[#f59e0b]/50 shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        } else {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        }
     }
     if (iconBox) {
-        iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
+        if (isOcean) {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#00d4ff] border border-[#00d4ff] text-white shadow-[0_0_12px_rgba(0,212,255,0.7)] transition-all shrink-0";
+        } else if (isAmber) {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] border border-[#f59e0b] text-[#0a0805] shadow-[0_0_12px_rgba(245,158,11,0.7)] transition-all shrink-0";
+        } else {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
+        }
     }
     if (textEl) {
-        textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
+        if (isOcean) {
+            textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]";
+        } else if (isAmber) {
+            textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]";
+        } else {
+            textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
+        }
     }
 
     // Update telemetry URL dynamically based on host
@@ -3481,8 +3502,12 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <span id="status-badge-${provId}" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${hasKey ? 'bg-emerald-400/10 text-emerald-400 border border-emerald-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}">
-                            ${hasKey ? 'CONECTADA' : 'SIN CLAVE'}
+                        <button onclick="probarConexionProveedor('${provId}')" id="btn-test-prov-${provId}" type="button" title="Probar conexión con ${meta.name}" class="px-2 py-0.5 rounded-lg bg-surface-container-high hover:bg-cyan-400/20 text-on-surface-variant hover:text-cyan-400 text-[10px] font-mono border border-outline-variant/30 flex items-center gap-1 transition-all cursor-pointer">
+                            <span class="material-symbols-outlined text-[13px]">bolt</span>
+                            <span>Probar</span>
+                        </button>
+                        <span id="status-badge-${provId}" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${hasKey ? 'bg-surface-container-high text-cyan-300 border border-cyan-400/30' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'}">
+                            ${hasKey ? 'CONFIGURADA' : 'SIN CLAVE'}
                         </span>
                         <button onclick="abrirModalConfirmarEliminarProveedor('${provId}')" type="button" title="Retirar este proveedor" class="p-1 text-on-surface-variant hover:text-error rounded-lg hover:bg-error/10 transition-colors cursor-pointer">
                             <span class="material-symbols-outlined text-[16px]">delete</span>
@@ -3491,7 +3516,7 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
                 </div>
 
                 <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-mono text-on-surface-variant/70">API Key / Clave secreta (.env):</label>
+                    <label class="text-[10px] font-mono text-on-surface-variant/70">API Key:</label>
                     <div class="relative flex items-center">
                         <input id="cfg-key-${provId}" type="password" value="${String(valKey).replace(/"/g, '&quot;')}" placeholder="sk-..." class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 pl-3 pr-10 text-xs font-mono text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
                         <button onclick="toggleKeyVisibility('cfg-key-${provId}')" type="button" class="absolute right-2 text-on-surface-variant hover:text-on-surface p-1 transition-colors cursor-pointer" title="Mostrar u ocultar clave">
@@ -3501,7 +3526,7 @@ function renderProvidersList(keys = {}, baseUrls = {}) {
                 </div>
 
                 <div class="flex flex-col gap-1">
-                    <label class="text-[10px] font-mono text-on-surface-variant/70">URL Base del Endpoint (Opcional):</label>
+                    <label class="text-[10px] font-mono text-on-surface-variant/70">URL Base del Endpoint:</label>
                     <input id="cfg-url-${provId}" type="text" value="${String(valUrl).replace(/"/g, '&quot;')}" placeholder="${meta.defaultUrl || 'https://api.openai.com/v1'}" class="w-full bg-surface-container-highest/60 border border-outline-variant/40 rounded-xl py-1.5 px-3 text-xs font-mono text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:border-cyan-400/60 transition-colors">
                 </div>
             </div>
@@ -3666,6 +3691,41 @@ async function guardarNuevoProveedorModal() {
 
     if (saveBtn) {
         saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Verificando conexión con el proveedor...</span>';
+    }
+
+    // 1. Verificación obligatoria contra los servidores del proveedor antes de guardar
+    try {
+        const testRes = await fetch('/api/config/test-provider', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: provId,
+                api_key: key,
+                base_url: url
+            })
+        });
+        const testData = await testRes.json();
+        if (!testRes.ok || testData.status !== 'ok') {
+            showConfigToast(testData.message || `La API Key fue rechazada por ${meta.name || provId.toUpperCase()}. No se guardó.`, true);
+            if (keyEl) keyEl.focus();
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span><span>Guardar Proveedor en .env</span>';
+            }
+            return;
+        }
+    } catch (testErr) {
+        console.error('Error validando proveedor:', testErr);
+        showConfigToast('No se pudo verificar la API Key. Comprueba tu conexión a internet o el endpoint.', true);
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span><span>Guardar Proveedor en .env</span>';
+        }
+        return;
+    }
+
+    if (saveBtn) {
         saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">sync</span><span>Guardando en .env...</span>';
     }
 
@@ -3727,8 +3787,15 @@ async function guardarNuevoProveedorModal() {
             }
 
             renderProvidersList(cachedConfigKeys, cachedConfigBaseUrls);
+            // Marcar badge verificado como CONECTADA
+            const b = document.getElementById(`status-badge-${provId}`);
+            if (b) {
+                b.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/30';
+                b.innerText = 'CONECTADA';
+            }
+
             cerrarModalAgregarProveedor();
-            showConfigToast(`¡Proveedor ${meta.name || provId.toUpperCase()} guardado exitosamente en .env!`);
+            showConfigToast(`¡Proveedor ${meta.name || provId.toUpperCase()} verificado y guardado con éxito!`);
         } else {
             showConfigToast(data.message || 'Error guardando en .env', true);
         }
@@ -3738,12 +3805,74 @@ async function guardarNuevoProveedorModal() {
     } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Proveedor en .env</span>';
+            saveBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]">save</span><span>Guardar Proveedor en .env</span>';
         }
     }
 }
 window.guardarNuevoProveedorModal = guardarNuevoProveedorModal;
 window.confirmarAgregarProveedor = guardarNuevoProveedorModal;
+
+async function probarConexionProveedor(provId) {
+    const btn = document.getElementById(`btn-test-prov-${provId}`);
+    const badge = document.getElementById(`status-badge-${provId}`);
+    const keyInput = document.getElementById(`cfg-key-${provId}`);
+    const urlInput = document.getElementById(`cfg-url-${provId}`);
+
+    const key = keyInput ? keyInput.value.trim() : (cachedConfigKeys[provId] || '');
+    const url = urlInput ? urlInput.value.trim() : (cachedConfigBaseUrls[provId] || '');
+
+    if (!key && provId !== 'ollama') {
+        showConfigToast(`El proveedor ${provId.toUpperCase()} no tiene API Key asignada.`, true);
+        if (badge) {
+            badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant border border-outline-variant/40';
+            badge.innerText = 'SIN CLAVE';
+        }
+        return;
+    }
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[13px] animate-spin">sync</span><span>Probando...</span>';
+    }
+
+    try {
+        const res = await fetch('/api/config/test-provider', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider: provId,
+                api_key: key,
+                base_url: url
+            })
+        });
+        const data = await res.json();
+        if (res.ok && data.status === 'ok') {
+            if (badge) {
+                badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-400/10 text-emerald-400 border border-emerald-400/30';
+                badge.innerText = 'CONECTADA';
+            }
+            showConfigToast(`¡Conexión verificada con ${provId.toUpperCase()}!`);
+        } else {
+            if (badge) {
+                badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-error/15 text-error border border-error/30';
+                badge.innerText = 'ERROR / RECHAZADA';
+            }
+            showConfigToast(data.message || `Fallo de autenticación con ${provId.toUpperCase()}.`, true);
+        }
+    } catch (e) {
+        if (badge) {
+            badge.className = 'text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-error/15 text-error border border-error/30';
+            badge.innerText = 'FALLO DE RED';
+        }
+        showConfigToast(`Error al intentar conectar con ${provId.toUpperCase()}.`, true);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[13px]">bolt</span><span>Probar</span>';
+        }
+    }
+}
+window.probarConexionProveedor = probarConexionProveedor;
 
 let pendingDeleteProviderId = null;
 
@@ -3877,8 +4006,6 @@ async function loadConfigData() {
             const chk = document.getElementById('cfg-sec-auth-active');
             if (chk) chk.checked = Boolean(sec.auth_active);
             setVal('cfg-sec-user', sec.auth_user || 'admin');
-            setVal('cfg-sec-password', sec.auth_password || '');
-            setVal('cfg-sec-password-confirm', sec.auth_password || '');
             setVal('cfg-sec-telemetry-token', sec.telemetry_token || '');
             setVal('cfg-sec-ip-whitelist', sec.ip_whitelist || '');
             toggleCloudAuthFields();
@@ -4181,11 +4308,40 @@ function verificarCoincidenciaPassword() {
 }
 window.verificarCoincidenciaPassword = verificarCoincidenciaPassword;
 
+let seccionPasswordAbierta = false;
+
+function toggleSeccionCambioPassword(forzar) {
+    const sec = document.getElementById('seccion-cambio-password');
+    const txt = document.getElementById('btn-toggle-change-pass-text');
+    if (!sec) return;
+
+    seccionPasswordAbierta = (forzar !== undefined) ? forzar : !seccionPasswordAbierta;
+    if (seccionPasswordAbierta) {
+        sec.classList.remove('hidden');
+        if (txt) txt.innerText = 'Cancelar Cambio';
+        const oldPass = document.getElementById('cfg-sec-old-password');
+        if (oldPass) setTimeout(() => oldPass.focus(), 100);
+    } else {
+        sec.classList.add('hidden');
+        if (txt) txt.innerText = 'Cambiar Contraseña';
+        const pOld = document.getElementById('cfg-sec-old-password');
+        const pNew = document.getElementById('cfg-sec-password');
+        const pConf = document.getElementById('cfg-sec-password-confirm');
+        const msg = document.getElementById('cfg-sec-password-match-msg');
+        if (pOld) pOld.value = '';
+        if (pNew) pNew.value = '';
+        if (pConf) pConf.value = '';
+        if (msg) msg.innerText = '';
+    }
+}
+window.toggleSeccionCambioPassword = toggleSeccionCambioPassword;
+
 function openSecurityModal(show = true) {
     const modal = document.getElementById('modal-security');
     if (!modal) return;
     if (show) {
         modal.classList.remove('hidden');
+        toggleSeccionCambioPassword(false);
         if (cachedConfig && cachedConfig.seguridad) {
             const sec = cachedConfig.seguridad;
             const chk = document.getElementById('cfg-sec-auth-active');
@@ -4196,8 +4352,9 @@ function openSecurityModal(show = true) {
             };
             const userVal = sec.auth_user || 'admin';
             setVal('cfg-sec-user', userVal);
-            setVal('cfg-sec-password', sec.auth_password || '');
-            setVal('cfg-sec-password-confirm', sec.auth_password || '');
+            setVal('cfg-sec-old-password', '');
+            setVal('cfg-sec-password', '');
+            setVal('cfg-sec-password-confirm', '');
             setVal('cfg-sec-telemetry-token', sec.telemetry_token || '');
             setVal('cfg-sec-ip-whitelist', sec.ip_whitelist || '');
             verificarCoincidenciaPassword();
@@ -4213,6 +4370,7 @@ function openSecurityModal(show = true) {
         }
     } else {
         modal.classList.add('hidden');
+        toggleSeccionCambioPassword(false);
     }
 }
 window.openSecurityModal = openSecurityModal;
@@ -4232,26 +4390,52 @@ async function guardarSeguridadModal() {
 
         const chkAuth = document.getElementById('cfg-sec-auth-active');
         const authUser = getVal('cfg-sec-user') || 'admin';
-        const authPass = getVal('cfg-sec-password') || '';
-        const authConfirm = getVal('cfg-sec-password-confirm') || '';
         const isAuthActive = chkAuth ? chkAuth.checked : true;
+
+        const oldPass = getVal('cfg-sec-old-password');
+        const newPass = getVal('cfg-sec-password');
+        const authConfirm = getVal('cfg-sec-password-confirm');
 
         if (isAuthActive) {
             if (!authUser) {
                 showConfigToast('Debes ingresar un nombre de usuario.', true);
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+                    btn.innerHTML = '<span class="material-symbols-outlined text-[17px]">save</span><span>Guardar Seguridad</span>';
                 }
                 return;
             }
-            if (authPass && authConfirm && authPass !== authConfirm) {
-                showConfigToast('Las contraseñas no coinciden. Por favor verifícalas.', true);
-                if (btn) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+            if (seccionPasswordAbierta && (oldPass || newPass || authConfirm)) {
+                if (!oldPass) {
+                    showConfigToast('Debes ingresar tu contraseña actual para autorizar el cambio.', true);
+                    const el = document.getElementById('cfg-sec-old-password');
+                    if (el) el.focus();
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="material-symbols-outlined text-[17px]">save</span><span>Guardar Seguridad</span>';
+                    }
+                    return;
                 }
-                return;
+                if (!newPass || newPass.length < 8) {
+                    showConfigToast('La nueva contraseña debe tener al menos 8 caracteres.', true);
+                    const el = document.getElementById('cfg-sec-password');
+                    if (el) el.focus();
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="material-symbols-outlined text-[17px]">save</span><span>Guardar Seguridad</span>';
+                    }
+                    return;
+                }
+                if (newPass !== authConfirm) {
+                    showConfigToast('La nueva contraseña y su confirmación no coinciden.', true);
+                    const el = document.getElementById('cfg-sec-password-confirm');
+                    if (el) el.focus();
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<span class="material-symbols-outlined text-[17px]">save</span><span>Guardar Seguridad</span>';
+                    }
+                    return;
+                }
             }
         }
 
@@ -4260,11 +4444,15 @@ async function guardarSeguridadModal() {
         const seguridadPayload = {
             auth_active: isAuthActive,
             auth_user: authUser,
-            auth_password: authPass,
             auth_avatar: authAvatar,
             telemetry_token: getVal('cfg-sec-telemetry-token') || '',
             ip_whitelist: getVal('cfg-sec-ip-whitelist') || ''
         };
+
+        if (seccionPasswordAbierta && newPass) {
+            seguridadPayload.old_password = oldPass;
+            seguridadPayload.new_password = newPass;
+        }
 
         const res = await fetch('/api/config/guardar', {
             method: 'POST',
@@ -4275,14 +4463,19 @@ async function guardarSeguridadModal() {
         const data = await res.json();
         if (data.status === 'ok') {
             if (!cachedConfig) cachedConfig = {};
-            cachedConfig.seguridad = seguridadPayload;
+            cachedConfig.seguridad = { ...cachedConfig.seguridad, ...seguridadPayload };
             toggleCloudAuthFields();
             updateProfileDisplayName(authUser);
             updateProfileAvatar(authAvatar);
-            showConfigToast('¡Credenciales, avatar y parámetros de seguridad guardados!');
+            showConfigToast('¡Parámetros de seguridad guardados correctamente!');
             setTimeout(() => openSecurityModal(false), 500);
         } else {
             showConfigToast(data.message || 'Error guardando seguridad', true);
+            const oldPassEl = document.getElementById('cfg-sec-old-password');
+            if (oldPassEl && (data.message || '').includes('actual')) {
+                oldPassEl.focus();
+                oldPassEl.select();
+            }
         }
     } catch (e) {
         console.error('Error guardando seguridad:', e);
@@ -4290,7 +4483,7 @@ async function guardarSeguridadModal() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">save</span><span>Guardar Seguridad</span>';
+            btn.innerHTML = '<span class="material-symbols-outlined text-[17px]">save</span><span>Guardar Seguridad</span>';
         }
     }
 }
@@ -4348,12 +4541,17 @@ async function guardarTodaLaConfiguracion() {
             seguridad: {
                 auth_active: Boolean(!chkAuth || chkAuth.checked),
                 auth_user: getVal('cfg-sec-user') || 'admin',
-                auth_password: getVal('cfg-sec-password') || '',
                 auth_avatar: getVal('cfg-sec-avatar-url') || currentProfileAvatar,
                 telemetry_token: getVal('cfg-sec-telemetry-token') || '',
                 ip_whitelist: getVal('cfg-sec-ip-whitelist') || ''
             }
         };
+
+        const newPassVal = getVal('cfg-sec-password');
+        if (newPassVal) {
+            payload.seguridad.new_password = newPassVal;
+            payload.seguridad.old_password = getVal('cfg-sec-old-password');
+        }
 
         const res = await fetch('/api/config/guardar', {
             method: 'POST',
@@ -4865,7 +5063,14 @@ function switchAuthTab(tab) {
 
     if (tab === 'login') {
         if (btnLogin) {
-            btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
+            const currentTheme = (typeof getActiveThemeId === 'function') ? getActiveThemeId() : 'cyberpunk';
+            if (currentTheme === 'ocean') {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#00d4ff] text-[#050b14] shadow-[0_0_15px_rgba(0,212,255,0.5)] cursor-pointer';
+            } else if (currentTheme === 'amber') {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#f59e0b] text-[#0a0805] shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer';
+            } else {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
+            }
         }
         if (btnReg) {
             btnReg.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 text-on-surface-variant hover:text-white cursor-pointer';
@@ -5710,14 +5915,259 @@ async function cerrarSesionConsola() {
 }
 window.cerrarSesionConsola = cerrarSesionConsola;
 
-// Iniciar comprobación de sesión al cargar la página
+// ============================================================
+// SISTEMA DE PALETAS DE COLOR Y TEMAS MULTI-AMBIENTE
+// ============================================================
+
+const AVAILABLE_THEMES = [
+    {
+        id: 'cyberpunk',
+        name: 'Cyberpunk',
+        badge: 'Oscuro Neón',
+        desc: 'Magenta neón, cian eléctrico y fondo abisal oscuro',
+        mode: 'dark',
+        primary: '#ff2d78',
+        secondary: '#00ffcc',
+        bg: '#0a0a12',
+        surface: '#141422',
+        border: '#302840'
+    },
+    {
+        id: 'ocean',
+        name: 'Océano Profundo',
+        badge: 'Azul Neón',
+        desc: 'Azul cobalto abisal con toques cian y zafiro neón eléctrico',
+        mode: 'dark',
+        primary: '#00d4ff',
+        secondary: '#38bdf8',
+        bg: '#050b14',
+        surface: '#081224',
+        border: '#122d50'
+    },
+    {
+        id: 'amber',
+        name: 'Ámbar Cálido',
+        badge: 'Atardecer Dorado',
+        desc: 'Carbón volcánico con ámbar brillante y naranja fuego',
+        mode: 'dark',
+        primary: '#f59e0b',
+        secondary: '#f97316',
+        bg: '#120e09',
+        surface: '#241c13',
+        border: '#3d2d18'
+    },
+    {
+        id: 'purple',
+        name: 'Nebulosa Púrpura',
+        badge: 'Cosmos Violeta',
+        desc: 'Violeta cósmico y fucsia estelar sobre negro espacial',
+        mode: 'dark',
+        primary: '#a855f7',
+        secondary: '#ec4899',
+        bg: '#0e071c',
+        surface: '#1b0e33',
+        border: '#321854'
+    },
+    {
+        id: 'stealth',
+        name: 'Stealth Carbon',
+        badge: 'Grafito Minimal',
+        desc: 'Monocromo grafito con toques titanio y azul cielo glaciar',
+        mode: 'dark',
+        primary: '#e2e8f0',
+        secondary: '#38bdf8',
+        bg: '#09090b',
+        surface: '#18181b',
+        border: '#27272a'
+    },
+    {
+        id: 'crema',
+        name: 'Crema & Moka',
+        badge: 'Claro Cálido',
+        desc: 'Marfil suave, café moka, caramelo tostado y verde salvia',
+        mode: 'light',
+        primary: '#d97706',
+        secondary: '#059669',
+        bg: '#f6f2ea',
+        surface: '#ffffff',
+        border: '#d6ccb8'
+    },
+    {
+        id: 'blanco',
+        name: 'Blanco Puro',
+        badge: 'Claro Minimalista',
+        desc: 'Blanco pizarra impecable con azul real y detalles acero',
+        mode: 'light',
+        primary: '#2563eb',
+        secondary: '#0284c7',
+        bg: '#f8fafc',
+        surface: '#ffffff',
+        border: '#cbd5e1'
+    }
+];
+window.AVAILABLE_THEMES = AVAILABLE_THEMES;
+
+function getActiveThemeId() {
+    try {
+        return localStorage.getItem('agenticos_theme') || 'cyberpunk';
+    } catch(e) {
+        return 'cyberpunk';
+    }
+}
+
+function aplicarTema(themeId, notify = false) {
+    const theme = AVAILABLE_THEMES.find(t => t.id === themeId) || AVAILABLE_THEMES[0];
+    const isLight = (theme.mode === 'light');
+
+    document.documentElement.setAttribute('data-theme', theme.id);
+    document.documentElement.setAttribute('data-theme-mode', theme.mode);
+
+    if (isLight) {
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+    } else {
+        document.documentElement.classList.remove('light');
+        document.documentElement.classList.add('dark');
+    }
+
+    try {
+        localStorage.setItem('agenticos_theme', theme.id);
+    } catch(e) {}
+
+    // Actualizar nombre en el botón del Header
+    const headerName = document.getElementById('header-theme-name');
+    if (headerName) headerName.innerText = theme.name;
+
+    // Actualizar badge en la vista de Configuración
+    const cfgBadge = document.getElementById('config-current-theme-badge');
+    if (cfgBadge) {
+        cfgBadge.innerText = theme.name;
+        cfgBadge.style.color = theme.primary;
+        cfgBadge.style.borderColor = theme.primary;
+    }
+
+    // Cerrar dropdown rápido si está abierto
+    const quickDropdown = document.getElementById('theme-quick-dropdown');
+    if (quickDropdown) quickDropdown.classList.add('hidden');
+
+    // Re-renderizar indicadores activos en ambos selectores
+    renderHeaderThemesList();
+    renderConfigThemesGrid();
+
+    // Actualizar Meniscus Dock si está presente
+    const rimGlowEl = document.getElementById('meniscus-rim-glow');
+    if (rimGlowEl) {
+        if (theme.id === 'ocean') {
+            rimGlowEl.setAttribute('stroke', '#00d4ff');
+        } else if (theme.id === 'amber') {
+            rimGlowEl.setAttribute('stroke', '#f59e0b');
+        } else {
+            rimGlowEl.setAttribute('stroke', '#ff2d78');
+        }
+    }
+    if (typeof renderMeniscusFrame === 'function') {
+        renderMeniscusFrame();
+    }
+
+    if (notify && typeof showConfigToast === 'function') {
+        showConfigToast(`Paleta aplicada: ${theme.name} (${theme.badge})`);
+    }
+}
+window.aplicarTema = aplicarTema;
+
+function toggleProfileDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('profile-dropdown');
+    if (!dropdown) return;
+    dropdown.classList.toggle('hidden');
+
+    const themeDropdown = document.getElementById('theme-quick-dropdown');
+    if (themeDropdown) themeDropdown.classList.add('hidden');
+}
+window.toggleProfileDropdown = toggleProfileDropdown;
+
+function toggleThemeDropdown(event) {
+    if (event) event.stopPropagation();
+    const dropdown = document.getElementById('theme-quick-dropdown');
+    if (!dropdown) return;
+    dropdown.classList.toggle('hidden');
+
+    const profileDropdown = document.getElementById('profile-dropdown');
+    if (profileDropdown) profileDropdown.classList.add('hidden');
+}
+window.toggleThemeDropdown = toggleThemeDropdown;
+
+function renderHeaderThemesList() {
+    const container = document.getElementById('header-theme-list');
+    if (!container) return;
+
+    const currentId = getActiveThemeId();
+
+    container.innerHTML = AVAILABLE_THEMES.map(theme => {
+        const isSel = (theme.id === currentId);
+        return `
+            <button onclick="aplicarTema('${theme.id}', true)" type="button" title="${theme.name}" class="group relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${isSel ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface scale-110' : 'hover:scale-115 opacity-75 hover:opacity-100'}">
+                <span class="w-[25px] h-[25px] rounded-full transition-all block shadow-xs" style="background: linear-gradient(135deg, ${theme.bg} 50%, ${theme.primary} 50%); border: 1px solid rgba(140, 140, 140, 0.4); box-shadow: 0 0 ${isSel ? '8px' : '2px'} ${theme.primary};"></span>
+            </button>
+        `;
+    }).join('');
+}
+window.renderHeaderThemesList = renderHeaderThemesList;
+
+function renderConfigThemesGrid() {
+    const grid = document.getElementById('config-themes-grid');
+    if (!grid) return;
+
+    const currentId = getActiveThemeId();
+
+    grid.innerHTML = AVAILABLE_THEMES.map(theme => {
+        const isSel = (theme.id === currentId);
+        return `
+            <button onclick="aplicarTema('${theme.id}', true)" type="button" title="${theme.name}" class="group relative w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer ${isSel ? 'ring-2 ring-primary ring-offset-2 ring-offset-surface scale-110' : 'hover:scale-115 opacity-75 hover:opacity-100'}">
+                <span class="w-[25px] h-[25px] rounded-full transition-all block shadow-xs" style="background: linear-gradient(135deg, ${theme.bg} 50%, ${theme.primary} 50%); border: 1px solid rgba(140, 140, 140, 0.4); box-shadow: 0 0 ${isSel ? '8px' : '2px'} ${theme.primary};"></span>
+            </button>
+        `;
+    }).join('');
+}
+window.renderConfigThemesGrid = renderConfigThemesGrid;
+
+function initThemesSystem() {
+    const saved = getActiveThemeId();
+    aplicarTema(saved, false);
+    renderHeaderThemesList();
+    renderConfigThemesGrid();
+}
+window.initThemesSystem = initThemesSystem;
+
+// Cerrar dropdowns de perfil y temas al hacer clic afuera
+document.addEventListener('click', (e) => {
+    const profileContainer = document.getElementById('profile-menu-container');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    if (profileDropdown && !profileDropdown.classList.contains('hidden')) {
+        if (profileContainer && !profileContainer.contains(e.target)) {
+            profileDropdown.classList.add('hidden');
+        }
+    }
+
+    const themeContainer = document.getElementById('theme-menu-container');
+    const themeDropdown = document.getElementById('theme-quick-dropdown');
+    if (themeDropdown && !themeDropdown.classList.contains('hidden')) {
+        if (themeContainer && !themeContainer.contains(e.target)) {
+            themeDropdown.classList.add('hidden');
+        }
+    }
+});
+
+// Iniciar comprobación de sesión y temas al cargar la página
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
+        initThemesSystem();
         renderAuthAvatarSelector();
         initPinDigitInputs();
         checkAuthSession();
     });
 } else {
+    initThemesSystem();
     renderAuthAvatarSelector();
     initPinDigitInputs();
     checkAuthSession();
