@@ -3088,6 +3088,7 @@ function openConfigView() {
     const isPurple = (currentTheme === 'purple');
     const isStealth = (currentTheme === 'stealth');
     const isCrema = (currentTheme === 'crema');
+    const isBlanco = (currentTheme === 'blanco');
 
     if (cfgBtn) {
         if (isOcean) {
@@ -3100,6 +3101,8 @@ function openConfigView() {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#e2e8f0]/15 border border-[#e2e8f0]/50 shadow-[0_0_15px_rgba(226,232,240,0.3)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else if (isCrema) {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-[#292524] bg-[#d97706]/15 border border-[#d97706]/40 shadow-[0_2px_10px_rgba(217,119,6,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        } else if (isBlanco) {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-[#0f172a] bg-[#2563eb]/15 border border-[#2563eb]/40 shadow-[0_2px_10px_rgba(37,99,235,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         }
@@ -3115,6 +3118,8 @@ function openConfigView() {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#ffffff] to-[#cbd5e1] border border-[#e2e8f0] text-[#09090b] shadow-[0_0_12px_rgba(226,232,240,0.65)] transition-all shrink-0";
         } else if (isCrema) {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f59e0b] to-[#d97706] border border-[#d97706] text-white shadow-[0_2px_8px_rgba(217,119,6,0.4)] transition-all shrink-0";
+        } else if (isBlanco) {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#2563eb] border border-[#2563eb] text-white shadow-[0_2px_8px_rgba(37,99,235,0.4)] transition-all shrink-0";
         } else {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
         }
@@ -3130,6 +3135,8 @@ function openConfigView() {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]";
         } else if (isCrema) {
             textEl.className = "font-bold text-[#292524]";
+        } else if (isBlanco) {
+            textEl.className = "font-bold text-[#0f172a]";
         } else {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
         }
@@ -5095,6 +5102,8 @@ function switchAuthTab(tab) {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#e2e8f0] text-[#09090b] shadow-[0_0_15px_rgba(226,232,240,0.5)] cursor-pointer';
             } else if (currentTheme === 'crema') {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#d97706] text-white shadow-[0_2px_10px_rgba(217,119,6,0.35)] cursor-pointer';
+            } else if (currentTheme === 'blanco') {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#2563eb] text-white shadow-[0_2px_10px_rgba(37,99,235,0.35)] cursor-pointer';
             } else {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
             }
@@ -6094,6 +6103,8 @@ function aplicarTema(themeId, notify = false) {
             rimGlowEl.setAttribute('stroke', '#e2e8f0');
         } else if (theme.id === 'crema') {
             rimGlowEl.setAttribute('stroke', '#d97706');
+        } else if (theme.id === 'blanco') {
+            rimGlowEl.setAttribute('stroke', '#2563eb');
         } else {
             rimGlowEl.setAttribute('stroke', '#ff2d78');
         }
@@ -6116,6 +6127,8 @@ function aplicarTema(themeId, notify = false) {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#e2e8f0]/15 border border-[#e2e8f0]/50 shadow-[0_0_15px_rgba(226,232,240,0.3)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else if (theme.id === 'crema') {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-[#292524] bg-[#d97706]/15 border border-[#d97706]/40 shadow-[0_2px_10px_rgba(217,119,6,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            } else if (theme.id === 'blanco') {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-[#0f172a] bg-[#2563eb]/15 border border-[#2563eb]/40 shadow-[0_2px_10px_rgba(37,99,235,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             }
@@ -6131,6 +6144,8 @@ function aplicarTema(themeId, notify = false) {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#ffffff] to-[#cbd5e1] border border-[#e2e8f0] text-[#09090b] shadow-[0_0_12px_rgba(226,232,240,0.65)] transition-all shrink-0";
             } else if (theme.id === 'crema') {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f59e0b] to-[#d97706] border border-[#d97706] text-white shadow-[0_2px_8px_rgba(217,119,6,0.4)] transition-all shrink-0";
+            } else if (theme.id === 'blanco') {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#2563eb] border border-[#2563eb] text-white shadow-[0_2px_8px_rgba(37,99,235,0.4)] transition-all shrink-0";
             } else {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
             }
@@ -6146,6 +6161,8 @@ function aplicarTema(themeId, notify = false) {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]";
             } else if (theme.id === 'crema') {
                 textEl.className = "font-bold text-[#292524]";
+            } else if (theme.id === 'blanco') {
+                textEl.className = "font-bold text-[#0f172a]";
             } else {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
             }

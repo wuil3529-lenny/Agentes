@@ -1088,6 +1088,117 @@
             box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35) !important;
         }
 
+        /* Blanco Puro - Adaptación Minimalista para Sombrero y Menú Lateral */
+        html[data-theme="blanco"] #sidebar-brand-logo {
+            filter: hue-rotate(240deg) saturate(1.2) brightness(0.95) drop-shadow(0 4px 14px rgba(37, 99, 235, 0.4));
+        }
+        html[data-theme="blanco"] #meniscus-bead .bead-inner {
+            background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #2563eb 60%, #1d4ed8 100%) !important;
+            border: 1.5px solid #ffffff !important;
+            box-shadow: 0 4px 18px rgba(37, 99, 235, 0.45), 0 0 24px rgba(37, 99, 235, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.7) !important;
+        }
+        html[data-theme="blanco"] #meniscus-bead #bead-icon {
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+        }
+        html[data-theme="blanco"] #meniscus-rim-glow {
+            stroke: #2563eb !important;
+            opacity: 0.85 !important;
+        }
+        html[data-theme="blanco"] .nav-item .icon-box {
+            background: rgba(255, 255, 255, 0.9) !important;
+            border-color: rgba(203, 213, 225, 0.85) !important;
+            color: #64748b !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+        }
+        html[data-theme="blanco"] .nav-item:hover .icon-box {
+            background: rgba(37, 99, 235, 0.1) !important;
+            border-color: rgba(37, 99, 235, 0.4) !important;
+            color: #2563eb !important;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
+        }
+        html[data-theme="blanco"] .nav-item .nav-label {
+            color: #475569 !important;
+        }
+        html[data-theme="blanco"] .nav-item.active .nav-label {
+            color: #0f172a !important;
+            font-weight: 700 !important;
+            text-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
+        }
+        html[data-theme="blanco"] #footer-config-icon-box {
+            background: rgba(37, 99, 235, 0.1) !important;
+            border-color: rgba(37, 99, 235, 0.4) !important;
+            color: #2563eb !important;
+        }
+        html[data-theme="blanco"] #footer-btn-config:hover #footer-config-icon-box {
+            box-shadow: 0 0 12px rgba(37, 99, 235, 0.4) !important;
+        }
+        html[data-theme="blanco"] #footer-security-icon-box {
+            background: rgba(37, 99, 235, 0.1) !important;
+            border-color: rgba(37, 99, 235, 0.4) !important;
+            color: #2563eb !important;
+        }
+        html[data-theme="blanco"] #footer-btn-security:hover #footer-security-icon-box {
+            box-shadow: 0 0 14px rgba(37, 99, 235, 0.4) !important;
+        }
+
+        /* Blanco Puro - Modal de Seguridad & Blindaje */
+        html[data-theme="blanco"] #modal-security .glass-panel {
+            background-color: rgba(255, 255, 255, 0.96) !important;
+            border-color: rgba(203, 213, 225, 0.9) !important;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12) !important;
+        }
+        html[data-theme="blanco"] #modal-sec-scanner-box {
+            border-color: rgba(37, 99, 235, 0.5) !important;
+            box-shadow: 0 0 16px rgba(37, 99, 235, 0.25) !important;
+        }
+        html[data-theme="blanco"] #modal-sec-scanner-box::before {
+            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(37, 99, 235, 0.2) 80%, rgba(37, 99, 235, 0.95) 98%, #ffffff 100%) !important;
+        }
+        html[data-theme="blanco"] #modal-sec-scanner-box .shield-icon-content {
+            color: #2563eb !important;
+        }
+        html[data-theme="blanco"] #btn-modal-save-security {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35) !important;
+        }
+        html[data-theme="blanco"] #btn-modal-save-security:hover {
+            background-color: #1d4ed8 !important;
+        }
+
+        /* Blanco Puro - Modal de Inicio de Sesión & Registro */
+        html[data-theme="blanco"] #auth-gate-modal .glass-panel {
+            background-color: rgba(255, 255, 255, 0.96) !important;
+            border-color: rgba(203, 213, 225, 0.9) !important;
+            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12) !important;
+        }
+        html[data-theme="blanco"] #auth-gate-modal .glass-panel > div.absolute.top-0 {
+            background: linear-gradient(to right, transparent, #2563eb, transparent) !important;
+        }
+        html[data-theme="blanco"] #auth-logo-badge {
+            border-color: rgba(37, 99, 235, 0.45) !important;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25) !important;
+            background: #ffffff !important;
+        }
+        html[data-theme="blanco"] #auth-logo-img {
+            filter: hue-rotate(240deg) saturate(1.2) brightness(0.95) drop-shadow(0 2px 8px rgba(37, 99, 235, 0.35)) !important;
+        }
+        html[data-theme="blanco"] #auth-tab-btn-login.bg-primary {
+            background-color: #2563eb !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3) !important;
+        }
+        html[data-theme="blanco"] #auth-login-btn {
+            background: linear-gradient(to right, #2563eb, #0284c7) !important;
+            color: #ffffff !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35) !important;
+        }
+
         /* Cyber Security Shield Orbital Scanner & Reactive Animations */
         @keyframes shieldOrbitalSpin {
             0% { transform: rotate(0deg); }
@@ -3641,6 +3752,6 @@ window.toggleRightSidebar = toggleRightSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=89"></script>
+<script src="/static/script.js?v=90"></script>
 </body>
 </html>
