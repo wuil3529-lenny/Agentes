@@ -1933,11 +1933,11 @@ let meniscusState = {
 const MENISCUS_CONFIG = {
     kSpring: 0.22,      // Elastic tension
     kDamping: 0.68,     // Viscosity friction (smooth fluid settling)
-    sBase: 18,          // Base shoulder radius
+    sBase: 20,          // Base shoulder radius
     rb: 21,             // Bowl radius around bead
     x0: 12,             // Plate left edge (aligned with pl-3 = 12px)
-    bx: 34,             // Bead center X (aligned with .icon-box)
-    plateRadius: 16     // Corner radius of the dock plate
+    bx: 46.5,           // Bead center X (aligned with .icon-box)
+    plateRadius: 12     // Corner radius of the dock plate
 };
 
 // Compute parametric SVG path with velocity-induced surface lean
@@ -1971,8 +1971,8 @@ function calculateMeniscusPath(W, dockTop, dockBottom, bx, by, rb, s, vy) {
     
     // Socket cutout profile (concave fluid pocket wrapping the bead)
     const socketProfile = `L ${x0} ${y2} ` +
-                          `C ${x0} ${y2 - reachBot * 0.45}, ${bx + rb * 0.18} ${by + rb * 0.72}, ${bx + rb * 0.35} ${by} ` +
-                          `C ${bx + rb * 0.18} ${by - rb * 0.72}, ${x0} ${y1 + reachTop * 0.45}, ${x0} ${y1}`;
+                          `C ${x0} ${y2 - reachBot * 0.45}, ${bx + rb * 0.15} ${by + rb * 0.72}, ${bx + rb * 0.32} ${by} ` +
+                          `C ${bx + rb * 0.15} ${by - rb * 0.72}, ${x0} ${y1 + reachTop * 0.45}, ${x0} ${y1}`;
     
     // Full plate background path:
     // Left edge has rounded corners and the dynamic meniscus socket.
@@ -1986,8 +1986,8 @@ function calculateMeniscusPath(W, dockTop, dockBottom, bx, by, rb, s, vy) {
     
     // Accent rim glow path (only along the socket curve)
     const rimGlowPath = `M ${x0} ${y1} ` +
-                        `C ${x0} ${y1 + reachTop * 0.45}, ${bx + rb * 0.18} ${by - rb * 0.72}, ${bx + rb * 0.35} ${by} ` +
-                        `C ${bx + rb * 0.18} ${by + rb * 0.72}, ${x0} ${y2 - reachBot * 0.45}, ${x0} ${y2}`;
+                        `C ${x0} ${y1 + reachTop * 0.45}, ${bx + rb * 0.15} ${by - rb * 0.72}, ${bx + rb * 0.32} ${by} ` +
+                        `C ${bx + rb * 0.15} ${by + rb * 0.72}, ${x0} ${y2 - reachBot * 0.45}, ${x0} ${y2}`;
     
     return { platePath, rimGlowPath };
 }
@@ -2007,12 +2007,12 @@ function renderMeniscusFrame() {
     // Calculate vertical bounds wrapping the navigation items exactly
     const items = container.querySelectorAll('.nav-item');
     let dockTop = 0;
-    let dockBottom = 240;
+    let dockBottom = 260;
     if (items.length > 0) {
         const firstItem = items[0];
         const lastItem = items[items.length - 1];
-        dockTop = Math.max(0, firstItem.offsetTop - 6);
-        dockBottom = lastItem.offsetTop + lastItem.offsetHeight + 6;
+        dockTop = Math.max(0, firstItem.offsetTop - 12);
+        dockBottom = lastItem.offsetTop + lastItem.offsetHeight + 10;
     }
     
     // Update bead vertical position (centered on currentY)
