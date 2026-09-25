@@ -3151,26 +3151,26 @@ window.toggleMobileSidebar = toggleMobileSidebar;
 </div>
 
 <!-- MODAL: SEGURIDAD & BLINDAJE EN LA NUBE (TAMAÑO DUPLICADO / 2 COLUMNAS) -->
-<div id="modal-security" onclick="if(event.target === this) openSecurityModal(false)" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md">
-  <div class="glass-panel w-full max-w-4xl lg:max-w-5xl rounded-3xl p-6 sm:p-8 border border-rose-500/35 shadow-[0_0_50px_rgba(244,63,94,0.25)] flex flex-col gap-6 max-h-[92vh] overflow-y-auto animate-in fade-in duration-200">
+<div id="modal-security" onclick="if(event.target === this) openSecurityModal(false)" class="hidden fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/85 backdrop-blur-md">
+  <div class="glass-panel w-full max-w-4xl lg:max-w-5xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-rose-500/35 shadow-[0_0_50px_rgba(244,63,94,0.25)] flex flex-col gap-4 sm:gap-6 max-h-[94vh] overflow-y-auto animate-in fade-in duration-200">
     
     <!-- Modal Header -->
-    <div class="flex items-center justify-between pb-4 border-b border-outline-variant/30 shrink-0">
-      <div class="flex items-center gap-3.5">
-        <div id="modal-sec-scanner-box" class="w-12 h-12 rounded-2xl border border-rose-500/40 flex items-center justify-center shield-scanner-box shadow-[0_0_20px_rgba(244,63,94,0.3)] shrink-0">
+    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-outline-variant/30 shrink-0">
+      <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+        <div id="modal-sec-scanner-box" class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl border border-rose-500/40 flex items-center justify-center shield-scanner-box shadow-[0_0_20px_rgba(244,63,94,0.3)] shrink-0">
           <div class="shield-icon-content flex items-center justify-center text-rose-400">
-            <span id="modal-sec-header-icon" class="material-symbols-outlined text-[26px]">shield_lock</span>
+            <span id="modal-sec-header-icon" class="material-symbols-outlined text-[22px] sm:text-[26px]">shield_lock</span>
           </div>
         </div>
-        <div>
-          <h3 class="font-bold text-lg sm:text-xl text-on-surface tracking-wide">Seguridad & Blindaje en la Nube</h3>
-          <p class="text-xs sm:text-sm text-on-surface-variant/75 mt-0.5">Credenciales de acceso, telemetría y protección perimetral de red</p>
+        <div class="min-w-0">
+          <h3 class="font-bold text-base sm:text-lg lg:text-xl text-on-surface tracking-wide truncate sm:whitespace-normal">Seguridad & Blindaje en la Nube</h3>
+          <p class="text-[11px] sm:text-xs text-on-surface-variant/75 mt-0.5 truncate sm:whitespace-normal">Credenciales de acceso, telemetría y protección perimetral de red</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="cfg-sec-badge" class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-400/15 text-emerald-400 border border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.3)] transition-all">SEGURIDAD ACTIVA</span>
-        <button onclick="openSecurityModal(false)" class="text-on-surface-variant hover:text-on-surface p-2 rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer" title="Cerrar ventana">
-          <span class="material-symbols-outlined text-[22px]">close</span>
+      <div class="flex items-center gap-2 sm:gap-3 shrink-0 ml-auto sm:ml-0">
+        <span id="cfg-sec-badge" class="text-[10px] sm:text-xs font-mono font-bold px-2.5 sm:px-3 py-1 rounded-full bg-emerald-400/15 text-emerald-400 border border-emerald-400/40 shadow-[0_0_12px_rgba(52,211,153,0.3)] transition-all">SEGURIDAD ACTIVA</span>
+        <button onclick="openSecurityModal(false)" class="text-on-surface-variant hover:text-on-surface p-1.5 sm:p-2 rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer" title="Cerrar ventana">
+          <span class="material-symbols-outlined text-[20px] sm:text-[22px]">close</span>
         </button>
       </div>
     </div>
@@ -3179,22 +3179,22 @@ window.toggleMobileSidebar = toggleMobileSidebar;
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
       
       <!-- LEFT COLUMN: Autenticación de Acceso Web & Credenciales -->
-      <div id="card-auth-security" class="p-5 sm:p-6 rounded-2xl bg-surface-container-highest/40 border border-emerald-500/40 flex flex-col justify-between gap-4 shadow-[0_0_30px_rgba(16,185,129,0.18)] transition-all duration-300 relative overflow-hidden">
+      <div id="card-auth-security" class="p-4 sm:p-6 rounded-2xl bg-surface-container-highest/40 border border-emerald-500/40 flex flex-col justify-between gap-4 shadow-[0_0_30px_rgba(16,185,129,0.18)] transition-all duration-300 relative overflow-hidden">
         <!-- Dynamic Shield Activation Pulse Glow Line -->
         <div id="auth-shield-glowline" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse"></div>
 
         <div class="flex flex-col gap-3">
-          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
-            <div class="flex items-center gap-2.5">
-              <div id="auth-lock-icon-box" class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all duration-300">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-outline-variant/20">
+            <div class="flex items-center gap-2 sm:gap-2.5">
+              <div id="auth-lock-icon-box" class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all duration-300 shrink-0">
                 <span id="auth-lock-icon" class="material-symbols-outlined text-[19px]">lock</span>
               </div>
               <div>
-                <h4 class="text-sm font-bold text-on-surface">Autenticación de Acceso Web</h4>
-                <span id="auth-status-subtext" class="text-[10px] font-mono text-emerald-400 font-bold">Blindaje Activo • Acceso Protegido</span>
+                <h4 class="text-xs sm:text-sm font-bold text-on-surface">Autenticación de Acceso Web</h4>
+                <span id="auth-status-subtext" class="text-[9px] sm:text-[10px] font-mono text-emerald-400 font-bold">Blindaje Activo • Acceso Protegido</span>
               </div>
             </div>
-            <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(52,211,153,0.2)]">
+            <span class="text-[10px] font-mono font-bold px-2 sm:px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-[0_0_10px_rgba(52,211,153,0.2)] shrink-0">
               <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>ACTIVO</span>
             </span>
@@ -3219,10 +3219,10 @@ window.toggleMobileSidebar = toggleMobileSidebar;
             </div>
 
             <!-- Avatar Preview & Action Controls -->
-            <div class="flex items-center gap-3.5">
+            <div class="flex items-center gap-3 sm:gap-3.5">
               <!-- Current Avatar Preview Box -->
               <div class="relative group/avatar shrink-0 cursor-pointer" onclick="document.getElementById('cfg-sec-avatar-file').click()" title="Haz clic para subir tu foto">
-                <div class="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl overflow-hidden border-2 border-emerald-500/50 group-hover/avatar:border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.25)] transition-all bg-[#0f0f1a]">
+                <div class="w-14 h-14 rounded-2xl overflow-hidden border-2 border-emerald-500/50 group-hover/avatar:border-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.25)] transition-all bg-[#0f0f1a] shrink-0">
                   <img id="cfg-sec-avatar-preview" alt="Avatar Preview" class="w-full h-full object-cover" src="/static/avatars/bot_cyan.jpg">
                 </div>
                 <div class="absolute inset-0 rounded-2xl bg-black/55 opacity-0 group-hover/avatar:opacity-100 flex items-center justify-center transition-opacity">
@@ -3447,11 +3447,11 @@ window.toggleMobileSidebar = toggleMobileSidebar;
     </div>
 
     <!-- Modal Footer Actions -->
-    <div class="pt-4 border-t border-outline-variant/30 flex justify-end items-center gap-3 shrink-0">
-      <button onclick="openSecurityModal(false)" type="button" class="px-5 py-2.5 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer">
+    <div class="pt-4 border-t border-outline-variant/30 flex flex-wrap justify-end items-center gap-2 sm:gap-3 shrink-0">
+      <button onclick="openSecurityModal(false)" type="button" class="flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-colors text-xs font-bold cursor-pointer text-center">
         Cerrar
       </button>
-      <button id="btn-modal-save-security" onclick="guardarSeguridadModal()" type="button" class="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] cursor-pointer">
+      <button id="btn-modal-save-security" onclick="guardarSeguridadModal()" type="button" class="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-xs transition-all shadow-[0_0_20px_rgba(244,63,94,0.4)] cursor-pointer">
         <span class="material-symbols-outlined text-[17px]">save</span>
         <span>Guardar Seguridad</span>
       </button>
@@ -3826,6 +3826,6 @@ window.toggleMobileSidebar = toggleMobileSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=97"></script>
+<script src="/static/script.js?v=98"></script>
 </body>
 </html>
