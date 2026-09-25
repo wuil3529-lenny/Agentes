@@ -882,6 +882,95 @@
             box-shadow: 0 0 24px rgba(168, 85, 247, 0.5) !important;
         }
 
+        /* Stealth Carbon - Adaptación Neón para Sombrero y Menú Lateral */
+        html[data-theme="stealth"] #sidebar-brand-logo {
+            filter: grayscale(1) brightness(1.35) drop-shadow(0 0 14px rgba(226, 232, 240, 0.75));
+        }
+        html[data-theme="stealth"] #meniscus-bead .bead-inner {
+            background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e2e8f0 55%, #94a3b8 100%) !important;
+            box-shadow: 0 0 22px rgba(226, 232, 240, 0.9), 0 0 38px rgba(56, 189, 248, 0.45), inset 0 2px 4px rgba(255, 255, 255, 0.85) !important;
+        }
+        html[data-theme="stealth"] #meniscus-rim-glow {
+            stroke: #e2e8f0 !important;
+        }
+        html[data-theme="stealth"] .nav-item:hover .icon-box {
+            background: rgba(226, 232, 240, 0.12) !important;
+            border-color: rgba(226, 232, 240, 0.45) !important;
+            box-shadow: 0 0 16px rgba(226, 232, 240, 0.3) !important;
+        }
+        html[data-theme="stealth"] .nav-item.active .nav-label {
+            text-shadow: 0 0 12px rgba(226, 232, 240, 0.75) !important;
+        }
+        html[data-theme="stealth"] #footer-config-icon-box {
+            background: rgba(226, 232, 240, 0.12) !important;
+            border-color: rgba(226, 232, 240, 0.4) !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="stealth"] #footer-btn-config:hover #footer-config-icon-box {
+            box-shadow: 0 0 12px rgba(226, 232, 240, 0.6) !important;
+        }
+        html[data-theme="stealth"] #footer-security-icon-box {
+            background: rgba(226, 232, 240, 0.12) !important;
+            border-color: rgba(226, 232, 240, 0.4) !important;
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="stealth"] #footer-btn-security:hover #footer-security-icon-box {
+            box-shadow: 0 0 14px rgba(226, 232, 240, 0.6) !important;
+        }
+
+        /* Stealth Carbon - Modal de Seguridad & Blindaje */
+        html[data-theme="stealth"] #modal-security .glass-panel {
+            border-color: rgba(226, 232, 240, 0.4) !important;
+            box-shadow: 0 0 60px rgba(226, 232, 240, 0.22) !important;
+        }
+        html[data-theme="stealth"] #modal-sec-scanner-box {
+            border-color: rgba(226, 232, 240, 0.5) !important;
+            box-shadow: 0 0 20px rgba(226, 232, 240, 0.3) !important;
+        }
+        html[data-theme="stealth"] #modal-sec-scanner-box::before {
+            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(226, 232, 240, 0.25) 80%, rgba(226, 232, 240, 0.95) 98%, #ffffff 100%) !important;
+        }
+        html[data-theme="stealth"] #modal-sec-scanner-box .shield-icon-content {
+            color: #e2e8f0 !important;
+        }
+        html[data-theme="stealth"] #btn-modal-save-security {
+            background-color: #e2e8f0 !important;
+            color: #09090b !important;
+            font-weight: 700 !important;
+            box-shadow: 0 0 22px rgba(226, 232, 240, 0.45) !important;
+        }
+        html[data-theme="stealth"] #btn-modal-save-security:hover {
+            background-color: #ffffff !important;
+        }
+
+        /* Stealth Carbon - Modal de Inicio de Sesión & Registro */
+        html[data-theme="stealth"] #auth-gate-modal .glass-panel {
+            border-color: rgba(226, 232, 240, 0.4) !important;
+            box-shadow: 0 0 65px rgba(226, 232, 240, 0.22) !important;
+        }
+        html[data-theme="stealth"] #auth-gate-modal .glass-panel > div.absolute.top-0 {
+            background: linear-gradient(to right, transparent, #e2e8f0, transparent) !important;
+        }
+        html[data-theme="stealth"] #auth-logo-badge {
+            border-color: rgba(226, 232, 240, 0.45) !important;
+            box-shadow: 0 0 22px rgba(226, 232, 240, 0.4) !important;
+        }
+        html[data-theme="stealth"] #auth-logo-img {
+            filter: grayscale(1) brightness(1.35) drop-shadow(0 0 12px rgba(226, 232, 240, 0.75)) !important;
+        }
+        html[data-theme="stealth"] #auth-tab-btn-login.bg-primary {
+            background-color: #e2e8f0 !important;
+            color: #09090b !important;
+            font-weight: 700 !important;
+            box-shadow: 0 0 15px rgba(226, 232, 240, 0.45) !important;
+        }
+        html[data-theme="stealth"] #auth-login-btn {
+            background: linear-gradient(to right, #e2e8f0, #94a3b8) !important;
+            color: #09090b !important;
+            font-weight: 700 !important;
+            box-shadow: 0 0 24px rgba(226, 232, 240, 0.45) !important;
+        }
+
         /* Cyber Security Shield Orbital Scanner & Reactive Animations */
         @keyframes shieldOrbitalSpin {
             0% { transform: rotate(0deg); }
@@ -3435,6 +3524,6 @@ window.toggleRightSidebar = toggleRightSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=86"></script>
+<script src="/static/script.js?v=87"></script>
 </body>
 </html>

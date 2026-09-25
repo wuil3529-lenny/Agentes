@@ -3086,6 +3086,7 @@ function openConfigView() {
     const isOcean = (currentTheme === 'ocean');
     const isAmber = (currentTheme === 'amber');
     const isPurple = (currentTheme === 'purple');
+    const isStealth = (currentTheme === 'stealth');
 
     if (cfgBtn) {
         if (isOcean) {
@@ -3094,6 +3095,8 @@ function openConfigView() {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#f59e0b]/15 border border-[#f59e0b]/50 shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else if (isPurple) {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#a855f7]/15 border border-[#a855f7]/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+        } else if (isStealth) {
+            cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#e2e8f0]/15 border border-[#e2e8f0]/50 shadow-[0_0_15px_rgba(226,232,240,0.3)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         } else {
             cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
         }
@@ -3105,6 +3108,8 @@ function openConfigView() {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] border border-[#f59e0b] text-[#0a0805] shadow-[0_0_12px_rgba(245,158,11,0.7)] transition-all shrink-0";
         } else if (isPurple) {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#c084fc] to-[#a855f7] border border-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all shrink-0";
+        } else if (isStealth) {
+            iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#ffffff] to-[#cbd5e1] border border-[#e2e8f0] text-[#09090b] shadow-[0_0_12px_rgba(226,232,240,0.65)] transition-all shrink-0";
         } else {
             iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
         }
@@ -3116,6 +3121,8 @@ function openConfigView() {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]";
         } else if (isPurple) {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]";
+        } else if (isStealth) {
+            textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]";
         } else {
             textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
         }
@@ -5077,6 +5084,8 @@ function switchAuthTab(tab) {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#f59e0b] text-[#0a0805] shadow-[0_0_15px_rgba(245,158,11,0.5)] cursor-pointer';
             } else if (currentTheme === 'purple') {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#a855f7] text-white shadow-[0_0_15px_rgba(168,85,247,0.5)] cursor-pointer';
+            } else if (currentTheme === 'stealth') {
+                btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-[#e2e8f0] text-[#09090b] shadow-[0_0_15px_rgba(226,232,240,0.5)] cursor-pointer';
             } else {
                 btnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 bg-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.4)] cursor-pointer';
             }
@@ -6072,6 +6081,8 @@ function aplicarTema(themeId, notify = false) {
             rimGlowEl.setAttribute('stroke', '#f59e0b');
         } else if (theme.id === 'purple') {
             rimGlowEl.setAttribute('stroke', '#a855f7');
+        } else if (theme.id === 'stealth') {
+            rimGlowEl.setAttribute('stroke', '#e2e8f0');
         } else {
             rimGlowEl.setAttribute('stroke', '#ff2d78');
         }
@@ -6090,6 +6101,8 @@ function aplicarTema(themeId, notify = false) {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#f59e0b]/15 border border-[#f59e0b]/50 shadow-[0_0_15px_rgba(245,158,11,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else if (theme.id === 'purple') {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#a855f7]/15 border border-[#a855f7]/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
+            } else if (theme.id === 'stealth') {
+                cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#e2e8f0]/15 border border-[#e2e8f0]/50 shadow-[0_0_15px_rgba(226,232,240,0.3)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             }
@@ -6101,6 +6114,8 @@ function aplicarTema(themeId, notify = false) {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#fbbf24] to-[#f59e0b] border border-[#f59e0b] text-[#0a0805] shadow-[0_0_12px_rgba(245,158,11,0.7)] transition-all shrink-0";
             } else if (theme.id === 'purple') {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#c084fc] to-[#a855f7] border border-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all shrink-0";
+            } else if (theme.id === 'stealth') {
+                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#ffffff] to-[#cbd5e1] border border-[#e2e8f0] text-[#09090b] shadow-[0_0_12px_rgba(226,232,240,0.65)] transition-all shrink-0";
             } else {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
             }
@@ -6112,6 +6127,8 @@ function aplicarTema(themeId, notify = false) {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]";
             } else if (theme.id === 'purple') {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]";
+            } else if (theme.id === 'stealth') {
+                textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]";
             } else {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
             }
