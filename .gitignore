@@ -1,24 +1,67 @@
+# Entornos, Secretos y Credenciales (Blindaje de Seguridad)
 .env
-__pycache__/
-*.pyc
-.obsidian/
-# Tokens y Credenciales de Google
-credentials.json
-token.json
-keep_token.txt
-
-# Perfil de usuario
-memoria_compartida/perfiles/Perfil de wuil.md
-memoria_compartida/perfiles/Perfil de wuil.json
-# Archivos sensibles adicionales
-.env.local
+.env.*
+*.env
+*.env.*
 *.key
 *.pem
+*.cert
+*.crt
+*.p12
+*.pfx
+*.secret
 secrets.json
-canal_usuario.json
+credentials.json
+token.json
+token*.json
+keep_token.txt
 
-# Basura
-Archivos_temporales/
+# Perfil de usuario sensible
+memoria_compartida/perfiles/
+
+# Python y Entornos Virtuales
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Obsidian y Configuración Local
+.obsidian/
+
+# Memoria Operativa, Base de Datos y Logs (Solo local)
 memoria/
 memoria_compartida/
+Archivos_temporales/
+Cerebro.md
+Bitacora.md
+Memoria_Ejecucion_*.md
+*/Memoria_Ejecucion_*.md
+logs/
+*.log
+chroma_db/
+*.sqlite3
+*.db
 
+# Comunicación y Chats Usuario - Agentes
+canal_usuario.json
+*/canal_usuario.json
+*canal_usuario*
+*.chat
+dashboard/chats/
+
+# Carpetas Personales, Pruebas y Evidencias de los Agentes
+Zoro/proyectos/
+Robin/reportes/
+Robin/informes/
+Sanji/documentos_sanji/
+Nami/informes/
+*/proyectos/*
+*/reportes/*
+*/informes/*
+*/documentos_sanji/*

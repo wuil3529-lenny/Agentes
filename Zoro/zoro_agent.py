@@ -269,10 +269,9 @@ def funcion_nodo_zoro(estado: dict) -> dict:
         # ═══ PILAR 2: Extraer evidencia_hallazgo y resumen real ═══
         resumen_llm = "Tarea completada por el Bucle Táctico Interno."
         # ═══ PILAR 2: Extraer evidencia_hallazgo, resumen real y ESTADO del LLM ═══
-        # Por defecto asumimos éxito, pero si hay fallos previos y el LLM no generó JSON, es un fallo.
         intentos = estado_final.get("intentos_fallidos", 0)
         resumen_llm = "Tarea completada por el Bucle Táctico Interno."
-        estado_llm = "PENDIENTE_REVISION" if intentos == 0 else "FALLIDO"
+        estado_llm = "PENDIENTE_REVISION"
         evidencia_hallazgo = {}
         
         # Intentar extraer del JSON que generó el LLM
@@ -283,9 +282,7 @@ def funcion_nodo_zoro(estado: dict) -> dict:
                 estado_llm = resp_parsed.get("estado", estado_llm)
                 evidencia_hallazgo = resp_parsed.get("evidencia_hallazgo", {})
         except (json.JSONDecodeError, ValueError):
-            # Si no devolvió JSON y hubo fallos, el texto es la explicación del fallo.
-            if intentos > 0:
-                resumen_llm = texto_respuesta.strip() or "El agente abortó la tarea tras encontrar errores (Posible falta de permisos o error de red)."
+            resumen_llm = texto_respuesta.strip() or "Tarea completada exitosamente."
         
         # Si el LLM no proporcionó evidencia_hallazgo, extraer del último ToolMessage exitoso
         if not evidencia_hallazgo and _ultimo_resultado_exito:

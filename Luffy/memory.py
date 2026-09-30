@@ -115,6 +115,84 @@ def leer_mensajes(agente: str) -> list[dict]:
         
     return mensajes_finales
 
+
+def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> str:
+    """
+    Construye el contexto de conversación para Luffy con presupuesto controlado (~3,500 tokens).
+    Implementa compresión rodante:
+    - Los mensajes recientes se conservan textuales palabra por palabra.
+    - Los mensajes antiguos fuera del presupuesto se comprimen en un resumen ejecutivo cronológico.
+    """
+    mensajes = canal_u.get("mensajes", []) if isinstance(canal_u, dict) else []
+    if not mensajes:
+        return "No hay mensajes previos en la conversación."
+        
+    char_budget = max_tokens * 4
+    min_recientes = 6
+    
+    if len(mensajes) <= min_recientes:
+        lineas = []
+        for m in mensajes:
+            emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
+            c = m.get("contenido", {})
+            t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
+            ts = str(m.get("timestamp", ""))[:16].replace("T", " ")
+            lineas.append(f"[{ts}] {emisor}: {t}")
+        return "=== HISTORIAL DE CONVERSACIÓN RECIENTE ===\n" + "\n".join(lineas)
+        
+    mensajes_recientes_rev = []
+    chars_acumulados = 0
+    recientes_limite_chars = int(char_budget * 0.70)
+    
+    idx_corte = len(mensajes) - min_recientes
+    for i in range(len(mensajes) - 1, -1, -1):
+        m = mensajes[i]
+        emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
+        c = m.get("contenido", {})
+        t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
+        ts = str(m.get("timestamp", ""))[:16].replace("T", " ")
+        linea = f"[{ts}] {emisor}: {t}"
+        
+        if len(mensajes_recientes_rev) < min_recientes or (chars_acumulados + len(linea) < recientes_limite_chars):
+            mensajes_recientes_rev.append(linea)
+            chars_acumulados += len(linea)
+            idx_corte = i
+        else:
+            break
+            
+    mensajes_recientes = list(reversed(mensajes_recientes_rev))
+    mensajes_antiguos = mensajes[:idx_corte]
+    
+    if not mensajes_antiguos:
+        return "=== HISTORIAL DE CONVERSACIÓN RECIENTE ===\n" + "\n".join(mensajes_recientes)
+        
+    resumen_lineas = []
+    for m in mensajes_antiguos:
+        de = str(m.get("de", "")).lower()
+        c = m.get("contenido", {})
+        t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
+        t_clean = " ".join(t.split())
+        ts = str(m.get("timestamp", ""))[:10]
+        
+        if de != "luffy":
+            if len(t_clean) > 120:
+                t_clean = t_clean[:117] + "..."
+            resumen_lineas.append(f"- [{ts}] Orden Usuario: {t_clean}")
+        else:
+            m_res = re.search(r'(misión completada|ticket [^\n\.]+ listo|resultado: [^\n\.]+)', t_clean, re.IGNORECASE)
+            if m_res:
+                resumen_lineas.append(f"- [{ts}] Luffy: {m_res.group(0)}")
+            elif len(t_clean) > 100:
+                resumen_lineas.append(f"- [{ts}] Luffy: {t_clean[:97]}...")
+                
+    if len(resumen_lineas) > 15:
+        resumen_lineas = resumen_lineas[:3] + ["... (conversaciones intermedias resumidas) ..."] + resumen_lineas[-10:]
+        
+    seccion_resumen = "=== RESUMEN EJECUTIVO DE CONVERSACIÓN ANTERIOR ===\n" + "\n".join(resumen_lineas)
+    seccion_reciente = "=== CONVERSACIÓN RECIENTE (TEXTUAL) ===\n" + "\n".join(mensajes_recientes)
+    
+    return f"{seccion_resumen}\n\n{seccion_reciente}"
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. PILAR BITÁCORA (Corto Plazo / Tareas - MD Only)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -257,12 +335,21 @@ def _cargar_cerebro() -> list:
     except Exception:
         return []
 
-def guardar_cerebro(agente: str, tema: str, contenido: str, ruta_local: str = None) -> None:
+def guardar_cerebro(
+    agente: str,
+    tema: str,
+    contenido: str,
+    ruta_local: str = None,
+    herramientas_usadas: str = None,
+    decisiones: str = None,
+    evidencia_fisica: str = None,
+    agentes_involucrados: str = None
+) -> str:
     # --- 🛡️ FILTRO ANTI-BASURA ---
     tema_limpio = tema.strip()
     if not tema_limpio or tema_limpio in ["N/A", "Informar tarea completada al usuario", "Procesar mensajes entrantes Te"] or "N/A" in contenido:
         print(f"[Memoria] Se omitió guardar en el cerebro (contenido irrelevante): {tema_limpio}")
-        return
+        return ""
 
     timestamp = datetime.now().isoformat()
     
@@ -285,12 +372,54 @@ def guardar_cerebro(agente: str, tema: str, contenido: str, ruta_local: str = No
     with open(CEREBRO_MD, "a", encoding="utf-8") as f:
         linea_indice = f"- **[{new_id:02d}]** | **Fecha:** {fecha_hora} | **Agente:** {agente} | **Descripción:** {tema} | **Ruta:** `C:\\Users\\admin\\Documents\\Agentes\\memoria\\{md_filename}`\n"
         f.write(linea_indice)
+
+    # ── Construir Recibo Ejecutivo de Misión ──
+    if not evidencia_fisica or evidencia_fisica == "N/A":
+        m_ev = re.search(r'(?i)-\s*\*\*Evidencia_Fisica:\*\*\s*([^\n]+)', contenido)
+        if m_ev:
+            evidencia_fisica = re.sub(r'\s*\([^)]*\)', '', m_ev.group(1)).strip('`"\' ')
+
+    if not agentes_involucrados or agentes_involucrados == "N/A":
+        encontrados = set(re.findall(r'\b(Luffy|Zoro|Nami|Robin|Sanji)\b', contenido, re.IGNORECASE))
+        if agente:
+            encontrados.add(agente.capitalize())
+        agentes_involucrados = ", ".join(sorted(list(encontrados))) if encontrados else agente
+
+    if not herramientas_usadas or herramientas_usadas == "N/A":
+        tools_conocidas = [
+            "listar_directorio", "leer_archivo", "crear_archivo", "ejecutar_comando",
+            "grep_search", "py_compile", "tool_guardar_solucion", "tool_limpiar_pizarra",
+            "tool_buscar_soluciones", "consultar_sentry_errores", "generar_reporte_vulnerabilidades",
+            "consultar_estado_ticket", "tool_crear_skill_tripulacion"
+        ]
+        tools_halladas = [t for t in tools_conocidas if t.lower() in contenido.lower()]
+        if tools_halladas:
+            herramientas_usadas = ", ".join(tools_halladas)
+        else:
+            herramientas_usadas = "Herramientas estándar del agente asignado"
+
+    if not decisiones or decisiones == "N/A":
+        lineas_h = [l.strip() for l in contenido.splitlines() if any(k in l.lower() for k in ["resolución", "diagnóstico", "causa raíz", "verificación", "completado exitosamente"])]
+        if lineas_h:
+            decisiones = " ".join(lineas_h[:2])
+            if len(decisiones) > 250:
+                decisiones = decisiones[:247] + "..."
+        else:
+            decisiones = "Ejecución exitosa según especificación del ticket."
         
     with open(md_filepath, "w", encoding="utf-8") as f:
         f.write(f"# Registro de Cerebro: {tema}\n\n")
-        f.write(f"**Agente:** {agente}\n")
-        f.write(f"**Fecha:** {timestamp}\n\n")
-        f.write(f"## Contenido / Aprendizaje\n\n")
+        f.write(f"**Agente Responsable:** {agente}\n")
+        f.write(f"**Fecha:** {timestamp}\n")
+        if evidencia_fisica and evidencia_fisica != "N/A":
+            f.write(f"**Evidencia Física:** `{evidencia_fisica}`\n")
+        f.write("\n## 📋 Recibo Ejecutivo de Misión\n\n")
+        f.write(f"- **Agentes Involucrados:** {agentes_involucrados}\n")
+        f.write(f"- **Herramientas Utilizadas:** {herramientas_usadas}\n")
+        f.write(f"- **Decisiones Clave y Resolución:** {decisiones}\n")
+        if evidencia_fisica and evidencia_fisica != "N/A":
+            f.write(f"- **Ruta Evidencia:** `{evidencia_fisica}`\n")
+        f.write(f"\n## 💡 Contenido / Aprendizaje\n\n")
         f.write(f"{contenido}\n")
         if ruta_local:
             f.write(f"\n**Ruta Local Asociada:** `{ruta_local}`\n")
@@ -309,12 +438,19 @@ def guardar_cerebro(agente: str, tema: str, contenido: str, ruta_local: str = No
         
         collection = _get_collection()
         ticket_id_virt = f"TKT-MEM-{new_id:02d}"
+        doc_rag = f"{tema}\n\nRecibo de Misión:\n- Agentes: {agentes_involucrados}\n- Herramientas: {herramientas_usadas}\n- Decisiones: {decisiones}\n- Evidencia: {evidencia_fisica}\n\nContenido:\n{contenido}"
         collection.add(
-            documents=[contenido],
-            metadatas=[{"ticket_id": ticket_id_virt, "descripcion": tema, "agente": agente}],
+            documents=[doc_rag],
+            metadatas=[{
+                "ticket_id": ticket_id_virt,
+                "descripcion": tema[:200],
+                "agente": agente,
+                "herramientas": str(herramientas_usadas)[:200],
+                "evidencia": str(evidencia_fisica)[:200]
+            }],
             ids=[ticket_id_virt]
         )
-        print(f"[Memoria RAG] Solución guardada automáticamente en ChromaDB: {ticket_id_virt}")
+        print(f"[Memoria RAG] Solución con Recibo de Misión guardada en ChromaDB: {ticket_id_virt}")
     except Exception as e:
         print(f"[Memoria RAG] Error al sincronizar con ChromaDB: {e}")
         
@@ -466,3 +602,12 @@ def construir_contexto_para_agente(nombre_agente: str = "Luffy", limite: int = 5
         res = str(h.get("resultado", ""))[:150]
         lineas.append(f"- Objetivo: {obj} | Resultado: {res}")
     return "\n".join(lineas)
+
+
+def registrar_consumo_tokens(agente: str, tokens_prompt: int, tokens_completion: int, modelo: str = "") -> dict:
+    """Registra el consumo de tokens y costo en dashboard/costos.json."""
+    try:
+        from costos_tracker import registrar_consumo_tokens as _reg
+        return _reg(agente, tokens_prompt, tokens_completion, modelo)
+    except Exception:
+        return {}

@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_curador. Implementada en Python por Luffy.
 
 ---
-**Conexiones:** [[Perfil_Luffy]]
+**Pertenece a:** [[Perfil_Luffy]]

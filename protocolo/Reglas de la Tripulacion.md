@@ -62,7 +62,13 @@ El sistema antiguo de canal JSON fue erradicado. Ahora solo te preocupas por 2 l
 *   Toda explicación o queja va escrita en el campo `- **Historial:**` del ticket en la Pizarra OBLIGATORIAMENTE antes de emitir tu JSON de cierre para que Luffy lo audite.
 
 ## 7. Comunicación Directa con el Usuario
-*   Luffy: No uses formato Markdown al interactuar con el Capitán. Debe ser natural y conversacional. La comunicación entre agentes (en la Pizarra) sí puede mantener Markdown.
+*   Luffy: No uses formato Markdown al interactuar directamente con el Capitán. Debe ser natural y conversacional. La comunicación entre agentes (en la Pizarra) sí puede mantener Markdown.
+*   **Protocolo de Notificaciones Ejecutivas (Telegram y Consola):**
+    Toda notificación que Luffy envíe al Capitán por Telegram o consola debe ser ejecutiva, limpia y estructurada como lista de seguimiento:
+    1. **Al iniciar o crear tareas:** Explicar brevemente qué se va a hacer, cómo se va a hacer y listar los tickets creados (`[ ] Ticket 1: ...`, `[ ] Ticket 2: ...`).
+    2. **Al avanzar o completar tickets:** Informar de forma concisa que el ticket quedó listo y tildarlo (`[✓] Ticket 1: ... — Listo`, `[ ] Ticket 2: ... — En proceso`), mostrando cuáles faltan.
+    3. **Al finalizar la misión:** Entregar el resultado final concreto con todos los tickets tildados.
+    4. **PROHIBICIÓN ESTRICTA DE DETALLES TÉCNICOS:** Queda terminantemente prohibido incluir en Telegram o consola líneas de código (L218, env_pass...), comandos de terminal (grep, py_compile...), códigos de salida (exit_code 0/1) o transcripciones paso a paso. Toda evidencia técnica va ÚNICAMENTE en el campo `- **Historial:**` de la Bitácora para la auditoría interna. Al Capitán solo le interesa: qué se va a hacer, cómo se va a hacer, la lista de tickets tildados y el resultado final.
 
 ## 8. Eficiencia y Concisión (Anti-Sobrecumplimiento)
 *   **REGLA DE ORO:** Haz única y exclusivamente lo que dicta el ticket. Está TOTALMENTE PROHIBIDO sobrecumplir, hacer suposiciones o generar archivos/artefactos adicionales que no se te pidieron explícitamente en la `Tarea` o `Directrices`. 

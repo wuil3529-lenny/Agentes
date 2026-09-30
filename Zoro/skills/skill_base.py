@@ -72,7 +72,7 @@ def _msg_hard_stop(ruta: str) -> str:
     return (
         f"HARD STOP — Escritura bloqueada en ruta no autorizada: {{ruta}}\n"
         f"Rutas de escritura permitidas para {_AGENTE}:\n"
-        f"  /app/{_AGENTE}/{"proyectos"}/  → entregables de trabajo\n"
+        f"  /app/{_AGENTE}/proyectos/  → entregables de trabajo\n"
         f"  /app/Archivos_temporales/             → archivos temporales (usa prefijo {_AGENTE.lower()}_)\n"
         f"  /app/Bitacora.md                      → actualizar estado de tickets\n"
         f"  /app/Cerebro.md                       → SOLO via tool_guardar_solucion\n"
@@ -113,7 +113,7 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
             enlace_fuerte = None
             if "/Archivos_temporales/" in ruta_str or ruta_str.endswith("/Archivos_temporales"):
                 enlace_fuerte = "[[archivos_temporales]]"
-            elif f"/{_AGENTE}/{"proyectos"}/" in ruta_str or ruta_str.endswith(f"/{_AGENTE}/{"proyectos"}"):
+            elif f"/{_AGENTE}/proyectos/" in ruta_str or ruta_str.endswith(f"/{_AGENTE}/proyectos"):
                 enlace_fuerte = "[[proyectos]]"
             elif "/memoria/" in ruta_str or ruta_str.endswith("/memoria"):
                 enlace_fuerte = "[[memoria]]"
@@ -185,10 +185,10 @@ def ejecutar_comando(comando: str, directorio: str) -> str:
         if any(c in comando for c in caracteres_peligrosos):
             return json.dumps({{"status": "error", "mensaje": "Violacion de seguridad: inyeccion de comandos detectada."}})
 
-        resultado = subprocess.run(comando, shell=True, cwd=directorio, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
+        resultado = subprocess.run(comando, shell=True, cwd=directorio, capture_output=True, text=True, timeout=300, encoding="utf-8", errors="replace")
         return json.dumps({{"status": "success" if resultado.returncode == 0 else "warning", "codigo_retorno": resultado.returncode, "stdout": resultado.stdout[:3000], "stderr": resultado.stderr[:1500]}})
     except subprocess.TimeoutExpired:
-        return json.dumps({{"status": "error", "mensaje": "Timeout: el comando supero los 120 segundos."}})
+        return json.dumps({{"status": "error", "mensaje": "Timeout: el comando supero los 300 segundos. NO reintentes el mismo comando. Divide la tarea en pasos mas pequenos, usa flags de no-interaccion (--yes, -y, --non-interactive) o ejecuta en segundo plano con nohup y verifica el log despues."}})
     except Exception as e:
         return json.dumps({{"status": "error", "mensaje": str(e)}})
 

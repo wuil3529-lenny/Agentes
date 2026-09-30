@@ -271,15 +271,5 @@ Leer, escribir y organizar archivos del sistema de forma controlada como parte d
 * **Descripción:** Gestión completa de repositorios Git: init, status, add, commit, log, branch, checkout, clone, pull, push y diff. Permite a Zoro versionar proyectos de software de forma autónoma.
 * **Ruta:** `C:\Users\admin\Documents\Agentes\Zoro\skill_git.py`
 
-
----
-**Pertenece a:** "Perfil_Zoro"
-
-
-
----
-
-
-
 ---
 **Pertenece a:** [[proyectos]]

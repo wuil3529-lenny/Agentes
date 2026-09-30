@@ -14,4 +14,4 @@
 - [Condición 3: Ej. Si la API no responde tras 3 intentos, devolver error controlado].
 
 ---
-**Conexiones:** [[Perfil_Luffy]]
+**Pertenece a:** [[Perfil_Luffy]]

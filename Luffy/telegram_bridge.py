@@ -3,23 +3,46 @@ import sys
 import time
 import requests
 
-def enviar_mensaje_telegram(mensaje: str) -> str:
+def enviar_mensaje_telegram(mensaje: str, remitente: str = "Luffy") -> str:
     """
-    Envía un mensaje a través de Telegram usando el bot.
+    Envía un mensaje a través de Telegram usando el bot y asegura el espejo en la consola.
     """
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-    if not token or not chat_id:
-        return "Error: TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID no están configurados en el entorno."
-    
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {"chat_id": chat_id, "text": mensaje}
+    res = "Telegram no configurado."
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {"chat_id": chat_id, "text": mensaje}
+        try:
+            r = requests.post(url, json=payload, timeout=10)
+            r.raise_for_status()
+            res = "Mensaje enviado con éxito."
+        except Exception as e:
+            res = f"Error enviando mensaje por Telegram: {e}"
+
+    # Espejo automático hacia la consola del Dashboard
     try:
-        r = requests.post(url, json=payload, timeout=10)
-        r.raise_for_status()
-        return "Mensaje enviado con éxito."
-    except Exception as e:
-        return f"Error enviando mensaje por Telegram: {e}"
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from memory import publicar_mensaje, _cargar_canal
+        canal = _cargar_canal("usuario")
+        mensajes = canal.get("mensajes", [])
+        ya_existe = False
+        if mensajes:
+            ult = mensajes[-1]
+            if ult.get("de") == remitente and ult.get("contenido", {}).get("texto") == mensaje:
+                ya_existe = True
+        if not ya_existe:
+            publicar_mensaje(
+                de=remitente,
+                para="usuario",
+                tipo="mensaje_dashboard",
+                contenido={"texto": mensaje},
+                canal_tipo="usuario"
+            )
+    except Exception as e_pub:
+        print(f"[telegram_bridge] Error espejeando mensaje a consola: {e_pub}")
+
+    return res
 
 def daemon_mode():
     """

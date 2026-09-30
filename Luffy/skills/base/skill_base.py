@@ -16,11 +16,12 @@ Documentación en Obsidian: agentes/Zoro_Skills.md
 import os
 import sys
 from pathlib import Path
-_APP_ROOT = Path(__file__).resolve().parents[2]
+
+_CURRENT = Path(__file__).resolve()
+_APP_ROOT = _CURRENT.parents[3] if len(_CURRENT.parents) > 3 and _CURRENT.parents[2].name.lower() == "luffy" else _CURRENT.parents[2]
 
 import json
 import subprocess
-from pathlib import Path
 from langchain_core.tools import tool
 
 
@@ -48,7 +49,12 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
         str(_APP_ROOT / "Luffy" / "skills").replace('\\', '/'),
         str(_APP_ROOT / "Archivos_temporales").replace('\\', '/'),
         str(_APP_ROOT / "memoria").replace('\\', '/'),
+        str(_APP_ROOT / "Bitacora.md").replace('\\', '/'),
         str(_APP_ROOT).replace('\\', '/'),  # Permite Bitacora.md y otros archivos raiz
+        "/app/Bitacora.md",
+        "/app/Archivos_temporales",
+        "/app/memoria",
+        "/app",
     ]
     
     es_valida = any(ruta_str.startswith(rp) for rp in rutas_permitidas)
@@ -189,7 +195,7 @@ def ejecutar_comando(command: str, directorio: str) -> str:
             return json.dumps({"status": "error", "mensaje": "FIREWALL: Ejecución denegada. Comando destructivo detectado."})
 
         # 2. Lista Blanca de comandos base permitidos
-        binarios_permitidos = ["npm ", "npx ", "pip ", "python ", "python3 ", "node ", "flutter ", "git ", "docker ", "ls", "dir", "cd ", "echo ", "cat ", "type ", "mkdir ", "touch "]
+        binarios_permitidos = ["npm ", "npx ", "pip ", "python ", "python3 ", "node ", "flutter ", "git ", "docker ", "ls", "dir", "cd ", "echo ", "cat ", "type ", "mkdir ", "touch ", "grep ", "find ", "findstr ", "rg "]
         base_cmd = command.strip().split(" ")[0] + " "
         if base_cmd.strip() not in [b.strip() for b in binarios_permitidos] and not any(command.strip().startswith(b) for b in binarios_permitidos):
             return json.dumps({"status": "error", "mensaje": f"FIREWALL: Binario '{base_cmd.strip()}' no está en la lista blanca de permitidos."})

@@ -18,6 +18,14 @@ import sys
 from pathlib import Path
 _APP_ROOT = Path(__file__).resolve().parents[1]
 
+# SEC-005: Carga explícita de variables de entorno desde /app/.env.
+# Las API Keys (DEEPSEEK_API_KEY, etc.) se leen con os.getenv(); NUNCA en texto plano.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=_APP_ROOT / ".env")
+except Exception:
+    pass
+
 import json
 import re
 from datetime import datetime
@@ -109,6 +117,7 @@ NOMBRE_AGENTE = "Sanji"
 
 # ─── Configuración DeepSeek ─────────────────────────────────────────────────────
 _DEFAULT_PROV    = os.getenv("DEFAULT_PROVIDER", "deepseek").lower()
+# SEC-005: API Key leída EXCLUSIVAMENTE de variable de entorno (sin valores en texto plano).
 _NIM_API_KEY     = os.getenv(f"{_DEFAULT_PROV.upper()}_API_KEY", "")
 _NIM_BASE_URL    = "https://api.deepseek.com" if _DEFAULT_PROV == "deepseek" else None
 _NIM_MODEL_1     = os.getenv("DEFAULT_MODEL", "deepseek-chat")
@@ -325,6 +334,15 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
             )
         except Exception as e:
             return json.dumps({"status": "error", "mensaje": f"Error llamando al LLM: {str(e)}"})
+
+        if hasattr(response, "usage") and response.usage:
+            try:
+                from costos_tracker import registrar_consumo_tokens
+                in_t = getattr(response.usage, "prompt_tokens", 0) or 0
+                out_t = getattr(response.usage, "completion_tokens", 0) or 0
+                registrar_consumo_tokens("sanji", in_t, out_t, _NIM_MODEL_1)
+            except Exception:
+                pass
 
         msg = response.choices[0].message
 

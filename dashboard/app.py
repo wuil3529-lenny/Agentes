@@ -215,7 +215,13 @@ def cargar_usuarios() -> List[dict]:
 
     # Inicializar con el usuario administrador por defecto desde .env
     env_user = os.getenv("CONSOLE_AUTH_USER", "").strip() or "Wuilfredo"
-    env_pass = os.getenv("CONSOLE_AUTH_PASSWORD", "").strip() or "Igris3529#"
+    env_pass = os.getenv("CONSOLE_AUTH_PASSWORD", "").strip()
+    if not env_pass:
+        raise RuntimeError(
+            "SEC-015 FAIL-CLOSED: CONSOLE_AUTH_PASSWORD no esta definida o esta vacia. "
+            "La consola se niega a arrancar sin una contrasena de administrador explicita. "
+            "Defina CONSOLE_AUTH_PASSWORD en el archivo .env antes de iniciar el servicio."
+        )
     env_avatar = os.getenv("CONSOLE_AUTH_AVATAR", "/static/avatars/bot_dark.jpg").strip()
 
     salt = bcrypt.gensalt(rounds=12)
@@ -586,6 +592,215 @@ async def set_modo(cfg: ModeConfig):
     modo_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     return {"status": "ok", "modo": cfg.modo}
 
+# -----------------------------------------------------------------------------
+# GESTIÓN DE SESIONES Y CANALES AISLADOS DE CONVERSACIÓN
+# -----------------------------------------------------------------------------
+CANALES_DIR = AGENTES_DIR / "memoria" / "canales"
+CANALES_DIR.mkdir(parents=True, exist_ok=True)
+SESIONES_INDEX_PATH = CANALES_DIR / "sesiones_index.json"
+
+def cargar_sesiones_index():
+    try:
+        if not SESIONES_INDEX_PATH.exists():
+            sesion_id = f"sesion_{int(time.time())}"
+            mensajes_existentes = []
+            canal_u = BASE_DIR / "canal_usuario.json"
+            if canal_u.exists():
+                try:
+                    raw = json.loads(canal_u.read_text(encoding="utf-8"))
+                    mensajes_existentes = raw.get("mensajes", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+                except Exception:
+                    mensajes_existentes = []
+            
+            archivo_canal = CANALES_DIR / f"{sesion_id}.json"
+            archivo_canal.write_text(json.dumps({"mensajes": mensajes_existentes}, indent=2, ensure_ascii=False), encoding="utf-8")
+
+            primer_titulo = "Conversación Principal"
+            if mensajes_existentes:
+                for m in mensajes_existentes:
+                    txt = m.get("contenido", {}).get("texto", "") if isinstance(m.get("contenido"), dict) else str(m.get("contenido", ""))
+                    if txt.strip():
+                        clean_t = txt.strip().replace("\n", " ")
+                        primer_titulo = (clean_t[:28] + "...") if len(clean_t) > 28 else clean_t
+                        break
+
+            indice = [{
+                "id": sesion_id,
+                "titulo": primer_titulo,
+                "creado": datetime.now().isoformat(),
+                "actualizado": datetime.now().isoformat(),
+                "total_mensajes": len(mensajes_existentes),
+                "activo": True
+            }]
+            SESIONES_INDEX_PATH.write_text(json.dumps(indice, indent=2, ensure_ascii=False), encoding="utf-8")
+            return indice
+
+        sesiones = json.loads(SESIONES_INDEX_PATH.read_text(encoding="utf-8"))
+        ancladas = [s for s in sesiones if s.get("anclado")]
+        no_ancladas = [s for s in sesiones if not s.get("anclado")]
+        return ancladas + no_ancladas
+    except Exception as e:
+        print(f"Error cargando sesiones_index: {e}")
+        return []
+
+def guardar_sesiones_index(sesiones):
+    try:
+        SESIONES_INDEX_PATH.write_text(json.dumps(sesiones, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print(f"Error guardando sesiones_index: {e}")
+
+def sincronizar_canal_activo_con_disco():
+    try:
+        sesiones = cargar_sesiones_index()
+        activa = next((s for s in sesiones if s.get("activo")), None)
+        if activa:
+            canal_u = BASE_DIR / "canal_usuario.json"
+            if canal_u.exists():
+                raw = json.loads(canal_u.read_text(encoding="utf-8"))
+                msgs = raw.get("mensajes", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+                (CANALES_DIR / f"{activa['id']}.json").write_text(json.dumps({"mensajes": msgs}, indent=2, ensure_ascii=False), encoding="utf-8")
+                activa["total_mensajes"] = len(msgs)
+                guardar_sesiones_index(sesiones)
+    except Exception:
+        pass
+
+@app.get("/api/chat/sesiones")
+async def api_listar_sesiones_chat():
+    sincronizar_canal_activo_con_disco()
+    return {"status": "ok", "sesiones": cargar_sesiones_index()}
+
+@app.post("/api/chat/sesiones/nueva")
+async def api_nueva_sesion_chat():
+    sincronizar_canal_activo_con_disco()
+    sesiones = cargar_sesiones_index()
+    for s in sesiones:
+        s["activo"] = False
+    
+    nueva_id = f"sesion_{int(time.time())}"
+    nueva = {
+        "id": nueva_id,
+        "titulo": f"Chat #{len(sesiones) + 1}",
+        "anclado": False,
+        "creado": datetime.now().isoformat(),
+        "actualizado": datetime.now().isoformat(),
+        "total_mensajes": 0,
+        "activo": True
+    }
+    ancladas = [s for s in sesiones if s.get("anclado")]
+    no_ancladas = [s for s in sesiones if not s.get("anclado")]
+    sesiones = ancladas + [nueva] + no_ancladas
+    guardar_sesiones_index(sesiones)
+    
+    (CANALES_DIR / f"{nueva_id}.json").write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+    (BASE_DIR / "canal_usuario.json").write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+    
+    return {"status": "ok", "sesion": nueva, "sesiones": sesiones}
+
+@app.post("/api/chat/sesiones/{sesion_id}/activar")
+async def api_activar_sesion_chat(sesion_id: str):
+    sincronizar_canal_activo_con_disco()
+    sesiones = cargar_sesiones_index()
+    target = next((s for s in sesiones if s.get("id") == sesion_id), None)
+    if not target:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Sesión no encontrada"})
+    
+    for s in sesiones:
+        s["activo"] = (s.get("id") == sesion_id)
+    guardar_sesiones_index(sesiones)
+    
+    archivo = CANALES_DIR / f"{sesion_id}.json"
+    mensajes_cargados = []
+    if archivo.exists():
+        try:
+            raw = json.loads(archivo.read_text(encoding="utf-8"))
+            mensajes_cargados = raw.get("mensajes", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+        except Exception:
+            mensajes_cargados = []
+    
+    (BASE_DIR / "canal_usuario.json").write_text(json.dumps({"mensajes": mensajes_cargados}, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"status": "ok", "activa": target, "sesiones": sesiones, "mensajes": mensajes_cargados}
+
+class RenombrarSesionPayload(BaseModel):
+    titulo: str
+
+@app.post("/api/chat/sesiones/{sesion_id}/renombrar")
+async def api_renombrar_sesion_chat(sesion_id: str, payload: RenombrarSesionPayload):
+    sesiones = cargar_sesiones_index()
+    target = next((s for s in sesiones if s.get("id") == sesion_id), None)
+    if not target:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Sesión no encontrada"})
+    nuevo_titulo = payload.titulo.strip()
+    if not nuevo_titulo:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "El título no puede estar vacío"})
+    target["titulo"] = nuevo_titulo
+    target["actualizado"] = datetime.now().isoformat()
+    guardar_sesiones_index(sesiones)
+    return {"status": "ok", "sesion": target, "sesiones": sesiones}
+
+@app.post("/api/chat/sesiones/{sesion_id}/anclar")
+async def api_anclar_sesion_chat(sesion_id: str):
+    sesiones = cargar_sesiones_index()
+    target = next((s for s in sesiones if s.get("id") == sesion_id), None)
+    if not target:
+        return JSONResponse(status_code=404, content={"status": "error", "message": "Sesión no encontrada"})
+    target["anclado"] = not target.get("anclado", False)
+    target["actualizado"] = datetime.now().isoformat()
+    ancladas = [s for s in sesiones if s.get("anclado")]
+    no_ancladas = [s for s in sesiones if not s.get("anclado")]
+    sesiones = ancladas + no_ancladas
+    guardar_sesiones_index(sesiones)
+    return {"status": "ok", "anclado": target["anclado"], "sesiones": sesiones}
+
+@app.delete("/api/chat/sesiones/{sesion_id}")
+async def api_eliminar_sesion_chat(sesion_id: str):
+    sesiones = cargar_sesiones_index()
+    era_activa = False
+    nuevas_sesiones = []
+    for s in sesiones:
+        if s.get("id") == sesion_id:
+            era_activa = s.get("activo", False)
+        else:
+            nuevas_sesiones.append(s)
+    
+    archivo = CANALES_DIR / f"{sesion_id}.json"
+    if archivo.exists():
+        try:
+            archivo.unlink()
+        except Exception:
+            pass
+    
+    if not nuevas_sesiones:
+        nueva_id = f"sesion_{int(time.time())}"
+        nuevas_sesiones = [{
+            "id": nueva_id,
+            "titulo": "Conversación Principal",
+            "anclado": False,
+            "creado": datetime.now().isoformat(),
+            "actualizado": datetime.now().isoformat(),
+            "total_mensajes": 0,
+            "activo": True
+        }]
+        (CANALES_DIR / f"{nueva_id}.json").write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+        (BASE_DIR / "canal_usuario.json").write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+    elif era_activa:
+        nuevas_sesiones[0]["activo"] = True
+        act_id = nuevas_sesiones[0]["id"]
+        archivo_act = CANALES_DIR / f"{act_id}.json"
+        msgs = []
+        if archivo_act.exists():
+            try:
+                raw = json.loads(archivo_act.read_text(encoding="utf-8"))
+                msgs = raw.get("mensajes", []) if isinstance(raw, dict) else []
+            except Exception:
+                msgs = []
+        (BASE_DIR / "canal_usuario.json").write_text(json.dumps({"mensajes": msgs}, indent=2, ensure_ascii=False), encoding="utf-8")
+    
+    ancladas = [s for s in nuevas_sesiones if s.get("anclado")]
+    no_ancladas = [s for s in nuevas_sesiones if not s.get("anclado")]
+    nuevas_sesiones = ancladas + no_ancladas
+    guardar_sesiones_index(nuevas_sesiones)
+    return {"status": "ok", "sesiones": nuevas_sesiones}
+
 @app.post("/api/chat")
 async def send_chat(msg: ChatMessage):
     import datetime
@@ -634,6 +849,21 @@ async def send_chat(msg: ChatMessage):
     data_to_save = {"mensajes": mensajes}
     with open(canal_path, "w", encoding="utf-8") as f:
         json.dump(data_to_save, f, indent=2, ensure_ascii=False)
+        
+    # Guardar en la sesión activa y auto-titular si es nueva
+    try:
+        sesiones = cargar_sesiones_index()
+        activa = next((s for s in sesiones if s.get("activo")), None)
+        if activa:
+            if activa.get("titulo", "").startswith("Chat #") or activa.get("total_mensajes", 0) <= 1:
+                clean_text = msg.texto.strip().replace("\n", " ")
+                activa["titulo"] = (clean_text[:28] + "...") if len(clean_text) > 28 else clean_text
+            activa["total_mensajes"] = len(mensajes)
+            activa["actualizado"] = datetime.datetime.now().isoformat()
+            guardar_sesiones_index(sesiones)
+            (CANALES_DIR / f"{activa['id']}.json").write_text(json.dumps({"mensajes": mensajes}, indent=2, ensure_ascii=False), encoding="utf-8")
+    except Exception as e_s:
+        print(f"Error sincronizando sesion activa en send_chat: {e_s}")
         
     return {"status": "ok", "mensaje": nuevo_msg}
 
@@ -2115,6 +2345,12 @@ def parse_bitacora(ruta):
                 val = re.split(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
                 criterios = limpiar_formato_md(val)
         
+        # Si el responsable dice Luffy pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
+        if t_id and responsable.lower() == "luffy":
+            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI)\b', t_id, re.IGNORECASE)
+            if m_ag:
+                responsable = m_ag.group(1).capitalize()
+
         tareas.append({
             "id": t_id,
             "titulo": titulo,
@@ -2165,6 +2401,12 @@ def parse_tickets_md(ruta):
         if not t_id and not desc and not tarea_especifica:
             continue
 
+        # Si el responsable dice Luffy pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
+        if t_id and responsable.lower() == "luffy":
+            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI)\b', t_id, re.IGNORECASE)
+            if m_ag:
+                responsable = m_ag.group(1).capitalize()
+
         tickets.append({
             "id": t_id,
             "titulo": titulo,
@@ -2210,7 +2452,8 @@ async def websocket_endpoint(websocket: WebSocket):
             programadas_path = Path(__file__).resolve().parent / "tareas_programadas.json"
             tareas_programadas = leer_archivo_json(programadas_path) if programadas_path.exists() else {"diarias":[], "semanales":[], "mensuales":[]}
             
-            # 3. Chat de usuario
+            # 3. Chat de usuario y sesiones
+            sincronizar_canal_activo_con_disco()
             canal_path = BASE_DIR / "canal_usuario.json"
             chat_raw = leer_archivo_json(canal_path)
             if isinstance(chat_raw, dict):
@@ -2219,6 +2462,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 chat = chat_raw
             else:
                 chat = []
+            sesiones_chat = cargar_sesiones_index()
             
             # 4. Logs en vivo de la tripulacion
             logs = obtener_ultimos_logs()
@@ -2281,6 +2525,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "tickets_archivados": tickets_archivados,
                 "tareas_programadas": tareas_programadas,
                 "chat": chat,
+                "sesiones_chat": sesiones_chat,
                 "logs": logs,
                 "costos": costos,
                 "estado_tripulacion": estado_tripulacion,

@@ -14,8 +14,4 @@ Los agentes de Antigravity operan localmente o usando las credenciales inyectada
 La exposición de tokens en código o el uso de shells sin sanitización son automáticamente bloqueados y reportados al Capitán.
 
 ---
-
-
-
----
 **Pertenece a:** [[Perfil_Luffy]]

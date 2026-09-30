@@ -51,11 +51,22 @@ def limpiar_pizarra_luffy(id_ticket: str) -> str:
                 
                 desc = "Ticket archivado: " + id_ticket
                 match_obj = re.search(r'\*\*Objetivo:\*\*\s*(.+)', ticket_borrado_contenido)
+                if not match_obj:
+                    match_obj = re.search(r'\*\*Tarea:\*\*\s*(.+)', ticket_borrado_contenido)
                 if match_obj:
                     desc = match_obj.group(1).strip()
                     
-                tool_guardar_solucion(id_ticket, desc, ticket_borrado_contenido)
-                rag_msg = "vectorizado en ChromaDB"
+                # Extraer Evidencia_Fisica si existe
+                ev_match = re.search(r'(?i)-\s*\*\*Evidencia_Fisica:\*\*\s*([^\n]+)', ticket_borrado_contenido)
+                ev_val = re.sub(r'\s*\([^)]*\)', '', ev_match.group(1)).strip('`"\' ') if ev_match else "N/A"
+                    
+                tool_guardar_solucion(
+                    ticket_id=id_ticket,
+                    descripcion=desc,
+                    contenido=ticket_borrado_contenido,
+                    evidencia_fisica=ev_val
+                )
+                rag_msg = "vectorizado en ChromaDB con Recibo de Misión"
             except Exception as e_rag:
                 print(f"[Warning] Error vectorizando ticket {id_ticket}: {e_rag}")
                 rag_msg = "ChromaDB no disponible (vectorizacion omitida)"

@@ -111,10 +111,5 @@
 - **Ejemplo de Uso:**
   `generar_multimedia_ia(prompt_estructurado="A sleek futuristic analytics dashboard UI on a dark glass monitor, neon blue and violet accents, isometric angle, highly detailed, 16:9 aspect ratio", modelo_preferido="Ideogram", ruta_destino="C:\\Users\\admin\\Documents\\Agentes\\Nami\\informes\\dashboard_mockup_ia.png")`
 
-
----
-
-
-
 ---
 **Pertenece a:** [[informes]]

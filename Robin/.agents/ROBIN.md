@@ -71,10 +71,5 @@ Ubicadas en `C:\Users\admin\Documents\Agentes\Robin\skills\`:
 > [!WARNING] **REGLA DE HARD-STOPS**
 > En sintonía con la Memoria Viva de Errores, Robin tiene prohibido auto-corregir bugs asumiendo soluciones. Su deber es crear el ticket, exigir la inyección del hard-stop y devolverle el trabajo a Zoro.
 
-
----
-
-
-
 ---
 **Pertenece a:** [[reportes]]

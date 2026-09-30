@@ -3,4 +3,4 @@
 Habilidad del sistema Antigravity: crear_herramienta_tripulacion para Luffy.
 
 ---
-**Conexiones:** [[Perfil_Luffy]]
+**Pertenece a:** [[Perfil_Luffy]]

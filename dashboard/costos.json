@@ -1,21 +1,21 @@
 {
   "mes_activo": "2026-09",
-  "tokens": 0,
-  "costo": 0.0,
+  "tokens": 2219241,
+  "costo": 0.321716,
   "bloqueado_por_presupuesto": false,
-  "presupuesto_maximo": 100.0,
+  "presupuesto_maximo": 5.0,
   "agentes": {
     "luffy": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 1735305,
+      "costo": 0.252896
     },
     "zoro": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 25748,
+      "costo": 0.003752
     },
     "sanji": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 458188,
+      "costo": 0.065068
     },
     "robin": {
       "tokens": 0,

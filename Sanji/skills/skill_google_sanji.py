@@ -267,6 +267,10 @@ def keep_conectar(email: str = None, app_password: str = None):
     except ImportError:
         pass
 
+    # SEC-004: credenciales de Google Keep leidas EXCLUSIVAMENTE de variables de entorno.
+    # Nunca hardcodear valores aqui. Configurar en /app/.env:
+    #   KEEP_EMAIL=tu_correo@gmail.com
+    #   KEEP_APP_PASSWORD=xxxx xxxx xxxx xxxx
     email = email or os.getenv("KEEP_EMAIL")
     app_password = app_password or os.getenv("KEEP_APP_PASSWORD")
 

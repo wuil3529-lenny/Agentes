@@ -21,6 +21,5 @@ Analizar un documento de contexto (`CTX-[ID].md`) o las instrucciones directas d
 1. **Validación de Directorio:** El archivo solo puede ser creado dentro del directorio oficial `Agentes/proyectos/` (o su equivalente autorizado).
 2. **Inmutabilidad:** Si el archivo de plan ya existe, la herramienta debe negarse a sobrescribirlo por completo, sugiriendo en su lugar la actualización manual de la Pizarra o la creación de un nuevo plan versionado (ej. `PLAN-[ID]-v2.md`).
 
-
 ---
 **Pertenece a:** [[Perfil_Luffy]]

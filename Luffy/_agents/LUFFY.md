@@ -358,10 +358,5 @@ python main.py
 * **Descripción:** El perfil técnico de Wuilfredo fue agregado a la memoria compartida. Los agentes deben consultar este archivo para entender sus capacidades, trayectoria y proyectos.
 * **Ruta:** `C:\Users\admin\Documents\Agentes\memoria_compartida\perfiles\Perfil de wuil.md`
 
-
----
-
-
-
 ---
 **Pertenece a:** [[Perfil_Luffy]]

@@ -299,17 +299,36 @@ def auditar_evidencia(contenido_dict: dict, agente_nombre: str, hora_inicio_str:
     
     # Verificar cada ruta
     rutas_validas = []
-    for evidencia_path in rutas_evidencia:
+    rutas_limpias = []
+    for evidencia_item in rutas_evidencia:
+        import re
+        evidencia_path = str(evidencia_item).strip()
+        # 1. Si viene como markdown link [label](path), extraer sólo el path
+        m_md = re.search(r'\[([^\]]+)\]\(([^)]+)\)', evidencia_path)
+        if m_md:
+            evidencia_path = m_md.group(2)
+        # 2. Descartar cualquier tamaño o nota entre paréntesis (ej: "(4464 bytes)", "(4.2 KB)", "(creado)")
+        evidencia_path = re.sub(r'\s*\([^)]*\)', '', evidencia_path)
+        # 3. Limpiar comillas, backticks y espacios
+        evidencia_path = evidencia_path.strip('`"\' \t\r\n')
+        
+        if not evidencia_path:
+            continue
+            
+        rutas_limpias.append(evidencia_path)
+        
         if evidencia_path.startswith("/app/"):
             evidencia_path = str(_APP_ROOT / evidencia_path.replace("/app/", "", 1))
         
-        # Verificar existencia física (búsqueda en rutas relativas comunes)
+        # Verificar existencia física (búsqueda directa y en rutas relativas comunes)
         if not os.path.exists(evidencia_path):
             candidatos = [
+                str(_APP_ROOT / evidencia_path),
                 str(_APP_ROOT / agente_nombre / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "Nami" / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "recursos_externos" / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "Robin" / "reportes" / os.path.basename(evidencia_path)),
+                str(_APP_ROOT / "Robin" / "informes" / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "Archivos_temporales" / os.path.basename(evidencia_path)),
             ]
             for cand in candidatos:
@@ -328,6 +347,10 @@ def auditar_evidencia(contenido_dict: dict, agente_nombre: str, hora_inicio_str:
         
         if os.path.exists(evidencia_path):
             rutas_validas.append(evidencia_path)
+    
+    # Si encontramos rutas válidas, actualizar Evidencia_Fisica en contenido_dict con la ruta limpia
+    if rutas_validas and rutas_limpias:
+        contenido_dict["Evidencia_Fisica"] = ", ".join(rutas_limpias)
     
     if not rutas_validas:
         motivo = (
@@ -579,6 +602,24 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 # 1. Buscar si hay algún ticket para Luffy
                 for t in tickets:
                     if t['responsable'].lower() == "luffy" and t['estado'] in ['PENDIENTE', 'ESPERANDO_CORRECCION', 'PENDIENTE_REVISION', 'NUEVO', 'COMPLETADO']:
+                        # [HARD-STOP LUFFY]: Evitar bucles infinitos en tickets esperando corrección
+                        import re
+                        rechazos = len(re.findall(r"\[Auditor[^\]]*\]:\s*RECHAZADO", t.get("historial", "")))
+                        if t['estado'] == 'ESPERANDO_CORRECCION' and rechazos >= 3:
+                            print(f"[Luffy Listener] 🛑 HARD-STOP ACTIVO: {t.get('id_bloque')} ya tiene {rechazos} rechazos del Auditor. Abortando para evitar bucle.")
+                            try:
+                                texto_b = BITACORA_MD.read_text(encoding="utf-8")
+                                bloque_orig = t.get('bloque_original')
+                                bloque_abort = re.sub(r'(?i)(-?\s*\*\*Estado:\*\*\s*).*', r'\g<1>ABORTADO', bloque_orig)
+                                bloque_abort += f"\n  - [Sistema - HardStop]: Tarea abortada automáticamente tras {rechazos} rechazos consecutivos del Auditor."
+                                texto_b = texto_b.replace(bloque_orig, bloque_abort)
+                                BITACORA_MD.write_text(texto_b, encoding="utf-8")
+                                sys.path.append(str(_APP_ROOT / "Luffy"))
+                                from telegram_bridge import enviar_mensaje_telegram
+                                enviar_mensaje_telegram(f"🛑 [HARD-STOP] Ticket {t.get('id_bloque')} ABORTADO tras {rechazos} rechazos del Auditor.")
+                            except Exception as e_abort:
+                                print(f"[Luffy Listener] Error al abortar por hard-stop: {e_abort}")
+                            continue
                         ticket_activo = t
                         break
                         
@@ -754,16 +795,13 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                 texto_piezas.append(t)
                         texto_completo = "\n".join(texto_piezas)
                         
-                        historial_reciente = ""
-                        for m in canal_u.get("mensajes", [])[-8:]:
-                            emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
-                            c = m.get("contenido", {})
-                            t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
-                            historial_reciente += f"{emisor}: {t}\n"
+                        from memory import construir_contexto_canal_usuario
+                        # Presupuesto de 3,500 tokens con compresión rodante
+                        historial_reciente = construir_contexto_canal_usuario(canal_u, max_tokens=3500)
 
                         if texto_completo:
                             texto_bitacora_actual = BITACORA_MD.read_text(encoding="utf-8") if BITACORA_MD.exists() else "La pizarra está vacía."
-                            estado_inicial = {"messages": [HumanMessage(content=f"=== HISTORIAL DE CONVERSACIÓN RECIENTE ===\n{historial_reciente}\n====================================\n\nHas recibido el siguiente mensaje NUEVO del usuario:\n\n{texto_completo}\n\n=== ESTADO ACTUAL DE LA PIZARRA ===\n{texto_bitacora_actual}\n====================================\n\n[MODO ORQUESTADOR ACTIVO]: Tienes total libertad para utilizar todas tus herramientas.\nREGLA ANTI-DUPLICADOS: Si la tarea pedida YA EXISTE (mismo objetivo) y está PENDIENTE o EN_PROGRESO, NO CREES NINGÚN TICKET NUEVO, solo avisa al usuario.\nREGLA DE REFINAMIENTO (BLAST): Si la orden del usuario es muy vaga, ambigua o le falta precisión quirúrgica, ESTÁ ESTRICTAMENTE PROHIBIDO CREAR UN TICKET O INVENTAR REQUISITOS. Debes invocar inmediatamente la herramienta 'tool_validar_objetivo' para devolver el turno al usuario con una pregunta aclaratoria y detenerte.\nSi necesitas auditar algo, investigar un bug de los agentes, o buscar contexto adicional, USA TUS HERRAMIENTAS (leer_archivo, grep_search, tool_buscar_soluciones, etc.) antes de responder.\nSi debes delegar, genera un bloque Markdown que empiece obligatoriamente por `## TKT-` con Estado y Responsable al final.")]}
+                            estado_inicial = {"messages": [HumanMessage(content=f"{historial_reciente}\n====================================\n\nHas recibido el siguiente mensaje NUEVO del usuario:\n\n{texto_completo}\n\n=== ESTADO ACTUAL DE LA PIZARRA ===\n{texto_bitacora_actual}\n====================================\n\n[MODO ORQUESTADOR ACTIVO]: Tienes total libertad para utilizar todas tus herramientas.\nREGLA ANTI-DUPLICADOS: Si la tarea pedida YA EXISTE (mismo objetivo) y está PENDIENTE o EN_PROGRESO, NO CREES NINGÚN TICKET NUEVO, solo avisa al usuario.\nREGLA DE REFINAMIENTO (BLAST): Si la orden del usuario es muy vaga, ambigua o le falta precisión quirúrgica, ESTÁ ESTRICTAMENTE PROHIBIDO CREAR UN TICKET O INVENTAR REQUISITOS. Debes invocar inmediatamente la herramienta 'tool_validar_objetivo' para devolver el turno al usuario con una pregunta aclaratoria y detenerte.\nSi necesitas auditar algo, investigar un bug de los agentes, o buscar contexto adicional, USA TUS HERRAMIENTAS (leer_archivo, grep_search, tool_buscar_soluciones, etc.) antes de responder.\nSi debes delegar, genera un bloque Markdown que empiece obligatoriamente por `## TKT-` con Estado y Responsable al final.")]}
                         
                             print(f"[{agente_nombre} Listener] Llamando a funcion_nodo_luffy directamente en memoria...")
                             resultado = _ejecutar_nodo_con_reintento_429(funcion_nodo, estado_inicial, agente_nombre)
@@ -787,32 +825,57 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             # Obtener texto de respuesta para usuario
                             texto_resp = ""
                             if "datos_json" in resultado and isinstance(resultado["datos_json"], dict):
-                                texto_resp = resultado["datos_json"].get("contenido", {}).get("texto", "")
-                            if not texto_resp and respuesta_ai and not respuesta_ai.strip().startswith("{"):
-                                texto_resp = respuesta_ai
+                                dj = resultado["datos_json"]
+                                contenido_d = dj.get("contenido", {})
+                                if isinstance(contenido_d, dict):
+                                    texto_resp = contenido_d.get("texto", "")
+                                elif isinstance(contenido_d, str):
+                                    texto_resp = contenido_d
+                                
+                                if not texto_resp:
+                                    for k in ["mensaje", "respuesta", "texto", "evidencia_hallazgo", "nota"]:
+                                        val = dj.get(k)
+                                        if val and isinstance(val, str) and val.strip():
+                                            texto_resp = val.strip()
+                                            break
+
+                            # Si no vino en datos_json, revisar si respuesta_ai contiene JSON o texto plano
+                            if not texto_resp and respuesta_ai:
+                                r_clean = respuesta_ai.strip()
+                                if r_clean.startswith("{") and r_clean.endswith("}"):
+                                    try:
+                                        import json
+                                        parsed_r = json.loads(r_clean)
+                                        if isinstance(parsed_r, dict):
+                                            for k in ["mensaje", "respuesta", "texto", "evidencia_hallazgo", "nota"]:
+                                                val = parsed_r.get(k)
+                                                if val and isinstance(val, str) and val.strip():
+                                                    texto_resp = val.strip()
+                                                    break
+                                    except Exception:
+                                        pass
+                                if not texto_resp:
+                                    es_reporte_interno = (
+                                        r_clean.startswith("```") or 
+                                        r_clean.startswith("[") or
+                                        "-> Red" in r_clean or
+                                        "## TKT-" in r_clean
+                                    )
+                                    if not es_reporte_interno:
+                                        texto_resp = r_clean
                                 
                             if texto_resp:
                                 try:
                                     sys.path.append(str(_APP_ROOT / "Luffy"))
                                     from telegram_bridge import enviar_mensaje_telegram
+                                    # enviar_mensaje_telegram ya envía a Telegram y realiza el espejo a canal_usuario automáticamente
                                     enviar_mensaje_telegram(texto_resp)
-                                    print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram.")
+                                    print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram y espejeado a canal_usuario.")
                                 except Exception as e:
-                                    pass
-                                try:
-                                    from memory import publicar_mensaje
-                                    publicar_mensaje(
-                                        de="Luffy",
-                                        para="usuario",
-                                        tipo="mensaje_dashboard",
-                                        contenido={"texto": texto_resp},
-                                        canal_tipo="usuario"
-                                    )
-                                    print(f"[{agente_nombre} Listener] Mensaje publicado en canal_usuario para el Dashboard.")
-                                except Exception as e_pub:
-                                    print(f"[{agente_nombre} Listener] Error publicando en canal_usuario: {e_pub}")
+                                    print(f"[{agente_nombre} Listener] Error enviando mensaje al usuario: {e}")
 
-                        # Marcar SIEMPRE como leídos para evitar bucle
+                        # Marcar SIEMPRE como leídos para evitar bucle (recargando desde disco para no pisar respuestas)
+                        canal_u = _cargar_canal("usuario")
                         for m in canal_u.get("mensajes", []):
                             leidos = [str(x).lower() for x in m.get("leido_por", [])]
                             if "luffy" not in leidos:
@@ -1093,44 +1156,76 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                     nuevo_ticket = sub_tickets[0]
                     if nuevo_ticket['estado'] in ['COMPLETADO', 'PENDIENTE_REVISION', 'CERRADO']:
                         # ═══ PILAR 2: Contrato de Evidencia Obligatoria ═══
+                        rechazo_auditor = None
+                        
+                        # 1. Validar evidencia_hallazgo
                         evidencia_hallazgo = parsed_data.get("evidencia_hallazgo")
                         if not evidencia_hallazgo or (isinstance(evidencia_hallazgo, dict) and len(evidencia_hallazgo) == 0):
                             print(f"[Auditor] ⚠️  {agente_nombre}: Infracción de protocolo — campo 'evidencia_hallazgo' ausente o vacío.")
-                            import re
-                            texto_actualizado = re.sub(
-                                r'(?i)(-?\s*\*\*Estado:\*\*\s*)\w+',
-                                r'\g<1>ESPERANDO_CORRECCION',
-                                texto_actualizado,
-                                flags=re.IGNORECASE
-                            )
-                            texto_actualizado += f"\n  - [Auditor - {datetime.now().isoformat()[:19]}]: RECHAZADO: Campo 'evidencia_hallazgo' ausente o vacío. El agente debe analizar los datos antes de cerrar."
+                            rechazo_auditor = "Campo 'evidencia_hallazgo' ausente o vacío. El agente debe analizar los datos antes de cerrar."
                         else:
                             print(f"[Auditor] ✅  {agente_nombre}: Contrato de evidencia_hallazgo verificado.")
 
-                        # Auditar evidencia física
-                        hora_inicio_turno = leer_turno().get("hora_inicio")
-                        # El auditor espera el campo 'Evidencia_Fisica' en la raíz del dict
-                        if 'Evidencia_Fisica' not in parsed_data:
-                            parsed_data['Evidencia_Fisica'] = nuevo_ticket['evidencia']
-                        
-                        evidencia_ok, motivo_rechazo = auditar_evidencia(
-                            parsed_data, agente_nombre, hora_inicio_turno
-                        )
-                        if not evidencia_ok:
+                        # 2. Auditar evidencia física (si no falló ya evidencia_hallazgo)
+                        if not rechazo_auditor:
+                            hora_inicio_turno = leer_turno().get("hora_inicio")
+                            if 'Evidencia_Fisica' not in parsed_data:
+                                parsed_data['Evidencia_Fisica'] = nuevo_ticket['evidencia']
+                            
+                            evidencia_ok, motivo_rechazo = auditar_evidencia(
+                                parsed_data, agente_nombre, hora_inicio_turno
+                            )
+                            if not evidencia_ok:
+                                rechazo_auditor = motivo_rechazo
+
+                        if rechazo_auditor:
+                            import re
+                            historial_previo = ticket_activo.get("historial", "")
+                            rechazos_previos = len(re.findall(r"\[Auditor[^\]]*\]:\s*RECHAZADO", historial_previo))
+                            total_rechazos = rechazos_previos + 1
+
+                            if total_rechazos >= 3:
+                                print(f"[Auditor] 🛑 HARD-STOP ALCANZADO ({total_rechazos} rechazos) en {ticket_activo.get('id_bloque')}. Abortando ticket.")
+                                texto_actualizado = re.sub(
+                                    r'(?i)(-?\s*\*\*Estado:\*\*\s*)\w+',
+                                    r'\g<1>ABORTADO',
+                                    texto_actualizado,
+                                    flags=re.IGNORECASE
+                                )
+                                texto_actualizado += f"\n  - [Auditor - {datetime.now().isoformat()[:19]}]: 🛑 HARD-STOP: Límite de 3 rechazos alcanzado. Último motivo: {rechazo_auditor}. Ticket ABORTADO."
+                                try:
+                                    sys.path.append(str(_APP_ROOT / "Luffy"))
+                                    from telegram_bridge import enviar_mensaje_telegram
+                                    enviar_mensaje_telegram(f"🛑 [HARD-STOP] Ticket {ticket_activo.get('id_bloque')} de {agente_nombre} ABORTADO tras {total_rechazos} rechazos del Auditor.")
+                                except Exception as e_alerta:
+                                    print(f"[Auditor] Error enviando alerta: {e_alerta}")
+                            else:
+                                texto_actualizado = re.sub(
+                                    r'(?i)(-?\s*\*\*Estado:\*\*\s*)\w+',
+                                    r'\g<1>ESPERANDO_CORRECCION',
+                                    texto_actualizado,
+                                    flags=re.IGNORECASE
+                                )
+                                texto_actualizado += f"\n  - [Auditor - {datetime.now().isoformat()[:19]}]: RECHAZADO (Intento {total_rechazos}/3): {rechazo_auditor}"
+                        else:
+                            # Auditoría exitosa: limpiar anotaciones entre paréntesis en Evidencia_Fisica del markdown
                             import re
                             texto_actualizado = re.sub(
-                                r'(?i)(-?\s*\*\*Estado:\*\*\s*)\w+',
-                                r'\g<1>ESPERANDO_CORRECCION',
-                                texto_actualizado,
-                                flags=re.IGNORECASE
+                                r'(-?\s*\*\*Evidencia_Fisica:\*\*\s*)([^\n]+)',
+                                lambda m: m.group(1) + re.sub(r'\s*\([^)]*\)', '', m.group(2)).strip('`"\' '),
+                                texto_actualizado
                             )
-                            texto_actualizado += f"\n  - [Auditor - {datetime.now().isoformat()[:19]}]: RECHAZADO: {motivo_rechazo}"
-                        else:
-                            # Auditoría exitosa
                             if nuevo_ticket['estado'] in ['CERRADO', 'COMPLETADO']:
                                 # El archivado ahora es responsabilidad exclusiva de Luffy (vía tool_guardar_solucion o tool_limpiar_pizarra)
-                                # Se desactiva este autoguardado del orquestador para evitar ruido y archivos N/A.
                                 pass
+                            elif nuevo_ticket['estado'] == 'PENDIENTE_REVISION' and 'SYS-REPAIR' in str(nuevo_ticket.get('id_bloque', '')):
+                                texto_actualizado = re.sub(
+                                    r'(?i)(-?\s*\*\*Estado:\*\*\s*)PENDIENTE_REVISION',
+                                    r'\g<1>CERRADO',
+                                    texto_actualizado,
+                                    flags=re.IGNORECASE
+                                )
+                                print(f"[Auditor] 🛡️ Auto-reparación validada por el Escudo. Ticket promovido a CERRADO.")
 
                     # Enviar mensaje de telegram sin importar el estado del ticket
                     # Nota: msg_telegram_diferido no está definido en este flujo; se elimina el bloque muerto.
@@ -1213,10 +1308,13 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
 
         if agente_nombre == "Luffy":
             try:
+                ruta_skills = str(_APP_ROOT / "Luffy" / "skills")
+                if ruta_skills not in sys.path:
+                    sys.path.insert(0, ruta_skills)
                 from supervisor import skill_supervisor
                 skill_supervisor.ejecutar_supervision(api_key, "deepseek-chat", "deepseek-chat")
             except Exception as sup_e:
-                pass # Silencioso, no rompe el flujo
+                print(f"[Supervisor] ⚠️ Advertencia durante supervisión: {sup_e}")
         if ticket_efimero:
             print(f"[{agente_nombre} Listener] Tarea efímera terminada. Apagando (Kill).")
             break

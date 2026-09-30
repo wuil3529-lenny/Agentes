@@ -119,6 +119,13 @@ def crear_llm(temperatura: float = 0.2, agente: str = "LUFFY"):
         api_key = os.getenv("DEEPSEEK_API_KEY")
         base_url = "https://api.deepseek.com"
 
+    callbacks = []
+    try:
+        from costos_tracker import TokenTrackerCallbackHandler
+        callbacks.append(TokenTrackerCallbackHandler(agente=agente))
+    except Exception as e_cb:
+        pass
+
     return ChatOpenAI(
         model=model_name,
         api_key=api_key,
@@ -126,6 +133,7 @@ def crear_llm(temperatura: float = 0.2, agente: str = "LUFFY"):
         temperature=temperatura,
         max_tokens=4096,
         timeout=120.0,
+        callbacks=callbacks
     )
 
 
@@ -257,11 +265,34 @@ def construir_prompt_supervisor(
                 + "\nDELEGACIÓN POR LA PIZARRA (BITACORA.MD):\n"
                 + "1. Toda delegación a agentes (Zoro, Nami, Robin) SE HACE EXCLUSIVAMENTE modificando la Bitacora.md, creando o actualizando tickets.\n"
                 + "1b. DELEGACIÓN GRANULAR (REGLA ANTI-OLVIDO): Cuando una tarea incluye MÚLTIPLES subtareas para el mismo agente (ej. 'crea un archivo de saludo Y un archivo temporal'), DEBES crear UN TICKET SEPARADO por cada subtarea. NUNCA agrupes más de una acción concreta en un solo ticket. Cada ticket debe tener una única acción verificable. Además, cuando delegues la creación de archivos, SIEMPRE especifica el nombre exacto del archivo en el campo `Tarea`, incluyendo el prefijo del nombre del agente (ej. `nami_saludo.md`, `robin_temp.md`).\n"
-                + "2. NOTIFICACIÓN PROACTIVA (IMPORTANTE): Siempre que analices el fallo o éxito de un ticket, o que vayas a crear un nuevo ticket para delegar una tarea, DEBES enviar un mensaje usando explícitamente tu herramienta `tool_enviar_telegram`. DEBES comunicarte constantemente con el usuario mediante tu herramienta si necesitas clarificar o reportar algo.\n"
+                + "2. PROTOCOLO DE NOTIFICACIÓN EJECUTIVA AL CAPITÁN (TELEGRAM Y CONSOLA):\n"
+                + "Tus mensajes al Capitán mediante `tool_enviar_telegram` DEBEN ser concisos, ejecutivos y estructurados como una lista de seguimiento limpia:\n"
+                + "a) AL CREAR O DELEGAR TAREAS: Explica en 1 o 2 líneas qué se va a hacer y cómo se va a hacer, y lista los tickets creados:\n"
+                + "   Ejemplo:\n"
+                + "   Capitán, recibida la orden. Vamos a auditar y corregir las vulnerabilidades del sistema. Creé las siguientes tareas:\n"
+                + "   • [ ] Ticket 1: Escanear credenciales expuestas (Asignado a: Robin)\n"
+                + "   • [ ] Ticket 2: Migrar tokens a variables de entorno (Asignado a: Sanji)\n"
+                + "b) AL COMPLETAR O AVANZAR UN TICKET: Envía un reporte conciso tildando el ticket que acaba de completarse y mostrando los que restan:\n"
+                + "   Ejemplo:\n"
+                + "   Capitán, el Ticket 1 quedó listo. Queda pendiente el siguiente trabajo:\n"
+                + "   • [✓] Ticket 1: Escaneo de credenciales — Listo\n"
+                + "   • [ ] Ticket 2: Migración de tokens (Asignado a: Sanji) — En proceso\n"
+                + "c) AL FINALIZAR TODA LA MISIÓN: Presenta el resultado final concreto con todos los tickets tildados:\n"
+                + "   Ejemplo:\n"
+                + "   Capitán, misión completada con éxito.\n"
+                + "   • [✓] Ticket 1: Escaneo de credenciales — Listo\n"
+                + "   • [✓] Ticket 2: Migración de tokens — Listo\n"
+                + "   Resultado: El sistema quedó totalmente saneado y no quedan credenciales expuestas.\n"
+                + "d) PROHIBICIÓN ESTRICTA DE DETALLES TÉCNICOS: Tienes TERMINANTEMENTE PROHIBIDO incluir en tus mensajes de Telegram y consola:\n"
+                + "   - Líneas o fragmentos de código (ej. L218, env_pass = ...).\n"
+                + "   - Comandos de terminal o flags (ej. grep -n, py_compile, sed, exit_code 1, exit 0).\n"
+                + "   - Códigos de retorno, tracebacks o transcripciones de archivos.\n"
+                + "   - Explicaciones paso a paso de depuración interna.\n"
+                + "   TODOS los detalles técnicos van ÚNICA Y EXCLUSIVAMENTE en el campo `- **Historial:**` del ticket en la Bitacora.md para la auditoría interna. Al Capitán solo le interesa: qué vas a hacer, cómo lo vas a hacer, la lista de tickets tildados y el resultado final.\n"
                 + "3. ATENCIÓN A ALERTAS DE SEGURIDAD: Cuando veas un ticket de [REVISION_SEGURIDAD] asignado a ti, delega las correcciones a los subagentes en la Pizarra. Si ya las delegaste en turnos anteriores y los tickets hijos ya no están en la Bitacora, USA TU HERRAMIENTA `consultar_estado_ticket` pasándole el ID del ticket hijo (ej. TKT-SEC-123). Si el RAG te confirma que fue completado, da por concluida la revisión y CIERRA tu propio ticket padre.\n"
                 + "4. REGLA DE DELEGACIÓN ESTRICTA: Si reasignas o delegas a otro agente (ej. Zoro), el campo `Responsable` de tu bloque Markdown DEBE ser EXACTAMENTE el nombre de ese agente (ej. `- **Responsable:** Zoro`) y el `Estado` DEBE ser EXACTAMENTE `- **Estado:** PENDIENTE`. NUNCA uses nombres combinados como 'Luffy / Zoro' ni estados como 'EN_PROGRESO'. Esto es vital para el parser.\n"
                 + "5. MANTENIMIENTO DE PIZARRA (BARRIDO TOTAL OBLIGATORIO): Al finalizar CADA TURNO, lee la Bitacora.md completa. Para CADA ticket que encuentres, sin importar su estado (CERRADO, COMPLETADO, ABORTADO, REPAIR, PENDIENTE_REVISION), evalua si tienes evidencia de que la tarea fue ejecutada (el archivo existe, el historial del ticket lo confirma). Si la evidencia existe, usa `tool_limpiar_pizarra` para archivarlo y retirarlo. NO dejes tickets muertos en la pizarra. Si un TKT-SYS-REPAIR existe y el agente ya completo su tarea original, archiva AMBOS tickets.\n"
-                + "6. AUTO-REPARACIÓN DE AGENTES (TKT-SYS-REPAIR): Para tareas normales puedes cerrar el ticket. PERO si es de auto-curación (TKT-SYS-REPAIR o modifica .py), tienes PROHIBIDO marcarlo como CERRADO. Debes marcarlo como PENDIENTE_REVISION y asignar al sistema para que valide, o dejar que el Escudo lo procese. NUNCA lo cierres tú mismo.\n"
+                + "6. AUTO-REPARACIÓN DE AGENTES (TKT-SYS-REPAIR): Cuando repares un agente o atiendas un TKT-SYS-REPAIR, debes verificar físicamente que el código compila y funciona (ej. py_compile e import exitosos con código 0). Una vez comprobada la evidencia física de que la causa raíz quedó resuelta, DEBES marcar el ticket como CERRADO (Estado: CERRADO) e incluir tu evidencia_hallazgo. NUNCA lo dejes en PENDIENTE_REVISION si la verificación física ya fue exitosa.\n"
                 + "6b. RESURRECCIÓN DE TICKETS ABORTADOS: Cuando proceses un TKT-SYS-REPAIR, tu responsabilidad no termina al reparar al agente. DEBES revisar el ticket original que causó el fallo (el que está en estado ABORTADO). Si descubres que fue un FALSO POSITIVO (la tarea sí se completó correctamente en la realidad): Cambia el estado del ticket original abortado a CERRADO y archívalo junto con el SYS-REPAIR. Si descubres que fue un ERROR REAL (la tarea no se completó): Después de reparar al agente, DEBES editar la Bitacora.md para cambiar el estado del ticket original abortado de nuevo a PENDIENTE, permitiendo que el agente retome su trabajo en el siguiente ciclo. NUNCA archives un ticket abortado que no se ha cumplido.\n"
                 + "7. CAMPO OBLIGATORIO 'evidencia_hallazgo': Cuando respondas con tu JSON Minimalista de Cierre, SIEMPRE debes incluir el campo \"evidencia_hallazgo\" a nivel raíz. Este campo debe contener una descripción concreta y específica de lo que hiciste, qué encontraste o qué corregiste. Ejemplo: \"Se corrigió la función _transformar_ruta_linux en skill_ia_creativa.py que causaba [Errno 2] por rutas Windows en Docker Linux.\" Si este campo está vacío o ausente, el Auditor RECHAZARÁ tu trabajo automáticamente y entrarás en un bucle infinito de corrección. NUNCA lo dejes vacío.\n"
                 + "8. Al terminar tu turno, responde ÚNICAMENTE con el JSON Minimalista de Cierre (Protocolo Inter-Agente) para ceder el control."
@@ -342,7 +373,9 @@ def tool_auditar_ssot() -> str:
 
 @tool
 def tool_enviar_telegram(mensaje: str) -> str:
-    """Envía un mensaje o alerta de Telegram a través del bridge de la tripulación."""
+    """Envía un mensaje o reporte ejecutivo al Capitán por Telegram y consola.
+    REGLA: El mensaje DEBE ser limpio, conciso y en formato lista de tickets (qué se va a hacer, cómo, y lista tildando [✓] tickets listos).
+    PROHIBIDO incluir líneas de código, comandos grep, números de línea L218, exit codes ni detalles técnicos de bajo nivel."""
     print(f"\n[Luffy Herramienta] Ejecutando: tool_enviar_telegram(mensaje='{mensaje}')")
     try:
         from telegram_bridge import enviar_mensaje_telegram
@@ -537,15 +570,21 @@ def funcion_nodo_luffy(estado: dict) -> dict:
         except Exception:
             pass
 
+    ultimo_texto = mensajes_langgraph[-1].content.lower() if mensajes_langgraph and hasattr(mensajes_langgraph[-1], 'content') else ""
+
     # ── CHECK MODO ENTREVISTADOR ──
     estado_entrevista_file = Path(__file__).resolve().parent / "estado_entrevista.json"
-    entrevista_activa = estado_entrevista_file.exists()
+    # El modo entrevistador SOLO debe activarse si el usuario seleccionó explícitamente "entrevista" en la consola
+    entrevista_activa = (modo_seleccionado == "entrevista")
     
-    ultimo_texto = mensajes_langgraph[-1].content.lower() if mensajes_langgraph and hasattr(mensajes_langgraph[-1], 'content') else ""
-    gatillos = ["vamos a platicar sobre este proyecto", "vamos a aclarar ideas", "tengo una idea, ¿me ayudas a darle forma?"]
-    if (modo_seleccionado == "entrevista" or any(g in ultimo_texto for g in gatillos)) and not entrevista_activa:
-        print("[Luffy] 🎙️ Modo Entrevistador activado (selector o gatillo).")
-        entrevista_activa = True
+    if not entrevista_activa:
+        if estado_entrevista_file.exists():
+            try:
+                estado_entrevista_file.unlink()
+            except Exception:
+                pass
+    else:
+        print("[Luffy] 🎙️ Modo Entrevistador activado por selector de consola.")
 
     if entrevista_activa:
         print("[Luffy] 🛑 MODO ENTREVISTADOR ACTIVO. Delegación bloqueada.")

@@ -1,9 +1,10 @@
 import os
 import sys
 import json
+import re
 from pathlib import Path
 
-APP_ROOT = Path(r"C:\Users\admin\Documents\Agentes")
+APP_ROOT = Path(__file__).resolve().parents[1]
 LUFFY_DIR = APP_ROOT / "Luffy"
 SKILLS_DIR = LUFFY_DIR / "skills"
 
@@ -12,8 +13,7 @@ if str(SKILLS_DIR) not in sys.path:
 
 try:
     from memoria_vectorial.skill_memoria_vectorial import _get_collection
-except ImportError:
-    print("[Sync] Error: No se pudo importar skill_memoria_vectorial.")
+except Exception:
     _get_collection = None
 
 def asegurar_nota_obsidian(ruta_md: Path, titulo: str, contenido: str, enlaces: list, sobreescribir: bool = False):
@@ -26,15 +26,45 @@ def asegurar_nota_obsidian(ruta_md: Path, titulo: str, contenido: str, enlaces: 
         print(f"[Obsidian] Nodo escrito: {ruta_md.name}")
     return ruta_md
 
+def sanear_enlace_exclusivo(md_file: Path, link_destino: str):
+    """
+    Garantiza que el archivo tenga ÚNICAMENTE la conexión hacia link_destino.
+    Elimina cualquier otra conexión (Nexo, Conexiones Core, Conexiones, Pertenece a anteriores).
+    """
+    try:
+        cont = md_file.read_text(encoding="utf-8")
+        
+        # Eliminar cualquier bloque o línea de Nexo, Conexiones Core, Conexiones o Pertenece a
+        cont_limpio = re.sub(r"(?im)^\s*>\s*🔗?\s*\*\*Nexo:\*\*.*$", "", cont)
+        cont_limpio = re.sub(r"(?im)^\s*>\s*\*\*Conexiones Core:\*\*.*$", "", cont_limpio)
+        cont_limpio = re.sub(r"(?im)^\s*\*\*Conexiones:\*\*.*$", "", cont_limpio)
+        cont_limpio = re.sub(r"(?im)^\s*\*\*Pertenece a:\*\*.*$", "", cont_limpio)
+        
+        # Limpiar separadores --- residuales al final del archivo
+        cont_limpio = cont_limpio.strip()
+        while cont_limpio.endswith("---"):
+            cont_limpio = cont_limpio[:-3].strip()
+            
+        cont_final = cont_limpio + f"\n\n---\n**Pertenece a:** {link_destino}\n"
+        
+        if cont_final != cont:
+            md_file.write_text(cont_final, encoding="utf-8")
+            print(f"[Obsidian] Conexión exclusiva asegurada: {md_file.name} -> {link_destino}")
+    except Exception as e:
+        print(f"[Sync] Error saneando enlace exclusivo en {md_file.name}: {e}")
+
 def sincronizar_conocimiento():
     print("Iniciando Limpieza y Sincronización del Cerebro...")
     
     # LIMPIEZA PREVIA: (Eliminado para no destruir el contenido generado por los LLMs)
 
-    if not _get_collection:
-        return
-
-    collection = _get_collection()
+    collection = None
+    if os.getenv("ENABLE_RAG_SYNC", "0") in ("1", "true") and _get_collection:
+        try:
+            collection = _get_collection()
+        except Exception as e_col:
+            print(f"[Sync] Aviso: Colección vectorial no disponible ({e_col}). Continuando con sincronización de Obsidian...")
+            collection = None
     documentos_rag = []
     metadatos_rag = []
     ids_rag = []
@@ -175,15 +205,26 @@ def sincronizar_conocimiento():
                         if md_file.name.startswith("Skill_") and md_file.parent.name in ["skills", agente]: continue
                         
                         try:
-                            contenido_md = md_file.read_text(encoding="utf-8")
-                            
-                            # Si es un SKILL.md de Antigravity, sí va al perfil. 
-                            if md_file.name == "SKILL.md":
+                            # 1. Archivos HUB de cada carpeta de trabajo (conectan directamente a su agente)
+                            if md_file.name == "reportes.md":
+                                link_destino = "[[Perfil_Robin]]"
+                            elif md_file.name == "proyectos.md":
+                                link_destino = "[[Perfil_Zoro]]"
+                            elif md_file.name == "informes.md":
+                                link_destino = "[[Perfil_Nami]]"
+                            elif md_file.name == "documentos_sanji.md":
+                                link_destino = "[[Perfil_Sanji]]"
+                            elif md_file.name == "memoria.md":
+                                link_destino = "[[Perfil_Luffy]]"
+                            # 2. Archivos contenidos dentro de cada carpeta (conectan a su nodo carpeta)
+                            elif "reportes" in md_file.parts:
+                                link_destino = "[[reportes]]"
+                            elif "memoria" in md_file.parts:
+                                link_destino = "[[memoria]]"
+                            elif md_file.name == "SKILL.md":
                                 link_destino = f"[[Perfil_{agente}]]"
                             elif agente == "Luffy":
-                                if "memoria" in md_file.parts:
-                                    link_destino = "[[memoria]]"
-                                elif "Archivos_temporales" in md_file.parts:
+                                if "Archivos_temporales" in md_file.parts:
                                     link_destino = "[[archivos_temporales]]"
                                 elif "contexto" in md_file.parts:
                                     link_destino = "[[contexto]]"
@@ -192,10 +233,7 @@ def sincronizar_conocimiento():
                             else:
                                 link_destino = f"[[{carpeta_trabajo}]]"
                                 
-                            if link_destino not in contenido_md:
-                                contenido_md += f"\n\n---\n**Pertenece a:** {link_destino}\n"
-                                md_file.write_text(contenido_md, encoding="utf-8")
-                                print(f"[Obsidian] Nodo atado: {md_file.name} -> {link_destino}")
+                            sanear_enlace_exclusivo(md_file, link_destino)
                         except Exception as e:
                             pass
 
@@ -232,7 +270,7 @@ def sincronizar_conocimiento():
                 pass
 
     # RAG Upsert
-    if documentos_rag:
+    if collection and documentos_rag:
         try:
             collection.upsert(documents=documentos_rag, metadatas=metadatos_rag, ids=ids_rag)
             print(f"[RAG] Sincronización exitosa: {len(documentos_rag)} nodos.")

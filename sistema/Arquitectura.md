@@ -17,8 +17,4 @@ El ecosistema sincroniza la información simultáneamente en dos frentes matemá
 Los agentes viven confinados en sus propias carpetas, manteniendo una estructura estricta (`.agents`, `skills`, `informes`). Todo archivo Markdown (`.md`) suelto dentro de estas carpetas es atrapado automáticamente por el script de sincronización y amarrado a la gravedad de ese agente.
 
 ---
-
-
-
----
 **Pertenece a:** [[Perfil_Luffy]]

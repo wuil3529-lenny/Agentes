@@ -31,14 +31,27 @@ def _get_collection():
         raise ImportError("ChromaDB o sentence-transformers no están instalados. Asegúrate de ejecutar 'pip install chromadb sentence-transformers'.")
 
 @tool
-def tool_guardar_solucion(ticket_id: str, descripcion: str, contenido: str) -> str:
+def tool_guardar_solucion(
+    ticket_id: str,
+    descripcion: str,
+    contenido: str,
+    herramientas_usadas: str = "N/A",
+    decisiones_clave: str = "N/A",
+    evidencia_fisica: str = "N/A",
+    agentes_involucrados: str = "N/A"
+) -> str:
     """
-    Guarda la resolución de un ticket en la memoria vectorial a largo plazo.
+    Guarda la resolución de un ticket en la memoria vectorial a largo plazo (Cerebro.md y memoria/XX.md).
+    Genera automáticamente el Recibo Ejecutivo de Misión detallando herramientas y decisiones tomadas.
     
     Args:
-        ticket_id: ID único del ticket (ej: TKT-ZORO-1234)
+        ticket_id: ID único del ticket (ej: TKT-ROBIN-20260928003)
         descripcion: Resumen breve de qué trata el problema y solución.
         contenido: El bloque del ticket completo, código o lección aprendida.
+        herramientas_usadas: Lista o detalle de herramientas ejecutadas (ej: listar_directorio, leer_archivo, crear_archivo).
+        decisiones_clave: Decisiones técnicas tomadas para resolver la tarea o corregir incidencias.
+        evidencia_fisica: Ruta del archivo generado o verificado en disco.
+        agentes_involucrados: Agentes que participaron en la misión (ej: Robin, Luffy).
     """
     try:
         import sys
@@ -53,7 +66,7 @@ def tool_guardar_solucion(ticket_id: str, descripcion: str, contenido: str) -> s
             
         from memory import guardar_cerebro
         
-        # Derivar agente
+        # Derivar agente principal si no se especificó
         agente = "Luffy"
         up_t = ticket_id.upper()
         if "ZOR" in up_t: agente = "Zoro"
@@ -62,9 +75,17 @@ def tool_guardar_solucion(ticket_id: str, descripcion: str, contenido: str) -> s
         elif "SAN" in up_t: agente = "Sanji"
         
         # Ejecutar el flujo maestro (Cerebro.md + archivo en memoria/ + ChromaDB)
-        guardar_cerebro(agente, f"[{ticket_id}] {descripcion}", contenido)
+        guardar_cerebro(
+            agente=agente,
+            tema=f"[{ticket_id}] {descripcion}",
+            contenido=contenido,
+            herramientas_usadas=herramientas_usadas,
+            decisiones=decisiones_clave,
+            evidencia_fisica=evidencia_fisica,
+            agentes_involucrados=agentes_involucrados
+        )
         
-        return json.dumps({"status": "success", "mensaje": f"Solución {ticket_id} vectorizada en ChromaDB, registrada en Cerebro.md y exportada a memoria/ exitosamente."})
+        return json.dumps({"status": "success", "mensaje": f"Solución {ticket_id} vectorizada en ChromaDB con Recibo de Misión, registrada en Cerebro.md y exportada a memoria/ exitosamente."})
     except Exception as e:
         import traceback
         return json.dumps({"status": "error", "mensaje": f"Error al guardar memoria: {str(e)} | {traceback.format_exc()}"})

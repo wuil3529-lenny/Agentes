@@ -16,8 +16,4 @@ La comunicación de ese nuevo conocimiento NO se hace mediante un JSON flotante 
 Al terminar un trabajo, el subagente (ej. Zoro) cambia el estado en la Pizarra y avisa. El Capitán es el único autorizado a cambiar un ticket a `COMPLETADO` tras verificar estrictamente la evidencia física generada.
 
 ---
-
-
-
----
 **Pertenece a:** [[Perfil_Luffy]]

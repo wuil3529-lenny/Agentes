@@ -59,6 +59,9 @@ function connect() {
                 if (typeof updatePizarra !== 'undefined') updatePizarra(data.pizarra);
                 if (typeof updateArchivados !== 'undefined') updateArchivados(data.tickets_archivados);
                 if (data.tareas_programadas) { cacheProgramadas = data.tareas_programadas; renderProgramadas(); }
+                if (data.sesiones_chat && typeof updateSesionesChat === 'function') {
+                    updateSesionesChat(data.sesiones_chat);
+                }
                 if (typeof updateChat !== 'undefined') updateChat(data.chat);
                 if (typeof updateLogs !== 'undefined') updateLogs(data.logs);
                 if (typeof updateCostos !== 'undefined') updateCostos(data.costos);
@@ -289,12 +292,25 @@ function updateMainMetrics(sys, costos, pizarra, tickets_archivados, tiempo_trab
     });
 
     let precVal = '100.0';
-    if (countCompletados + countFallidos > 0) {
-        precVal = ((countCompletados / (countCompletados + countFallidos)) * 100).toFixed(1);
+    const totalFinalizados = countCompletados + countFallidos;
+    if (totalFinalizados > 0) {
+        precVal = ((countCompletados / totalFinalizados) * 100).toFixed(1);
     }
     const elPrec = document.getElementById('metric-precision');
     if (elPrec) {
         elPrec.innerText = precVal + '%';
+    }
+    const elPrecSub = document.getElementById('metric-precision-sub');
+    if (elPrecSub) {
+        if (totalFinalizados > 0) {
+            const icon = countFallidos > 0 ? 'info' : 'check_circle';
+            const colorClass = countFallidos > 0 ? 'text-amber-400' : 'text-emerald-400';
+            elPrecSub.className = 'mt-1 flex items-center gap-1.5 text-[11px] font-semibold ' + colorClass;
+            elPrecSub.innerHTML = '<span class="material-symbols-outlined text-[14px]">' + icon + '</span><span>' + countCompletados + ' completados · ' + countFallidos + ' fallidos</span>';
+        } else {
+            elPrecSub.className = 'mt-1 flex items-center gap-1.5 text-[11px] font-semibold text-secondary';
+            elPrecSub.innerHTML = '<span class="material-symbols-outlined text-[14px]">task_alt</span><span>Sin tickets finalizados</span>';
+        }
     }
 
     try {
@@ -723,6 +739,18 @@ function updateChat(messages) {
     
     const msgList = Array.isArray(messages) ? messages : (messages && messages.mensajes ? messages.mensajes : []);
     
+    if (msgList.length === 0) {
+        container.dataset.lastCount = 0;
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-full py-12 text-center text-on-surface-variant/60 select-none">
+                <span class="material-symbols-outlined text-[36px] text-primary/40 mb-2">forum</span>
+                <p class="text-xs font-semibold text-on-surface">Canal limpio y listo para zarpar</p>
+                <p class="text-[10px] text-on-surface-variant/60 mt-1">Escribe una orden a Luffy para comenzar esta conversación.</p>
+            </div>
+        `;
+        return;
+    }
+
     const agentColors = {
         'usuario': { border: 'border-primary/40', bg: 'bg-primary/20', text: 'text-primary', name: 'Capitán (Tú)' },
         'luffy': { border: 'border-primary/50', bg: 'bg-primary/10', text: 'text-primary', name: 'Luffy' },
@@ -732,8 +760,9 @@ function updateChat(messages) {
         'robin': { border: 'border-purple-400/50', bg: 'bg-purple-400/10', text: 'text-purple-400', name: 'Robin' }
     };
 
-    if (container.dataset.lastCount != msgList.length) {
+    if (container.dataset.currentSesionId !== activeSesionId || container.dataset.lastCount != msgList.length) {
         container.dataset.lastCount = msgList.length;
+        container.dataset.currentSesionId = activeSesionId;
         container.innerHTML = '';
         
         msgList.forEach(msg => {
@@ -1178,11 +1207,22 @@ document.addEventListener('click', (e) => {
 applyChatModeUI(currentChatMode);
 
 // Logica del Chat
+function autoResizeChatInput(el) {
+    if (!el) return;
+    el.style.height = '38px';
+    const scrollH = el.scrollHeight;
+    if (scrollH > 38) {
+        el.style.height = Math.min(scrollH, 140) + 'px';
+    }
+}
+window.autoResizeChatInput = autoResizeChatInput;
+
 async function sendChatMessage() {
     const input = document.getElementById('chat-input');
     if (!input || !input.value.trim()) return;
     const text = input.value.trim();
     input.value = '';
+    input.style.height = '38px';
 
     // Render immediately in chat (Optimistic UI)
     const container = document.getElementById('chat-messages');
@@ -1223,20 +1263,338 @@ function initChatListeners() {
     }
     if (input && !input._bound) {
         input._bound = true;
+        input.addEventListener('input', () => autoResizeChatInput(input));
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendChatMessage();
+            } else if (e.key === 'Enter' && e.shiftKey) {
+                setTimeout(() => autoResizeChatInput(input), 0);
             }
         });
     }
 }
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initChatListeners);
-} else {
-    initChatListeners();
-}
+// =============================================================================
+// GESTIÓN DE SESIONES Y CANALES AISLADOS DE CONVERSACIÓN (SIDEBAR + CHAT)
+// =============================================================================
+let sesionesChatCache = [];
+let activeSesionId = null;
 
+function updateSesionesChat(sesiones) {
+    if (!Array.isArray(sesiones)) return;
+    sesionesChatCache = sesiones;
+    
+    const activa = sesiones.find(s => s.activo) || sesiones[0];
+    if (activa) {
+        activeSesionId = activa.id;
+        const titleEl = document.getElementById('chat-active-session-title');
+        if (titleEl) {
+            titleEl.textContent = activa.titulo || 'Conversación';
+            titleEl.title = `Canal activo: ${activa.titulo || 'Conversación'}`;
+        }
+    }
+    
+    renderSidebarChannels(sesiones);
+}
+window.updateSesionesChat = updateSesionesChat;
+
+function renderSidebarChannels(sesiones) {
+    const list = document.getElementById('sidebar-channels-list');
+    if (!list) return;
+    
+    if (!sesiones || sesiones.length === 0) {
+        list.innerHTML = '<p class="text-on-surface-variant/50 text-[10px] italic py-2 text-center">No hay canales de chat</p>';
+        return;
+    }
+    
+    let html = '';
+    sesiones.forEach(s => {
+        const isActive = s.activo || (s.id === activeSesionId);
+        let timeStr = '';
+        if (s.actualizado || s.creado) {
+            try {
+                const d = new Date(s.actualizado || s.creado);
+                timeStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            } catch(e) {}
+        }
+        
+        const countMsgs = s.total_mensajes || 0;
+        const tituloLimpio = escapeHtml(s.titulo || 'Conversación');
+        const isAnclado = Boolean(s.anclado);
+        
+        html += `
+        <div onclick="seleccionarChatSesion('${s.id}')" class="group relative flex items-center justify-between py-1 px-2 rounded-lg cursor-pointer transition-all border select-none h-7 min-h-[28px] ${
+            isActive 
+                ? 'bg-primary/20 border-primary/50 text-white shadow-[0_0_8px_rgba(255,45,120,0.25)]' 
+                : 'bg-surface-container/20 hover:bg-surface-container-high border-outline-variant/15 text-on-surface-variant hover:text-on-surface'
+        }" title="${tituloLimpio}">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                ${isAnclado ? `
+                <button onclick="event.stopPropagation(); alternarAnclarChatSesion('${s.id}')" type="button" class="cursor-pointer p-0.5 rounded hover:bg-amber-400/20 text-amber-400 shrink-0 flex items-center justify-center transition-all group/pin" title="Desanclar este chat">
+                    <span class="material-symbols-outlined text-[13px] rotate-45 group-hover/pin:scale-110">push_pin</span>
+                </button>
+                ` : `
+                <span class="material-symbols-outlined text-[14px] ${isActive ? 'text-primary' : 'text-on-surface-variant/50 group-hover:text-primary'} shrink-0">
+                    ${isActive ? 'chat_bubble' : 'chat_bubble_outline'}
+                </span>
+                `}
+                <span class="text-[11px] font-medium truncate leading-none flex-1 ${isActive ? 'text-white font-semibold' : 'text-on-surface/85'}">
+                    ${tituloLimpio}
+                </span>
+            </div>
+            
+            <div class="flex items-center gap-1 shrink-0 ml-1.5">
+                <!-- Badge cuando no se pasa el ratón -->
+                <span class="text-[9px] text-on-surface-variant/40 font-mono group-hover:hidden">
+                    ${countMsgs}
+                </span>
+                
+                <!-- Acciones en Hover: Anclar, Renombrar, Eliminar -->
+                <div class="hidden group-hover:flex items-center gap-0.5">
+                    <!-- Botón Anclar / Desanclar -->
+                    <button onclick="event.stopPropagation(); alternarAnclarChatSesion('${s.id}')" type="button" class="p-0.5 hover:bg-white/10 rounded transition-all ${isAnclado ? 'text-amber-400' : 'text-on-surface-variant/50 hover:text-amber-300'} cursor-pointer flex items-center justify-center" title="${isAnclado ? 'Desanclar chat' : 'Anclar chat al inicio'}">
+                        <span class="material-symbols-outlined text-[13px] ${isAnclado ? 'rotate-45' : ''}">push_pin</span>
+                    </button>
+                    <!-- Botón Renombrar -->
+                    <button onclick="event.stopPropagation(); renombrarChatSesion('${s.id}', '${tituloLimpio.replace(/'/g, "\\'")}')" type="button" class="p-0.5 hover:text-cyan-300 hover:bg-cyan-500/15 rounded transition-all text-on-surface-variant/50 cursor-pointer flex items-center justify-center" title="Cambiar nombre">
+                        <span class="material-symbols-outlined text-[13px]">edit</span>
+                    </button>
+                    <!-- Botón Eliminar -->
+                    ${sesiones.length > 1 ? `
+                    <button onclick="event.stopPropagation(); eliminarChatSesion('${s.id}', '${tituloLimpio.replace(/'/g, "\\'")}')" type="button" class="p-0.5 hover:text-rose-400 hover:bg-rose-500/15 rounded transition-all text-on-surface-variant/50 cursor-pointer flex items-center justify-center" title="Eliminar chat">
+                        <span class="material-symbols-outlined text-[13px]">delete</span>
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        `;
+    });
+    
+    list.innerHTML = html;
+}
+window.renderSidebarChannels = renderSidebarChannels;
+
+async function crearNuevoChatSesion() {
+    try {
+        const res = await fetch('/api/chat/sesiones/nueva', { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            activeSesionId = data.sesion.id;
+            updateSesionesChat(data.sesiones);
+            
+            // Limpiar visualmente el chat de inmediato con animación suave
+            const container = document.getElementById('chat-messages');
+            if (container) {
+                container.dataset.lastCount = 0;
+                container.dataset.currentSesionId = activeSesionId;
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full py-12 text-center text-on-surface-variant/60 select-none">
+                        <span class="material-symbols-outlined text-[36px] text-primary/40 mb-2">forum</span>
+                        <p class="text-xs font-semibold text-on-surface">Canal limpio y listo para zarpar</p>
+                        <p class="text-[10px] text-on-surface-variant/60 mt-1">Escribe una orden a Luffy para comenzar esta conversación.</p>
+                    </div>
+                `;
+            }
+            
+            const input = document.getElementById('chat-input');
+            if (input) {
+                input.value = '';
+                input.style.height = '38px';
+                input.focus();
+            }
+        }
+    } catch(e) {
+        console.error('Error creando nuevo chat:', e);
+    }
+}
+window.crearNuevoChatSesion = crearNuevoChatSesion;
+
+async function seleccionarChatSesion(sesionId) {
+    if (!sesionId || sesionId === activeSesionId) return;
+    try {
+        const res = await fetch(`/api/chat/sesiones/${sesionId}/activar`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            activeSesionId = sesionId;
+            updateSesionesChat(data.sesiones);
+            const container = document.getElementById('chat-messages');
+            if (container) {
+                container.dataset.currentSesionId = activeSesionId;
+                container.dataset.lastCount = -1; // Forzar re-render
+            }
+            if (typeof updateChat === 'function') {
+                updateChat(data.mensajes);
+            }
+        }
+    } catch(e) {
+        console.error('Error cambiando de chat:', e);
+    }
+}
+window.seleccionarChatSesion = seleccionarChatSesion;
+let isTogglingAnclar = false;
+async function alternarAnclarChatSesion(sesionId) {
+    if (!sesionId || isTogglingAnclar) return;
+    isTogglingAnclar = true;
+    try {
+        const res = await fetch(`/api/chat/sesiones/${sesionId}/anclar`, { method: 'POST' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            updateSesionesChat(data.sesiones);
+        }
+    } catch(e) {
+        console.error('Error al alternar anclado de chat:', e);
+    } finally {
+        setTimeout(() => { isTogglingAnclar = false; }, 200);
+    }
+}
+window.alternarAnclarChatSesion = alternarAnclarChatSesion;
+
+let sesionIdARenombrar = null;
+
+function renombrarChatSesion(sesionId, tituloActual) {
+    if (!sesionId) return;
+    sesionIdARenombrar = sesionId;
+    const sesion = (sesionesChatCache || []).find(s => s.id === sesionId);
+    const titulo = tituloActual || (sesion ? sesion.titulo : '');
+    
+    const input = document.getElementById('modal-rename-chat-input');
+    if (input) {
+        input.value = titulo || '';
+    }
+    
+    const modal = document.getElementById('modal-rename-chat');
+    if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
+    }
+}
+window.renombrarChatSesion = renombrarChatSesion;
+
+function cerrarModalRenombrarChat() {
+    sesionIdARenombrar = null;
+    const modal = document.getElementById('modal-rename-chat');
+    if (modal) modal.classList.add('hidden');
+}
+window.cerrarModalRenombrarChat = cerrarModalRenombrarChat;
+
+async function ejecutarRenombrarChatSesion() {
+    if (!sesionIdARenombrar) return;
+    const input = document.getElementById('modal-rename-chat-input');
+    const nuevoTrim = input ? input.value.trim() : '';
+    if (!nuevoTrim) {
+        cerrarModalRenombrarChat();
+        return;
+    }
+    
+    const idToRename = sesionIdARenombrar;
+    const btn = document.getElementById('btn-modal-confirm-rename-chat');
+    if (btn) btn.disabled = true;
+    
+    try {
+        const res = await fetch(`/api/chat/sesiones/${idToRename}/renombrar`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titulo: nuevoTrim })
+        });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            cerrarModalRenombrarChat();
+            updateSesionesChat(data.sesiones);
+        }
+    } catch(e) {
+        console.error('Error al renombrar chat:', e);
+    } finally {
+        if (btn) btn.disabled = false;
+        cerrarModalRenombrarChat();
+    }
+}
+window.ejecutarRenombrarChatSesion = ejecutarRenombrarChatSesion;
+
+let sesionIdAEliminar = null;
+
+function eliminarChatSesion(sesionId, tituloOpcional) {
+    if (!sesionId) return;
+    sesionIdAEliminar = sesionId;
+    const sesion = (sesionesChatCache || []).find(s => s.id === sesionId);
+    const titulo = tituloOpcional || (sesion ? sesion.titulo : 'este chat');
+    
+    const titleEl = document.getElementById('modal-delete-chat-title');
+    if (titleEl) titleEl.textContent = `"${titulo}"`;
+    
+    const modal = document.getElementById('modal-confirm-delete-chat');
+    if (modal) modal.classList.remove('hidden');
+}
+window.eliminarChatSesion = eliminarChatSesion;
+
+function cerrarModalConfirmarEliminarChat() {
+    sesionIdAEliminar = null;
+    const modal = document.getElementById('modal-confirm-delete-chat');
+    if (modal) modal.classList.add('hidden');
+}
+window.cerrarModalConfirmarEliminarChat = cerrarModalConfirmarEliminarChat;
+
+async function ejecutarEliminarChatSesion() {
+    if (!sesionIdAEliminar) return;
+    const idToDelete = sesionIdAEliminar;
+    const btn = document.getElementById('btn-modal-confirm-delete-chat');
+    if (btn) btn.disabled = true;
+    
+    try {
+        const res = await fetch(`/api/chat/sesiones/${idToDelete}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.status === 'ok') {
+            cerrarModalConfirmarEliminarChat();
+            const activa = data.sesiones.find(s => s.activo) || data.sesiones[0];
+            if (activa) activeSesionId = activa.id;
+            updateSesionesChat(data.sesiones);
+            const container = document.getElementById('chat-messages');
+            if (container) {
+                container.dataset.currentSesionId = activeSesionId;
+                container.dataset.lastCount = -1;
+            }
+        }
+    } catch(e) {
+        console.error('Error eliminando sesión de chat:', e);
+    } finally {
+        if (btn) btn.disabled = false;
+        cerrarModalConfirmarEliminarChat();
+    }
+}
+window.ejecutarEliminarChatSesion = ejecutarEliminarChatSesion;
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        cerrarModalConfirmarEliminarChat();
+        cerrarModalRenombrarChat();
+    }
+});
+
+async function cargarSesionesChatInicial() {
+    try {
+        const res = await fetch('/api/chat/sesiones');
+        const data = await res.json();
+        if (data.status === 'ok' && data.sesiones) {
+            updateSesionesChat(data.sesiones);
+        }
+    } catch(e) {
+        console.error('Error cargando sesiones iniciales:', e);
+    }
+}
+function initChatSystem() {
+    if (typeof initChatListeners === 'function') initChatListeners();
+    cargarSesionesChatInicial();
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initChatSystem);
+} else {
+    initChatSystem();
+}
 
 // Chat UI Logic
 function toggleChat() {
@@ -1441,100 +1799,197 @@ function cleanMarkdownText(str) {
     return txt.trim();
 }
 
+let currentTabTareas = 'activas';
+
+function cambiarTabTareas(tab) {
+    currentTabTareas = tab;
+    const btnActivas = document.getElementById('btn-tab-activas');
+    const btnArchivadas = document.getElementById('btn-tab-archivadas');
+    const containerActivas = document.getElementById('container-tareas-activas');
+    const containerArchivadas = document.getElementById('container-tareas-archivadas');
+    const title = document.getElementById('tab-section-title');
+    const dot = document.getElementById('tab-indicator-dot');
+    
+    if (tab === 'archivadas') {
+        if (btnActivas) {
+            btnActivas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-on-surface-variant hover:text-on-surface";
+        }
+        if (btnArchivadas) {
+            btnArchivadas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-[0_0_10px_rgba(20,184,166,0.2)]";
+        }
+        if (containerActivas) containerActivas.classList.add('hidden');
+        if (containerArchivadas) containerArchivadas.classList.remove('hidden');
+        if (title) title.textContent = "Tareas Completadas & Archivadas";
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-teal-400";
+    } else {
+        if (btnActivas) {
+            btnActivas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer bg-secondary/20 text-secondary border border-secondary/40 shadow-[0_0_10px_rgba(0,255,204,0.2)]";
+        }
+        if (btnArchivadas) {
+            btnArchivadas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-on-surface-variant hover:text-on-surface";
+        }
+        if (containerActivas) containerActivas.classList.remove('hidden');
+        if (containerArchivadas) containerArchivadas.classList.add('hidden');
+        if (title) title.textContent = "Tareas en Ejecución & Pendientes";
+        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-secondary animate-pulse";
+    }
+}
+
 function renderTareaBlock(tarea) {
-    // tarea: {id, titulo, descripcion, tarea, criterios, responsable, estado}
+    // tarea: {id, titulo, descripcion, tarea, criterios, responsable, estado, evidencia}
     const cleanId = cleanMarkdownText(tarea.id || '');
-    const cleanTitle = cleanMarkdownText(tarea.titulo || 'Sin título');
+    const cleanTitle = cleanMarkdownText(tarea.titulo || '');
     const cleanDesc = cleanMarkdownText(tarea.descripcion || '');
     const cleanTask = cleanMarkdownText(tarea.tarea || '');
-    const cleanCriterios = cleanMarkdownText(tarea.criterios || '');
+    const cleanEvidencia = cleanMarkdownText(tarea.evidencia || '');
     
+    // Configuración de Agentes (Robin morado, Sanji amarillo, Nami rosa, Zoro verde, Luffy rojo)
     const agentesConfig = {
-        luffy: { color: '#ff2d78', border: 'border-primary/40', badge: 'bg-primary/10 text-primary', avatar: 'LuffyCaptain' },
-        zoro: { color: '#00ffcc', border: 'border-secondary/40', badge: 'bg-secondary/10 text-secondary', avatar: 'Zoro' },
-        sanji: { color: '#ffaa00', border: 'border-amber-400/40', badge: 'bg-amber-400/10 text-amber-400', avatar: 'Sanji' },
-        robin: { color: '#c084fc', border: 'border-purple-400/40', badge: 'bg-purple-400/10 text-purple-400', avatar: 'Robin' },
-        nami: { color: '#fbbf24', border: 'border-yellow-400/40', badge: 'bg-yellow-400/10 text-yellow-400', avatar: 'Nami' },
-        sistema: { color: '#a098b0', border: 'border-outline-variant/40', badge: 'bg-outline-variant/20 text-on-surface-variant', avatar: 'Tripulacion' }
+        robin: {
+            name: 'Robin',
+            color: '#c084fc',
+            border: 'border-purple-400/50',
+            badge: 'bg-purple-500/15 text-purple-300 border-purple-500/40',
+            avatar: 'Robin'
+        },
+        sanji: {
+            name: 'Sanji',
+            color: '#fbbf24',
+            border: 'border-amber-400/50',
+            badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
+            avatar: 'Sanji'
+        },
+        nami: {
+            name: 'Nami',
+            color: '#f472b6',
+            border: 'border-pink-400/50',
+            badge: 'bg-pink-500/15 text-pink-300 border-pink-500/40',
+            avatar: 'Nami'
+        },
+        zoro: {
+            name: 'Zoro',
+            color: '#34d399',
+            border: 'border-emerald-400/50',
+            badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
+            avatar: 'Zoro'
+        },
+        luffy: {
+            name: 'Luffy',
+            color: '#f43f5e',
+            border: 'border-rose-400/50',
+            badge: 'bg-rose-500/15 text-rose-300 border-rose-500/40',
+            avatar: 'LuffyCaptain'
+        },
+        sistema: {
+            name: 'Sistema',
+            color: '#94a3b8',
+            border: 'border-slate-500/40',
+            badge: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+            avatar: 'Tripulacion'
+        }
     };
 
-    const rawName = tarea.responsable ? String(tarea.responsable).toLowerCase().trim() : 'sistema';
+    let rawName = tarea.responsable ? String(tarea.responsable).toLowerCase().trim() : 'sistema';
+    // Si el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-..., TKT-NAMI-..., TKT-ZORO-...)
+    const ticketIdUpper = String(tarea.id || '').toUpperCase();
+    for (const ag of ['sanji', 'robin', 'nami', 'zoro']) {
+        if (ticketIdUpper.startsWith('TKT-' + ag.toUpperCase() + '-')) {
+            rawName = ag;
+            break;
+        }
+    }
     let agKey = 'sistema';
-    for (const k of ['luffy', 'zoro', 'sanji', 'robin', 'nami']) {
+    for (const k of ['robin', 'sanji', 'nami', 'zoro', 'luffy']) {
         if (rawName.includes(k)) {
             agKey = k;
             break;
         }
     }
     const cfg = agentesConfig[agKey] || agentesConfig.sistema;
-    const nameFormatted = agKey !== 'sistema' ? agKey.charAt(0).toUpperCase() + agKey.slice(1) : (cleanMarkdownText(tarea.responsable) || 'Sistema');
+    const nameFormatted = agKey !== 'sistema' ? cfg.name : (cleanMarkdownText(tarea.responsable) || 'Sistema');
 
-    // Estado badge
+    // Estado del ticket: Verde si en proceso, Azul si en espera, Rojo si fallido, Teal si completado
     const estadoRaw = tarea.estado ? String(tarea.estado).toLowerCase().trim() : '';
-    let estadoHtml = '';
-    if (estadoRaw.includes('proceso') || estadoRaw.includes('ejecutando') || estadoRaw.includes('trabajando')) {
-        estadoHtml = `
-        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-lg bg-secondary/10 text-secondary border border-secondary/40 shadow-[0_0_8px_rgba(0,255,204,0.2)] shrink-0">
-            <span class="material-symbols-outlined text-[13px] animate-spin">progress_activity</span>
-            <span>En Progreso</span>
-        </span>`;
-    } else if (estadoRaw.includes('completad') || estadoRaw.includes('archivado') || estadoRaw.includes('finalizad')) {
-        estadoHtml = `
-        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)] shrink-0">
-            <span class="material-symbols-outlined text-[13px]">check_circle</span>
-            <span>Completado</span>
-        </span>`;
-    } else {
-        estadoHtml = `
-        <span class="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-lg bg-outline-variant/20 text-on-surface-variant border border-outline-variant/40 shrink-0">
-            <span class="material-symbols-outlined text-[13px]">schedule</span>
-            <span>${cleanMarkdownText(tarea.estado || 'Pendiente')}</span>
-        </span>`;
+    let statusConfig = {
+        label: 'En Espera',
+        badgeClass: 'bg-blue-500/15 text-blue-400 border border-blue-500/40 shadow-[0_0_8px_rgba(59,130,246,0.15)]',
+        icon: 'hourglass_empty',
+        spin: false,
+        cardBorder: 'border-blue-500/40 hover:border-blue-400',
+        cardBg: 'bg-blue-950/20 hover:bg-blue-950/30',
+        cardGlow: 'hover:shadow-[0_0_15px_rgba(59,130,246,0.2)]'
+    };
+
+    if (estadoRaw.includes('fall') || estadoRaw.includes('error') || estadoRaw.includes('rechaz') || estadoRaw.includes('abort') || estadoRaw.includes('critic') || estadoRaw.includes('bloquead')) {
+        statusConfig = {
+            label: 'Fallido',
+            badgeClass: 'bg-rose-500/20 text-rose-400 border border-rose-500/50 shadow-[0_0_8px_rgba(244,63,94,0.2)]',
+            icon: 'error',
+            spin: false,
+            cardBorder: 'border-rose-500/50 hover:border-rose-400',
+            cardBg: 'bg-rose-950/25 hover:bg-rose-950/35',
+            cardGlow: 'hover:shadow-[0_0_15px_rgba(244,63,94,0.25)]'
+        };
+    } else if (estadoRaw.includes('proceso') || estadoRaw.includes('progreso') || estadoRaw.includes('ejecut') || estadoRaw.includes('trabajando') || estadoRaw.includes('procesando')) {
+        statusConfig = {
+            label: 'En Proceso',
+            badgeClass: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.2)]',
+            icon: 'progress_activity',
+            spin: true,
+            cardBorder: 'border-emerald-500/50 hover:border-emerald-400',
+            cardBg: 'bg-emerald-950/20 hover:bg-emerald-950/30',
+            cardGlow: 'hover:shadow-[0_0_15px_rgba(16,185,129,0.25)]'
+        };
+    } else if (estadoRaw.includes('completad') || estadoRaw.includes('cerrad') || estadoRaw.includes('archiv')) {
+        statusConfig = {
+            label: 'Completado',
+            badgeClass: 'bg-teal-500/15 text-teal-300 border border-teal-500/40 shadow-[0_0_8px_rgba(20,184,166,0.15)]',
+            icon: 'check_circle',
+            spin: false,
+            cardBorder: 'border-teal-500/30 hover:border-teal-400/60',
+            cardBg: 'bg-surface-container-low/70 hover:bg-surface-container-low',
+            cardGlow: 'hover:shadow-[0_0_12px_rgba(20,184,166,0.15)]'
+        };
     }
 
-    // Task box (only if distinct and has content)
-    let taskBoxHtml = '';
-    if (cleanTask && cleanTask !== cleanDesc) {
-        taskBoxHtml = `
-        <div class="p-2.5 rounded-xl bg-surface-container/60 border border-outline-variant/30 flex items-start gap-2 text-xs text-on-surface/90 shadow-sm">
-            <span class="material-symbols-outlined text-[16px] text-secondary shrink-0 mt-0.5">task_alt</span>
-            <div class="flex flex-col gap-0.5">
-                <span class="text-[9px] uppercase font-bold text-secondary tracking-widest font-mono">Tarea</span>
-                <span class="leading-relaxed text-[11px]">${cleanTask}</span>
-            </div>
-        </div>`;
-    }
-
-    // Criteria box
-    let criteriaBoxHtml = '';
-    if (cleanCriterios) {
-        criteriaBoxHtml = `
-        <div class="px-2.5 py-1.5 rounded-lg bg-surface-container-high/40 border border-outline-variant/20 flex items-start gap-1.5 text-[11px] text-on-surface-variant">
-            <span class="material-symbols-outlined text-[13px] text-amber-400 shrink-0 mt-0.5">verified</span>
-            <span><strong class="text-on-surface font-semibold">Criterios:</strong> ${cleanCriterios}</span>
-        </div>`;
-    }
+    // Texto descriptivo principal (conciso, evitando redundancias)
+    const displayTitle = cleanTitle || cleanTask || 'Ticket de Tarea';
+    const displayDesc = cleanDesc || (cleanTask && cleanTask !== cleanTitle ? cleanTask : '') || 'Sin detalles adicionales.';
 
     return `
-    <div class="glass-panel rounded-xl p-4 border border-outline-variant/40 hover:border-outline-variant/80 transition-all duration-200 flex flex-col gap-3 group bg-surface-container-low/60 hover:bg-surface-container-low shadow-sm">
-        <div class="flex justify-between items-start gap-3">
-            <div class="flex flex-col gap-1.5">
-                ${cleanId ? `<span class="inline-flex items-center w-fit px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-secondary/15 text-secondary border border-secondary/30 tracking-wider">${cleanId}</span>` : ''}
-                <h4 class="text-on-surface font-semibold text-sm leading-snug group-hover:text-secondary transition-colors">${cleanTitle}</h4>
-            </div>
-            ${estadoHtml}
+    <div class="glass-panel rounded-2xl p-4 border ${statusConfig.cardBorder} ${statusConfig.cardBg} ${statusConfig.cardGlow} transition-all duration-200 flex flex-col justify-between gap-3 group relative overflow-hidden min-h-[200px] h-[215px]">
+        <!-- Top Row: ID chip + Status badge -->
+        <div class="flex items-center justify-between gap-2 shrink-0">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-white/5 text-on-surface/90 border border-white/10 tracking-wider">
+                ${cleanId || 'TKT'}
+            </span>
+            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-lg ${statusConfig.badgeClass} shrink-0">
+                <span class="material-symbols-outlined text-[12px] ${statusConfig.spin ? 'animate-spin' : ''}">${statusConfig.icon}</span>
+                <span>${statusConfig.label}</span>
+            </span>
         </div>
-        ${cleanDesc ? `<p class="text-xs text-on-surface-variant leading-relaxed">${cleanDesc}</p>` : ''}
-        ${taskBoxHtml}
-        ${criteriaBoxHtml}
-        <div class="mt-auto pt-2.5 border-t border-outline-variant/20 flex items-center justify-between">
+
+        <!-- Middle: Title and truncated description -->
+        <div class="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden">
+            <h4 class="text-on-surface font-semibold text-xs leading-snug line-clamp-2 group-hover:text-white transition-colors" title="${displayTitle}">
+                ${displayTitle}
+            </h4>
+            <p class="text-[11px] text-on-surface-variant/80 leading-relaxed line-clamp-3" title="${displayDesc}">
+                ${displayDesc}
+            </p>
+        </div>
+
+        <!-- Bottom: Agent Badge with individual color + Evidence indicator -->
+        <div class="mt-auto pt-2.5 border-t border-white/10 flex items-center justify-between shrink-0">
             <div class="flex items-center gap-2">
                 <div class="w-6 h-6 rounded-lg overflow-hidden border ${cfg.border} bg-surface-container shrink-0">
                     <img alt="${nameFormatted}" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=${cfg.avatar}&backgroundColor=0f0f1a">
                 </div>
-                <span class="text-xs font-bold uppercase tracking-wider ${cfg.badge.split(' ')[1]}">${nameFormatted}</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${cfg.badge}">
+                    ${nameFormatted}
+                </span>
             </div>
-            <span class="text-[10px] font-mono text-on-surface-variant/60">Ticket</span>
+            ${cleanEvidencia ? `<span class="material-symbols-outlined text-[15px] text-on-surface-variant/70 hover:text-secondary cursor-help transition-colors" title="Evidencia: ${cleanEvidencia}">attachment</span>` : ''}
         </div>
     </div>`;
 }
@@ -1546,7 +2001,7 @@ function updatePizarra(pizarraData) {
     if (countEl) countEl.textContent = count;
     if (!list) return;
     if (count === 0) {
-        list.innerHTML = '<p class="text-on-surface-variant text-sm italic p-4 text-center">No hay tareas activas en la pizarra...</p>';
+        list.innerHTML = '<p class="text-on-surface-variant text-sm italic py-12 text-center col-span-full">No hay tareas activas en la pizarra...</p>';
         return;
     }
     
@@ -1564,7 +2019,7 @@ function updateArchivados(archivadosData) {
     if (countEl) countEl.textContent = count;
     if (!list) return;
     if (count === 0) {
-        list.innerHTML = '<p class="text-on-surface-variant text-sm italic p-4 text-center">No hay tickets archivados todavía...</p>';
+        list.innerHTML = '<p class="text-on-surface-variant text-sm italic py-12 text-center col-span-full">No hay tickets archivados todavía...</p>';
         return;
     }
     let html = '';

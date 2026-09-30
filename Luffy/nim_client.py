@@ -34,6 +34,14 @@ def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt=""):
                 max_tokens=2048,
                 timeout=30
             )
+            if hasattr(response, "usage") and response.usage:
+                try:
+                    from costos_tracker import registrar_consumo_tokens
+                    in_t = getattr(response.usage, "prompt_tokens", 0) or 0
+                    out_t = getattr(response.usage, "completion_tokens", 0) or 0
+                    registrar_consumo_tokens("luffy", in_t, out_t, model_1)
+                except Exception:
+                    pass
             return response.choices[0].message.content
         except Exception as e:
             print(f"[NIM Client] Error con modelo 1 ({model_1}): {e}")
@@ -52,6 +60,14 @@ def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt=""):
             max_tokens=2048,
             timeout=30
         )
+        if hasattr(response, "usage") and response.usage:
+            try:
+                from costos_tracker import registrar_consumo_tokens
+                in_t = getattr(response.usage, "prompt_tokens", 0) or 0
+                out_t = getattr(response.usage, "completion_tokens", 0) or 0
+                registrar_consumo_tokens("luffy", in_t, out_t, model_2)
+            except Exception:
+                pass
         return response.choices[0].message.content
     except Exception as e:
         print(f"[NIM Client] Error fatal con modelo 2 ({model_2}): {e}")

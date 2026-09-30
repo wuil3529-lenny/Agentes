@@ -180,3 +180,6 @@ Si el Capitán detecta alguna irregularidad o término de contrato:
 1. **Uso de HTTPS en Producción:** Asegurar que la Torre de Control central cuente con un certificado SSL/TLS (vía Cloudflare Tunnel, Caddy o Nginx) para que todo el tráfico viaje cifrado en tránsito sobre HTTPS.
 2. **Protección de Variables de Entorno en Docker:** No compartir el archivo `.env` del cliente con personal no autorizado. Las variables `FLEET_API_KEY` y `FLEET_SECRET` deben considerarse credenciales críticas del sistema.
 3. **Monitoreo de Rotaciones:** En el panel de flotas registradas, verificar periódicamente el contador de rotaciones realizadas para confirmar que los nodos clientes renuevan sus tokens con normalidad.
+
+---
+**Pertenece a:** [[Perfil_Luffy]]

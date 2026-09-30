@@ -32,10 +32,5 @@ Aunque tú (como Modelo de Lenguaje) no puedes corregir tu propio comportamiento
 1. **La Libreta de Diagnóstico del Capitán:** Permite identificar rápidamente por qué falló un proceso, ahorrando tiempo en adivinar qué salió mal.
 2. **El Puente hacia la Inmunidad por Código:** Sirve como la especificación técnica de lo que debe ser programado. Cada entrada en ese archivo de errores es una orden directa para transformar una falla repetitiva en una condición de parada, un hard-stop o un interceptor lógico dentro de tu código (tu archivo _agent.py), logrando así una autonomía real y blindada.
 
-
----
-
-
-
 ---
 **Pertenece a:** [[documentos_sanji]]

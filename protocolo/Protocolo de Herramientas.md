@@ -13,8 +13,4 @@ El motor `sync_cerebro.py` escaneará automáticamente la carpeta en el próximo
 Abre el perfil interno del agente (`.agents/nami_perfil.json`) y documenta allí el uso de la herramienta. Describe exactamente bajo qué circunstancias el agente debe usarla para evitar alucinaciones, y provee un ejemplo claro del "gatillo" en el sistema.
 
 ---
-
-
-
----
 **Pertenece a:** [[Perfil_Luffy]]

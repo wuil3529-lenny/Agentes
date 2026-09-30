@@ -38,4 +38,4 @@ Finalmente, actualiza `C:\Users\admin\Documents\Agentes\Cerebro.md` informando q
 **REGLA TÉCNICA DE ORO (Gemelo Digital):** Tienes estrictamente **PROHIBIDO** crear manualmente nodos Markdown de Obsidian para representar el archivo Python de la herramienta. Tu responsabilidad de creación termina al colocar el archivo en la carpeta `skills`. El motor `sync_cerebro.py` se encargará automáticamente de generar el archivo espejo visual y enlazarlo al perfil del agente en el grafo en el siguiente reinicio.
 
 ---
-**Conexiones:** [[Perfil_Luffy]]
+**Pertenece a:** [[Perfil_Luffy]]

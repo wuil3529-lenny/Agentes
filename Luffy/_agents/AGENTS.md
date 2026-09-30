@@ -31,7 +31,7 @@ Aunque tú (como Modelo de Lenguaje) no puedes corregir tu propio comportamiento
 
 
 ---
-**Pertenece a:** [[Perfil_Luffy]]
+
 
 ## Protocolo de Autorización (Exclusivo para Antigravity)
 - **CERO CAMBIOS AUTÓNOMOS:** Tienes ESTRICTAMENTE PROHIBIDO realizar cualquier modificación de código, creación de archivos o alteración en los agentes sin la autorización explícita y previa del Capitán (usuario).
@@ -40,3 +40,6 @@ Aunque tú (como Modelo de Lenguaje) no puedes corregir tu propio comportamiento
   2. Dialogar y proponer la estructura de la solución.
   3. Esperar la autorización del Capitán.
   4. Solo tras recibir el 'OK', aplicar los cambios en el código.
+
+---
+**Pertenece a:** [[Perfil_Luffy]]

@@ -13,8 +13,4 @@ Cada vez que el contenedor despierta o la clase principal de la tripulación se 
 Simplemente crea un archivo de texto con extensión `.md` (Ejemplo: `guia_n8n.md`) y guárdalo dentro de la carpeta del agente al que le corresponda (Ejemplo: `C:\Users\admin\Documents\Agentes\Zoro\`). El sistema hará el resto. Obsidian dibujará la línea de conexión, y el agente lo aprenderá en su RAG.
 
 ---
-
-
-
----
 **Pertenece a:** [[Perfil_Luffy]]
