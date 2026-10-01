@@ -140,6 +140,12 @@ def iniciar_creacion_skill(
         
         # Mapeo de rol agnóstico para la cabecera
         roles_legibles = {
+            "Subagente_Desarrollo": "Subagente de Desarrollo Técnico",
+            "Subagente_Diseno": "Subagente de Diseño, Interfaz y Arte Visual",
+            "Subagente_Ciberseguridad": "Subagente de Ciberseguridad y Auditoría",
+            "Subagente_Asistencia": "Subagente de Asistencia Personal e Integraciones",
+            "Agente_Orquestador": "Agente Orquestador",
+            # Compatibilidad
             "Zoro": "Subagente de Desarrollo Técnico",
             "Nami": "Subagente de Diseño, Interfaz y Arte Visual",
             "Robin": "Subagente de Ciberseguridad y Auditoría",
@@ -212,8 +218,8 @@ def obtener_prompt_{skill_slug}() -> str:
 
         py_file_path.write_text(py_body, encoding="utf-8")
 
-        # ── 3. CONSTRUCCIÓN DE LA DOCUMENTACIÓN ESTÁNDAR (skills/Skill_<Nombre>.md) ──
-        md_file_path = skills_path / f"Skill_{skill_camel}.md"
+        # ── 3. CONSTRUCCIÓN DE LA DOCUMENTACIÓN ESTÁNDAR (skills/Skill_<Nombre>_<Agente>.md) ──
+        md_file_path = skills_path / f"Skill_{skill_camel}_{nombre_agente}.md"
         
         gatillos_texto = gatillos_activacion.strip() if gatillos_activacion else (
             "1. **Disparador Reactivo:** Cuando el Usuario solicite explícitamente ejecutar esta función.\n"
@@ -297,7 +303,7 @@ def obtener_prompt_{skill_slug}() -> str:
             f"Antes de declarar operativa la habilidad, el Agente Orquestador debe registrar en la Bitácora (Bitacora.md) "
             f"un ticket de verificación asignado al Subagente de Ciberseguridad y Auditoría:\n"
             f"Ticket: [TKT-AUDIT-{skill_slug.upper()}] Auditoría de Seguridad para skill_{skill_slug}.py\n"
-            f"Responsable: Robin (Subagente de Ciberseguridad y Auditoría)\n"
+            f"Responsable: Subagente de Ciberseguridad y Auditoría\n"
             f"Insumo: {py_file_path}\n"
             f"Entregable: Aprobación formal de seguridad y verificación de no-vulnerabilidades."
         )

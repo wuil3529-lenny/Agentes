@@ -7,7 +7,7 @@
 
 **Rol Funcional:** Director de Ingeniería & Arquitecto de Plataforma (Tooling Lead)  
 **Tipo de Habilidad:** Meta-Ingeniería, Síntesis Autónoma de Herramientas, Fábrica de Habilidades y Despliegue Estandarizado  
-**Archivo de Código:** `Luffy/skills/crear_herramienta/skill_crear_herramienta.py`  
+**Archivo de Código:** `Agente_Orquestador/skills/crear_herramienta/skill_crear_herramienta.py`  
 **Directorio de Salida:** `<NombreAgente>/skills/`  
 
 ---
@@ -51,11 +51,11 @@ flowchart TD
 
 ### Paso 1: Mapeo del Subagente Destino
 - Se identifica la especialidad técnica requerida y se asigna a la carpeta correspondiente del subagente:
-  * Desarrollo Técnico (Zoro) -> Scripts Python, APIs, bases de datos.
-  * Diseño, Interfaz y Arte (Nami) -> Procesamiento de imágenes, UI/UX, maquetas.
-  * Ciberseguridad y Auditoría (Robin) -> Análisis de seguridad, hardening, permisos.
-  * Asistencia e Integraciones (Sanji) -> Servicios externos, mensajería, correo.
-  * Agente Orquestador (Luffy) -> Meta-herramientas de supervisión y gestión.
+  * Subagente de Desarrollo Técnico (`Subagente_Desarrollo/skills/`) -> Scripts Python, APIs, bases de datos.
+  * Subagente de Diseño y Arte Visual (`Subagente_Diseno/skills/`) -> Procesamiento de imágenes, UI/UX, maquetas.
+  * Subagente de Ciberseguridad y Auditoría (`Subagente_Ciberseguridad/skills/`) -> Análisis de seguridad, hardening, permisos.
+  * Subagente de Asistencia Personal e Integraciones (`Subagente_Asistencia/skills/`) -> Servicios externos, mensajería, correo.
+  * Agente Orquestador (`Agente_Orquestador/skills/`) -> Meta-herramientas de supervisión y gestión.
 
 ### Paso 2: Generación del Script Python (`skills/skill_<nombre>.py`)
 - Código con tipado estricto (`str`, `dict`, `int`, `Optional`).
@@ -174,8 +174,8 @@ def optimizar_imagen_webp(ruta_origen: str, calidad: int = 85) -> str:
 > He detectado de forma autónoma que el Subagente de Diseño y Arte Visual requería una capacidad de compresión para cumplir con el límite estricto de 2MB de YouTube.
 > 
 > He sintetizado la nueva habilidad **Optimizar Imagen Webp** bajo nuestro estándar de oro:
-> - Script creado en: `Nami/skills/skill_optimizar_imagen_webp.py`
-> - Documentación oficial: `Nami/skills/Skill_Optimizar_Imagen_Webp.md`
+> - Script creado en: `Subagente_Diseno/skills/skill_optimizar_imagen_webp.py`
+> - Documentación oficial: `Subagente_Diseno/skills/Skill_Optimizar_Imagen_Webp_Subagente_Diseno.md`
 > 
 > He abierto el ticket preventivo en la Pizarra:
 > `[TKT-AUDIT-OPTIMIZAR_IMAGEN_WEBP] Auditoría de Seguridad con el Subagente de Ciberseguridad.`

@@ -117,16 +117,23 @@ def sincronizar_conocimiento():
                 # 1. Skills clásicas
                 carpeta_skills_py = agente_dir / "skills"
                 if carpeta_skills_py.exists():
-                    for py_file in carpeta_skills_py.glob("skill_*.py"):
+                    for py_file in carpeta_skills_py.rglob("skill_*.py"):
                         nombre_skill = py_file.stem
                         
                         nombre_nodo_skill = nombre_skill.title()
                         if not nombre_nodo_skill.endswith(f"_{agente}") and not nombre_nodo_skill.endswith(agente.title()):
                             nombre_nodo_skill += f"_{agente}"
                             
-                        enlaces.append(nombre_nodo_skill)
-                        
-                        skill_md = carpeta_skills_py / f"{nombre_nodo_skill}.md"
+                        # Buscar markdown en el mismo directorio del script, con sufijos existentes o en la raíz de skills
+                        skill_md = py_file.parent / f"{nombre_nodo_skill}.md"
+                        if not skill_md.exists():
+                            posibles_md = list(py_file.parent.glob("Skill_*.md"))
+                            if posibles_md:
+                                skill_md = posibles_md[0]
+                            elif (carpeta_skills_py / f"{nombre_nodo_skill}.md").exists():
+                                skill_md = carpeta_skills_py / f"{nombre_nodo_skill}.md"
+                                
+                        enlaces.append(skill_md.stem)
                         
                         # Solo crear el archivo si no existe, si ya existe, el barrido de huérfanos le agregará las conexiones
                         if not skill_md.exists():

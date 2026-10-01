@@ -64,17 +64,17 @@ flowchart LR
 ```
 
 #### Habilidad 1: Modo Entrevistador Estratégico (`entrevistador/`)
-- **Archivos:** `skills/entrevistador/skill_entrevistador.py` y `skills/entrevistador/Skill_Entrevistador_Luffy.md`.
+- **Archivos:** `Agente_Orquestador/skills/entrevistador/skill_entrevistador.py` y `Agente_Orquestador/skills/entrevistador/Skill_Entrevistador_Agente_Orquestador.md`.
 - **Rol:** CEO de Producto & CTO.
 - **Innovación Clave:** Un solo archivo vivo persistente en `contexto/CTX-[Nombre_Proyecto].md`. Rondas ilimitadas de descubrimiento técnico y de negocio. Cero polución de notas temporales.
 
 #### Habilidad 2: Modo Creador de Plan Maestro (`crear_plan/`)
-- **Archivos:** `skills/crear_plan/skill_crear_plan.py` y `skills/crear_plan/Skill_Crear_Plan_Luffy.md`.
+- **Archivos:** `Agente_Orquestador/skills/crear_plan/skill_crear_plan.py` y `Agente_Orquestador/skills/crear_plan/Skill_Crear_Plan_Agente_Orquestador.md`.
 - **Rol:** COO & Arquitecto de Soluciones Técnicas.
 - **Innovación Clave:** Ingesta automática del último CTX. Desglose secuencial en fases estrictas con dependencias para evitar colisiones entre subagentes. Generación física en `proyectos/PLAN-[Nombre_Proyecto].md` con el borrador atómico de los tickets listos para la Pizarra.
 
 #### Habilidad 12: Fábrica de Herramientas de la Tripulación (`crear_herramienta/`)
-- **Archivos:** `skills/crear_herramienta/skill_crear_herramienta.py` y `skills/crear_herramienta/Skill_Crear_Herramienta.md`.
+- **Archivos:** `Agente_Orquestador/skills/crear_herramienta/skill_crear_herramienta.py` y `Agente_Orquestador/skills/crear_herramienta/Skill_Crear_Herramienta_Agente_Orquestador.md`.
 - **Rol:** Director de Ingeniería y Arquitecto de Plataforma (Tooling Lead).
 - **Innovación Clave:** Fábrica automatizada que replica el estándar de oro. Si un subagente carece de una herramienta, el orquestador puede activarla de forma **autónoma** (sin esperar orden del usuario) para forjar la herramienta requerida, generar el script tipado con try-except, redactar las 5 secciones de documentación en markdown, abrir el ticket preventivo para el Subagente de Ciberseguridad y sincronizar con Obsidian.
 

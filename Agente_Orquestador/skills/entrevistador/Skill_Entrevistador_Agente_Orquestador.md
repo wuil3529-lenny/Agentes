@@ -7,7 +7,7 @@
 
 **Rol Funcional:** CEO de Producto & Director Técnico (CTO)  
 **Tipo de Habilidad:** Descubrimiento Estratégico, Viabilidad Multicamino y Especificación de Contexto  
-**Archivo de Código:** `Luffy/skills/entrevistador/skill_entrevistador.py`  
+**Archivo de Código:** `Agente_Orquestador/skills/entrevistador/skill_entrevistador.py`  
 **Directorio de Salida:** `contexto/CTX-[Nombre_Proyecto].md`  
 
 ---
@@ -28,7 +28,7 @@ La habilidad es operada mediante la herramienta `tool_gestionar_entrevista`, sig
 ### Paso 1: Inicialización (`accion='iniciar'`)
 - En el primer turno, el Agente Orquestador identifica la idea del Usuario y bautiza el proyecto con un nombre claro y representativo.
 - Invoca `tool_gestionar_entrevista(accion='iniciar', nombre_proyecto='NombreDelProyecto', contenido='Visión inicial...')`.
-- La herramienta genera un único archivo físico en `contexto/CTX-[Nombre-Proyecto].md` y registra el candado activo en `Luffy/estado_entrevista.json`.
+- La herramienta genera un único archivo físico en `contexto/CTX-[Nombre-Proyecto].md` y registra el candado activo en `Agente_Orquestador/estado_entrevista.json`.
 
 ### Paso 2: Descubrimiento Continuo y Enriquecimiento (`accion='actualizar'`)
 - En **CADA TURNO** subsiguiente, antes de responder en el chat, el Agente Orquestador invoca obligatoriamente `tool_gestionar_entrevista(accion='actualizar', contenido='Resumen estructurado de lo acordado...')`.

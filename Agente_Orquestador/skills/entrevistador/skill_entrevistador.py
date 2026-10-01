@@ -7,8 +7,9 @@ from langchain_core.tools import tool
 
 _APP_ROOT = Path(__file__).resolve().parents[3]
 CONTEXTO_DIR = _APP_ROOT / "contexto"
-LUFFY_DIR = _APP_ROOT / "Agente_Orquestador"
-ESTADO_ENTREVISTA = LUFFY_DIR / "estado_entrevista.json"
+ORQUESTADOR_DIR = _APP_ROOT / "Agente_Orquestador"
+LUFFY_DIR = ORQUESTADOR_DIR  # Alias de compatibilidad
+ESTADO_ENTREVISTA = ORQUESTADOR_DIR / "estado_entrevista.json"
 
 def asegurar_directorios():
     CONTEXTO_DIR.mkdir(exist_ok=True, parents=True)

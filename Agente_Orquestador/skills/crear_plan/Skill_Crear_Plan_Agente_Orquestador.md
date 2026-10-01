@@ -7,7 +7,7 @@
 
 **Rol Funcional:** Director de Operaciones (COO) & Arquitecto de Soluciones Técnicas  
 **Tipo de Habilidad:** Arquitectura de Sistemas, Secuenciación por Fases, Mitigación de Riesgos y Desglose Atómico de Tickets  
-**Archivo de Código:** `Luffy/skills/crear_plan/skill_crear_plan.py`  
+**Archivo de Código:** `Agente_Orquestador/skills/crear_plan/skill_crear_plan.py`  
 **Directorio de Salida:** `proyectos/PLAN-[Nombre_Proyecto].md`  
 
 ---
@@ -230,7 +230,7 @@ flowchart TD
 - **Subagente Responsable:** Subagente de Asistencia Personal e Integraciones
 - **Objetivo:** Integrar la notificación de vista previa hacia el canal de mensajería del Usuario al concluir cada renderizado.
 - **Insumos:** Carpeta de salida de miniaturas.
-- **Entregable Físico:** `documentos_sanji/notificador_miniaturas.py`.
+- **Entregable Físico:** `Subagente_Asistencia/skills/notificador_miniaturas.py`.
 - **Criterio de Aceptación:** Notificación recibida con vista previa funcional.
 
 ---
