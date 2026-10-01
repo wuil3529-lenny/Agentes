@@ -7,16 +7,14 @@
     try {
       var saved = localStorage.getItem('agenticos_theme') || 'cyberpunk';
       var lightThemes = ['crema', 'blanco'];
-      var isLight = lightThemes.indexOf(saved) !== -1;
-      document.documentElement.setAttribute('data-theme', saved);
-      document.documentElement.setAttribute('data-theme-mode', isLight ? 'light' : 'dark');
-      if (isLight) {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-      } else {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
+      if (lightThemes.indexOf(saved) !== -1) {
+        saved = 'cyberpunk';
+        localStorage.setItem('agenticos_theme', 'cyberpunk');
       }
+      document.documentElement.setAttribute('data-theme', saved);
+      document.documentElement.setAttribute('data-theme-mode', 'dark');
+      document.documentElement.classList.remove('light');
+      document.documentElement.classList.add('dark');
     } catch(e) {}
   })();
 </script>
@@ -124,6 +122,7 @@
                 "on-error": "#1a0000",
                 "error-container": "#3d0f0f",
                 "tertiary": "rgb(var(--c-tertiary, 255 224 74) / <alpha-value>)",
+                "quaternary": "rgb(var(--c-quaternary, 192 132 252) / <alpha-value>)",
                 "on-secondary-fixed": "#001a1a",
                 "inverse-primary": "#8c0038",
                 "on-tertiary-container": "#fff0c0",
@@ -250,6 +249,7 @@
             --c-secondary: 0 255 204;
             --c-secondary-container: 0 77 61;
             --c-tertiary: 255 224 74;
+            --c-quaternary: 192 132 252;
             --c-bg: 10 10 18;
             --c-surface: 15 15 26;
             --c-surface-container: 20 20 34;
@@ -270,10 +270,11 @@
         html[data-theme="ocean"] {
             --c-primary: 0 212 255;
             --c-primary-container: 2 132 199;
-            --c-secondary: 56 189 248;
-            --c-secondary-container: 14 116 144;
-            --c-tertiary: 125 211 252;
-            --c-bg: 5 11 20;
+            --c-secondary: 255 107 107;
+            --c-secondary-container: 159 18 57;
+            --c-tertiary: 52 211 153;
+            --c-quaternary: 251 191 36;
+            --c-bg: 5 11 22;
             --c-surface: 8 18 36;
             --c-surface-container: 12 26 50;
             --c-surface-container-low: 7 15 28;
@@ -282,127 +283,84 @@
             --c-surface-container-lowest: 3 7 14;
             --c-surface-bright: 24 48 88;
             --c-surface-dim: 8 18 36;
-            --c-outline: 30 75 130;
-            --c-outline-variant: 18 45 80;
-            --c-on-surface: 224 242 254;
-            --c-on-surface-variant: 145 190 235;
+            --c-outline: 30 85 145;
+            --c-outline-variant: 18 55 95;
+            --c-on-surface: 240 249 255;
+            --c-on-surface-variant: 160 205 245;
             --c-glass-bg: rgb(8 18 36 / 0.85);
-            --c-glass-border: rgb(0 212 255 / 0.28);
+            --c-glass-border: rgb(0 212 255 / 0.35);
         }
 
         html[data-theme="amber"] {
             --c-primary: 245 158 11;
             --c-primary-container: 180 83 9;
-            --c-secondary: 249 115 22;
-            --c-secondary-container: 194 65 12;
-            --c-tertiary: 252 211 77;
-            --c-bg: 18 14 9;
-            --c-surface: 26 20 13;
-            --c-surface-container: 36 28 19;
-            --c-surface-container-low: 22 17 10;
-            --c-surface-container-high: 51 39 27;
-            --c-surface-container-highest: 69 53 36;
-            --c-surface-container-lowest: 12 9 6;
-            --c-surface-bright: 58 44 30;
-            --c-surface-dim: 26 20 13;
-            --c-outline: 105 78 43;
-            --c-outline-variant: 61 45 24;
+            --c-secondary: 6 182 212;
+            --c-secondary-container: 14 116 144;
+            --c-tertiary: 244 63 94;
+            --c-quaternary: 16 185 129;
+            --c-bg: 18 14 10;
+            --c-surface: 26 20 14;
+            --c-surface-container: 36 28 20;
+            --c-surface-container-low: 22 17 11;
+            --c-surface-container-high: 51 39 28;
+            --c-surface-container-highest: 69 53 38;
+            --c-surface-container-lowest: 12 9 7;
+            --c-surface-bright: 58 44 32;
+            --c-surface-dim: 26 20 14;
+            --c-outline: 120 90 50;
+            --c-outline-variant: 70 52 30;
             --c-on-surface: 254 243 199;
-            --c-on-surface-variant: 203 178 141;
-            --c-glass-bg: rgb(26 20 13 / 0.82);
-            --c-glass-border: rgb(85 62 34 / 0.6);
+            --c-on-surface-variant: 215 190 155;
+            --c-glass-bg: rgb(26 20 14 / 0.85);
+            --c-glass-border: rgb(245 158 11 / 0.35);
         }
 
         html[data-theme="purple"] {
             --c-primary: 168 85 247;
             --c-primary-container: 126 34 206;
-            --c-secondary: 236 72 153;
-            --c-secondary-container: 190 24 93;
-            --c-tertiary: 216 180 254;
-            --c-bg: 14 7 28;
-            --c-surface: 20 10 38;
-            --c-surface-container: 27 14 51;
-            --c-surface-container-low: 17 8 34;
-            --c-surface-container-high: 41 21 77;
-            --c-surface-container-highest: 56 29 104;
-            --c-surface-container-lowest: 8 4 16;
-            --c-surface-bright: 48 25 90;
-            --c-surface-dim: 20 10 38;
-            --c-outline: 92 53 143;
-            --c-outline-variant: 50 24 84;
-            --c-on-surface: 243 232 255;
-            --c-on-surface-variant: 187 160 214;
-            --c-glass-bg: rgb(20 10 38 / 0.82);
-            --c-glass-border: rgb(75 38 120 / 0.6);
+            --c-secondary: 0 240 255;
+            --c-secondary-container: 8 145 178;
+            --c-tertiary: 250 204 21;
+            --c-quaternary: 244 63 94;
+            --c-bg: 15 8 28;
+            --c-surface: 22 12 40;
+            --c-surface-container: 30 16 54;
+            --c-surface-container-low: 18 9 34;
+            --c-surface-container-high: 44 24 80;
+            --c-surface-container-highest: 60 32 108;
+            --c-surface-container-lowest: 9 4 18;
+            --c-surface-bright: 52 28 94;
+            --c-surface-dim: 22 12 40;
+            --c-outline: 110 65 160;
+            --c-outline-variant: 65 35 100;
+            --c-on-surface: 245 238 255;
+            --c-on-surface-variant: 195 175 225;
+            --c-glass-bg: rgb(22 12 40 / 0.85);
+            --c-glass-border: rgb(168 85 247 / 0.35);
         }
 
         html[data-theme="stealth"] {
-            --c-primary: 226 232 240;
-            --c-primary-container: 63 63 70;
-            --c-secondary: 56 189 248;
-            --c-secondary-container: 2 132 199;
-            --c-tertiary: 203 213 225;
-            --c-bg: 9 9 11;
-            --c-surface: 18 18 21;
-            --c-surface-container: 24 24 27;
-            --c-surface-container-low: 16 16 19;
-            --c-surface-container-high: 39 39 42;
-            --c-surface-container-highest: 63 63 70;
-            --c-surface-container-lowest: 5 5 7;
-            --c-surface-bright: 45 45 50;
-            --c-surface-dim: 18 18 21;
-            --c-outline: 82 82 91;
-            --c-outline-variant: 39 39 42;
-            --c-on-surface: 250 250 250;
-            --c-on-surface-variant: 161 161 170;
-            --c-glass-bg: rgb(18 18 21 / 0.85);
-            --c-glass-border: rgb(60 60 68 / 0.6);
-        }
-
-        html[data-theme="crema"] {
-            --c-primary: 217 119 6;
-            --c-primary-container: 254 215 170;
-            --c-secondary: 5 150 105;
-            --c-secondary-container: 167 243 208;
-            --c-tertiary: 180 83 9;
-            --c-bg: 246 242 234;
-            --c-surface: 255 255 255;
-            --c-surface-container: 238 232 219;
-            --c-surface-container-low: 250 247 242;
-            --c-surface-container-high: 229 222 203;
-            --c-surface-container-highest: 220 211 190;
-            --c-surface-container-lowest: 255 255 255;
-            --c-surface-bright: 255 255 255;
-            --c-surface-dim: 235 228 214;
-            --c-outline: 179 168 149;
-            --c-outline-variant: 214 204 184;
-            --c-on-surface: 41 37 36;
-            --c-on-surface-variant: 102 94 87;
-            --c-glass-bg: rgb(255 255 255 / 0.90);
-            --c-glass-border: rgb(214 204 184 / 0.9);
-        }
-
-        html[data-theme="blanco"] {
-            --c-primary: 37 99 235;
-            --c-primary-container: 191 219 254;
-            --c-secondary: 2 132 199;
-            --c-secondary-container: 186 230 253;
-            --c-tertiary: 30 64 175;
-            --c-bg: 248 250 252;
-            --c-surface: 255 255 255;
-            --c-surface-container: 241 245 249;
-            --c-surface-container-low: 248 250 252;
-            --c-surface-container-high: 226 232 240;
-            --c-surface-container-highest: 203 213 225;
-            --c-surface-container-lowest: 255 255 255;
-            --c-surface-bright: 255 255 255;
-            --c-surface-dim: 238 242 246;
-            --c-outline: 148 163 184;
-            --c-outline-variant: 203 213 225;
-            --c-on-surface: 15 23 42;
-            --c-on-surface-variant: 71 85 105;
-            --c-glass-bg: rgb(255 255 255 / 0.93);
-            --c-glass-border: rgb(203 213 225 / 0.9);
+            --c-primary: 241 245 249;
+            --c-primary-container: 71 85 105;
+            --c-secondary: 14 165 233;
+            --c-secondary-container: 3 105 161;
+            --c-tertiary: 34 197 94;
+            --c-quaternary: 249 115 22;
+            --c-bg: 10 11 14;
+            --c-surface: 18 19 24;
+            --c-surface-container: 24 26 33;
+            --c-surface-container-low: 15 16 20;
+            --c-surface-container-high: 38 41 52;
+            --c-surface-container-highest: 58 63 80;
+            --c-surface-container-lowest: 6 7 9;
+            --c-surface-bright: 46 50 64;
+            --c-surface-dim: 18 19 24;
+            --c-outline: 90 98 120;
+            --c-outline-variant: 45 49 62;
+            --c-on-surface: 248 250 252;
+            --c-on-surface-variant: 165 175 195;
+            --c-glass-bg: rgb(18 19 24 / 0.88);
+            --c-glass-border: rgb(14 165 233 / 0.35);
         }
 
         html, body {
@@ -988,228 +946,6 @@
             box-shadow: 0 0 24px rgba(226, 232, 240, 0.45) !important;
         }
 
-        /* Crema & Moka - Adaptación Cálida para Sombrero y Menú Lateral */
-        html[data-theme="crema"] #sidebar-brand-logo {
-            filter: hue-rotate(55deg) saturate(1.3) brightness(0.95) drop-shadow(0 2px 8px rgba(217, 119, 6, 0.4));
-        }
-        html[data-theme="crema"] #meniscus-bead .bead-inner {
-            background: radial-gradient(circle at 35% 35%, #f59e0b 0%, #d97706 60%, #b45309 100%) !important;
-            border: 1.5px solid #ffffff !important;
-            box-shadow: 0 4px 18px rgba(217, 119, 6, 0.45), 0 0 24px rgba(217, 119, 6, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.6) !important;
-        }
-        html[data-theme="crema"] #meniscus-bead #bead-icon {
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-        }
-        html[data-theme="crema"] #meniscus-rim-glow {
-            stroke: #d97706 !important;
-            opacity: 0.85 !important;
-        }
-        html[data-theme="crema"] .nav-item .icon-box {
-            background: rgba(255, 255, 255, 0.85) !important;
-            border-color: rgba(214, 204, 184, 0.8) !important;
-            color: #786d5e !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-        }
-        html[data-theme="crema"] .nav-item:hover .icon-box {
-            background: rgba(217, 119, 6, 0.12) !important;
-            border-color: rgba(217, 119, 6, 0.5) !important;
-            color: #b45309 !important;
-            box-shadow: 0 4px 12px rgba(217, 119, 6, 0.2) !important;
-        }
-        html[data-theme="crema"] .nav-item .nav-label {
-            color: #574e43 !important;
-        }
-        html[data-theme="crema"] .nav-item.active .nav-label {
-            color: #292524 !important;
-            font-weight: 700 !important;
-            text-shadow: 0 1px 2px rgba(217, 119, 6, 0.2) !important;
-        }
-        html[data-theme="crema"] #footer-config-icon-box {
-            background: rgba(217, 119, 6, 0.12) !important;
-            border-color: rgba(217, 119, 6, 0.4) !important;
-            color: #d97706 !important;
-        }
-        html[data-theme="crema"] #footer-btn-config:hover #footer-config-icon-box {
-            box-shadow: 0 0 12px rgba(217, 119, 6, 0.4) !important;
-        }
-        html[data-theme="crema"] #footer-security-icon-box {
-            background: rgba(217, 119, 6, 0.12) !important;
-            border-color: rgba(217, 119, 6, 0.4) !important;
-            color: #d97706 !important;
-        }
-        html[data-theme="crema"] #footer-btn-security:hover #footer-security-icon-box {
-            box-shadow: 0 0 14px rgba(217, 119, 6, 0.4) !important;
-        }
-
-        /* Crema & Moka - Modal de Seguridad & Blindaje */
-        html[data-theme="crema"] #modal-security .glass-panel {
-            background-color: rgba(255, 255, 255, 0.95) !important;
-            border-color: rgba(214, 204, 184, 0.9) !important;
-            box-shadow: 0 20px 50px rgba(78, 62, 45, 0.15) !important;
-        }
-        html[data-theme="crema"] #modal-sec-scanner-box {
-            border-color: rgba(217, 119, 6, 0.5) !important;
-            box-shadow: 0 0 16px rgba(217, 119, 6, 0.25) !important;
-        }
-        html[data-theme="crema"] #modal-sec-scanner-box::before {
-            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(217, 119, 6, 0.2) 80%, rgba(217, 119, 6, 0.95) 98%, #ffffff 100%) !important;
-        }
-        html[data-theme="crema"] #modal-sec-scanner-box .shield-icon-content {
-            color: #d97706 !important;
-        }
-        html[data-theme="crema"] #btn-modal-save-security {
-            background-color: #d97706 !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35) !important;
-        }
-        html[data-theme="crema"] #btn-modal-save-security:hover {
-            background-color: #b45309 !important;
-        }
-
-        /* Crema & Moka - Modal de Inicio de Sesión & Registro */
-        html[data-theme="crema"] #auth-gate-modal .glass-panel {
-            background-color: rgba(255, 255, 255, 0.96) !important;
-            border-color: rgba(214, 204, 184, 0.9) !important;
-            box-shadow: 0 20px 60px rgba(78, 62, 45, 0.15) !important;
-        }
-        html[data-theme="crema"] #auth-gate-modal .glass-panel > div.absolute.top-0 {
-            background: linear-gradient(to right, transparent, #d97706, transparent) !important;
-        }
-        html[data-theme="crema"] #auth-logo-badge {
-            border-color: rgba(217, 119, 6, 0.45) !important;
-            box-shadow: 0 4px 16px rgba(217, 119, 6, 0.25) !important;
-            background: #fdfbf7 !important;
-        }
-        html[data-theme="crema"] #auth-logo-img {
-            filter: hue-rotate(55deg) saturate(1.2) brightness(0.95) drop-shadow(0 2px 8px rgba(217, 119, 6, 0.35)) !important;
-        }
-        html[data-theme="crema"] #auth-tab-btn-login.bg-primary {
-            background-color: #d97706 !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 2px 10px rgba(217, 119, 6, 0.3) !important;
-        }
-        html[data-theme="crema"] #auth-login-btn {
-            background: linear-gradient(to right, #d97706, #b45309) !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35) !important;
-        }
-
-        /* Blanco Puro - Adaptación Minimalista para Sombrero y Menú Lateral */
-        html[data-theme="blanco"] #sidebar-brand-logo {
-            filter: hue-rotate(240deg) saturate(1.3) brightness(0.95) drop-shadow(0 2px 8px rgba(37, 99, 235, 0.4));
-        }
-        html[data-theme="blanco"] #meniscus-bead .bead-inner {
-            background: radial-gradient(circle at 35% 35%, #38bdf8 0%, #2563eb 60%, #1d4ed8 100%) !important;
-            border: 1.5px solid #ffffff !important;
-            box-shadow: 0 4px 18px rgba(37, 99, 235, 0.45), 0 0 24px rgba(37, 99, 235, 0.25), inset 0 2px 4px rgba(255, 255, 255, 0.7) !important;
-        }
-        html[data-theme="blanco"] #meniscus-bead #bead-icon {
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-        }
-        html[data-theme="blanco"] #meniscus-rim-glow {
-            stroke: #2563eb !important;
-            opacity: 0.85 !important;
-        }
-        html[data-theme="blanco"] .nav-item .icon-box {
-            background: rgba(255, 255, 255, 0.9) !important;
-            border-color: rgba(203, 213, 225, 0.85) !important;
-            color: #64748b !important;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-        }
-        html[data-theme="blanco"] .nav-item:hover .icon-box {
-            background: rgba(37, 99, 235, 0.1) !important;
-            border-color: rgba(37, 99, 235, 0.4) !important;
-            color: #2563eb !important;
-            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2) !important;
-        }
-        html[data-theme="blanco"] .nav-item .nav-label {
-            color: #475569 !important;
-        }
-        html[data-theme="blanco"] .nav-item.active .nav-label {
-            color: #0f172a !important;
-            font-weight: 700 !important;
-            text-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
-        }
-        html[data-theme="blanco"] #footer-config-icon-box {
-            background: rgba(37, 99, 235, 0.1) !important;
-            border-color: rgba(37, 99, 235, 0.4) !important;
-            color: #2563eb !important;
-        }
-        html[data-theme="blanco"] #footer-btn-config:hover #footer-config-icon-box {
-            box-shadow: 0 0 12px rgba(37, 99, 235, 0.4) !important;
-        }
-        html[data-theme="blanco"] #footer-security-icon-box {
-            background: rgba(37, 99, 235, 0.1) !important;
-            border-color: rgba(37, 99, 235, 0.4) !important;
-            color: #2563eb !important;
-        }
-        html[data-theme="blanco"] #footer-btn-security:hover #footer-security-icon-box {
-            box-shadow: 0 0 14px rgba(37, 99, 235, 0.4) !important;
-        }
-
-        /* Blanco Puro - Modal de Seguridad & Blindaje */
-        html[data-theme="blanco"] #modal-security .glass-panel {
-            background-color: rgba(255, 255, 255, 0.96) !important;
-            border-color: rgba(203, 213, 225, 0.9) !important;
-            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12) !important;
-        }
-        html[data-theme="blanco"] #modal-sec-scanner-box {
-            border-color: rgba(37, 99, 235, 0.5) !important;
-            box-shadow: 0 0 16px rgba(37, 99, 235, 0.25) !important;
-        }
-        html[data-theme="blanco"] #modal-sec-scanner-box::before {
-            background: conic-gradient(from 0deg, transparent 0%, transparent 60%, rgba(37, 99, 235, 0.2) 80%, rgba(37, 99, 235, 0.95) 98%, #ffffff 100%) !important;
-        }
-        html[data-theme="blanco"] #modal-sec-scanner-box .shield-icon-content {
-            color: #2563eb !important;
-        }
-        html[data-theme="blanco"] #btn-modal-save-security {
-            background-color: #2563eb !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35) !important;
-        }
-        html[data-theme="blanco"] #btn-modal-save-security:hover {
-            background-color: #1d4ed8 !important;
-        }
-
-        /* Blanco Puro - Modal de Inicio de Sesión & Registro */
-        html[data-theme="blanco"] #auth-gate-modal .glass-panel {
-            background-color: rgba(255, 255, 255, 0.96) !important;
-            border-color: rgba(203, 213, 225, 0.9) !important;
-            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12) !important;
-        }
-        html[data-theme="blanco"] #auth-gate-modal .glass-panel > div.absolute.top-0 {
-            background: linear-gradient(to right, transparent, #2563eb, transparent) !important;
-        }
-        html[data-theme="blanco"] #auth-logo-badge {
-            border-color: rgba(37, 99, 235, 0.45) !important;
-            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25) !important;
-            background: #ffffff !important;
-        }
-        html[data-theme="blanco"] #auth-logo-img {
-            filter: hue-rotate(240deg) saturate(1.2) brightness(0.95) drop-shadow(0 2px 8px rgba(37, 99, 235, 0.35)) !important;
-        }
-        html[data-theme="blanco"] #auth-tab-btn-login.bg-primary {
-            background-color: #2563eb !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3) !important;
-        }
-        html[data-theme="blanco"] #auth-login-btn {
-            background: linear-gradient(to right, #2563eb, #0284c7) !important;
-            color: #ffffff !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35) !important;
-        }
-
         /* Cyber Security Shield Orbital Scanner & Reactive Animations */
         @keyframes shieldOrbitalSpin {
             0% { transform: rotate(0deg); }
@@ -1409,7 +1145,7 @@
           <span class="material-symbols-outlined text-primary text-[16px]">palette</span>
           Paleta de Color
         </span>
-        <span class="text-[10px] text-on-surface-variant font-mono">7 Opciones</span>
+        <span class="text-[10px] text-on-surface-variant font-mono">5 Opciones</span>
       </div>
       <div id="header-theme-list" class="flex items-center gap-2 px-1 py-0.5">
         <!-- Rendered dynamically by script.js -->
@@ -1507,10 +1243,10 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 shrink-0">
       
       <!-- Metric 1: Consumo de Tokens -->
-      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-primary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-primary/60 hover:shadow-[0_0_24px_rgb(var(--c-primary)/0.28)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group shadow-lg cursor-pointer">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Consumo de Tokens</span>
-          <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase group-hover:text-primary transition-colors">Consumo de Tokens</span>
+          <div class="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-110 group-hover:shadow-[0_0_14px_rgb(var(--c-primary)/0.6)] group-hover:border-primary/60 transition-all">
             <span class="material-symbols-outlined text-[18px]">pie_chart</span>
           </div>
         </div>
@@ -1520,10 +1256,10 @@
       </div>
 
       <!-- Metric 2: Gasto en $ de los Tokens -->
-      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-secondary/60 hover:shadow-[0_0_24px_rgb(var(--c-secondary)/0.28)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group shadow-lg cursor-pointer">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Gasto en $ Tokens</span>
-          <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 transition-transform">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase group-hover:text-secondary transition-colors">Gasto en $ Tokens</span>
+          <div class="w-8 h-8 rounded-xl bg-secondary/10 border border-secondary/30 flex items-center justify-center text-secondary group-hover:scale-110 group-hover:shadow-[0_0_14px_rgb(var(--c-secondary)/0.6)] group-hover:border-secondary/60 transition-all">
             <span class="material-symbols-outlined text-[18px]">payments</span>
           </div>
         </div>
@@ -1536,10 +1272,10 @@
       </div>
 
       <!-- Metric 3: Monitor de Hardware -->
-      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-tertiary/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-tertiary/60 hover:shadow-[0_0_24px_rgb(var(--c-tertiary)/0.28)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group shadow-lg cursor-pointer">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Monitor de Hardware</span>
-          <div class="w-8 h-8 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase group-hover:text-tertiary transition-colors">Monitor de Hardware</span>
+          <div class="w-8 h-8 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-center text-tertiary group-hover:scale-110 group-hover:shadow-[0_0_14px_rgb(var(--c-tertiary)/0.6)] group-hover:border-tertiary/60 transition-all">
             <span class="material-symbols-outlined text-[18px]">memory</span>
           </div>
         </div>
@@ -1556,10 +1292,10 @@
       </div>
 
       <!-- Metric 4: Precisión de Tareas -->
-      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-purple-400/50 transition-all flex flex-col justify-between group shadow-lg">
+      <div class="glass-panel rounded-2xl p-4 border border-outline-variant/40 hover:border-quaternary/60 hover:shadow-[0_0_24px_rgb(var(--c-quaternary)/0.28)] hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group shadow-lg cursor-pointer">
         <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase">Precisión de Tareas</span>
-          <div class="w-8 h-8 rounded-xl bg-purple-400/10 border border-purple-400/30 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+          <span class="text-xs font-label-caps text-on-surface-variant font-bold tracking-wider uppercase group-hover:text-quaternary transition-colors">Precisión de Tareas</span>
+          <div class="w-8 h-8 rounded-xl bg-quaternary/10 border border-quaternary/30 flex items-center justify-center text-quaternary group-hover:scale-110 group-hover:shadow-[0_0_14px_rgb(var(--c-quaternary)/0.6)] group-hover:border-quaternary/60 transition-all">
             <span class="material-symbols-outlined text-[18px]">task_alt</span>
           </div>
         </div>
@@ -1595,7 +1331,7 @@
         <canvas id="voice-wave-canvas" class="w-full h-full block"></canvas>
         
         <!-- Ambient Center Radial Glow -->
-        <div id="voice-glow" class="absolute inset-0 pointer-events-none opacity-25 bg-[radial-gradient(ellipse_at_center,rgba(255,45,120,0.3)_0%,transparent_70%)] transition-all duration-700"></div>
+        <div id="voice-glow" class="absolute inset-0 pointer-events-none opacity-30 bg-[radial-gradient(ellipse_at_center,rgb(var(--c-primary)/0.35)_0%,transparent_70%)] transition-all duration-700"></div>
 
         <!-- Live Voice Subtitle / Feedback Overlay -->
         <div id="voice-feedback" class="absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none">
@@ -1605,8 +1341,8 @@
 
       <!-- Bottom Action: Voice-to-Voice Activation Button -->
       <div class="pt-2 flex flex-col items-center justify-center shrink-0">
-        <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgba(0,255,204,0.3)] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
-          <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#ff2d78]"></span>
+        <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgb(var(--c-secondary)/0.4)] hover:scale-[1.02] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
+          <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgb(var(--c-primary))]"></span>
           <span class="material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all" id="voice-btn-icon">mic</span>
           <span id="voice-btn-text">Iniciar Comunicación</span>
         </button>
@@ -2375,20 +2111,6 @@
           </div>
         </div>
 
-        <!-- SECTION: APARIENCIA & TEMAS DE COLOR -->
-        <div class="glass-panel rounded-2xl p-4 sm:p-5 border border-outline-variant/30 flex flex-col gap-3 shadow-lg">
-          <div class="flex items-center justify-between pb-2.5 border-b border-outline-variant/20">
-            <div class="flex items-center gap-2.5">
-              <span class="material-symbols-outlined text-primary text-[20px]">palette</span>
-              <h3 class="font-bold text-sm text-on-surface">Paleta de colores</h3>
-            </div>
-            <span id="config-current-theme-badge" class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30 uppercase tracking-wider">Cyberpunk</span>
-          </div>
-
-          <div id="config-themes-grid" class="flex flex-wrap items-center gap-3 py-1.5">
-            <!-- Rendered dynamically by script.js -->
-          </div>
-        </div>
 
       </div>
 

@@ -752,12 +752,12 @@ function updateChat(messages) {
     }
 
     const agentColors = {
-        'usuario': { border: 'border-primary/40', bg: 'bg-primary/20', text: 'text-primary', name: 'Capitán (Tú)' },
-        'luffy': { border: 'border-primary/50', bg: 'bg-primary/10', text: 'text-primary', name: 'Luffy' },
-        'zoro': { border: 'border-secondary/50', bg: 'bg-secondary/10', text: 'text-secondary', name: 'Zoro' },
-        'sanji': { border: 'border-tertiary/50', bg: 'bg-tertiary/10', text: 'text-tertiary', name: 'Sanji' },
-        'nami': { border: 'border-amber-400/50', bg: 'bg-amber-400/10', text: 'text-amber-400', name: 'Nami' },
-        'robin': { border: 'border-purple-400/50', bg: 'bg-purple-400/10', text: 'text-purple-400', name: 'Robin' }
+        'usuario': { border: 'border-secondary/40', bg: 'bg-secondary/15', text: 'text-secondary', shadow: 'shadow-[0_0_14px_rgb(var(--c-secondary)/0.18)]', name: 'Capitán (Tú)' },
+        'luffy': { border: 'border-primary/40', bg: 'bg-surface-container-high/85', text: 'text-primary', shadow: 'shadow-[0_0_14px_rgb(var(--c-primary)/0.15)]', name: 'Luffy' },
+        'zoro': { border: 'border-secondary/50', bg: 'bg-secondary/10', text: 'text-secondary', shadow: 'shadow-[0_0_12px_rgb(var(--c-secondary)/0.15)]', name: 'Zoro' },
+        'sanji': { border: 'border-tertiary/50', bg: 'bg-tertiary/10', text: 'text-tertiary', shadow: 'shadow-[0_0_12px_rgb(var(--c-tertiary)/0.15)]', name: 'Sanji' },
+        'nami': { border: 'border-amber-400/50', bg: 'bg-amber-400/10', text: 'text-amber-400', shadow: 'shadow-md', name: 'Nami' },
+        'robin': { border: 'border-purple-400/50', bg: 'bg-purple-400/10', text: 'text-purple-400', shadow: 'shadow-md', name: 'Robin' }
     };
 
     if (container.dataset.currentSesionId !== activeSesionId || container.dataset.lastCount != msgList.length) {
@@ -769,7 +769,7 @@ function updateChat(messages) {
             const div = document.createElement('div');
             const senderRaw = (msg.de || 'sistema').toLowerCase();
             const isUser = senderRaw === 'usuario';
-            const theme = agentColors[senderRaw] || { border: 'border-outline-variant/30', bg: 'bg-surface-container-high', text: 'text-secondary', name: msg.de || 'Agente' };
+            const theme = agentColors[senderRaw] || { border: 'border-outline-variant/30', bg: 'bg-surface-container-high', text: 'text-secondary', shadow: 'shadow-md', name: msg.de || 'Agente' };
             
             let msgText = '';
             if (msg.contenido && typeof msg.contenido === 'object') {
@@ -787,8 +787,8 @@ function updateChat(messages) {
             }
 
             div.className = isUser 
-                ? 'self-end bg-primary/20 text-on-surface p-3 rounded-2xl rounded-tr-none border border-primary/40 max-w-[88%] shadow-[0_0_12px_rgba(255,45,120,0.2)] text-xs transition-all'
-                : `self-start ${theme.bg} text-on-surface p-3 rounded-2xl rounded-tl-none border ${theme.border} max-w-[88%] shadow-md text-xs transition-all`;
+                ? 'self-end bg-secondary/15 text-on-surface p-3 rounded-2xl rounded-tr-none border border-secondary/40 max-w-[88%] shadow-[0_0_14px_rgb(var(--c-secondary)/0.18)] text-xs transition-all backdrop-blur-sm'
+                : `self-start ${theme.bg} text-on-surface p-3 rounded-2xl rounded-tl-none border ${theme.border} max-w-[88%] ${theme.shadow || 'shadow-md'} text-xs transition-all backdrop-blur-sm`;
 
             div.innerHTML = `
                 <div class="flex justify-between items-center gap-3 mb-1">
@@ -1228,12 +1228,12 @@ async function sendChatMessage() {
     const container = document.getElementById('chat-messages');
     if (container) {
         const div = document.createElement('div');
-        div.className = 'self-end bg-primary/20 text-on-surface p-3 rounded-2xl rounded-tr-none border border-primary/40 max-w-[88%] shadow-[0_0_12px_rgba(255,45,120,0.2)] text-xs transition-all';
+        div.className = 'self-end bg-secondary/15 text-on-surface p-3 rounded-2xl rounded-tr-none border border-secondary/40 max-w-[88%] shadow-[0_0_14px_rgb(var(--c-secondary)/0.18)] text-xs transition-all backdrop-blur-sm';
         const now = new Date();
         const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         div.innerHTML = `
             <div class="flex justify-between items-center gap-3 mb-1">
-                <span class="text-primary font-bold tracking-wider uppercase text-[10px]">Capitán (Tú)</span>
+                <span class="text-secondary font-bold tracking-wider uppercase text-[10px]">Capitán (Tú)</span>
                 <span class="text-[9px] text-on-surface-variant/50">${timeStr}</span>
             </div>
             <div class="leading-relaxed whitespace-pre-wrap select-text">${escapeHtml(text)}</div>
@@ -6442,81 +6442,61 @@ const AVAILABLE_THEMES = [
     {
         id: 'ocean',
         name: 'Océano Profundo',
-        badge: 'Azul Neón',
-        desc: 'Azul cobalto abisal con toques cian y zafiro neón eléctrico',
+        badge: 'Abisal & Coral',
+        desc: 'Azul cobalto abisal con cian eléctrico y acentos de coral neón vivo',
         mode: 'dark',
         primary: '#00d4ff',
-        secondary: '#38bdf8',
-        bg: '#050b14',
+        secondary: '#ff6b6b',
+        bg: '#050b16',
         surface: '#081224',
         border: '#122d50'
     },
     {
         id: 'amber',
         name: 'Ámbar Cálido',
-        badge: 'Atardecer Dorado',
-        desc: 'Carbón volcánico con ámbar brillante y naranja fuego',
+        badge: 'Solar & Turquesa',
+        desc: 'Carbón volcánico con dorado ámbar y destellos turquesa neón',
         mode: 'dark',
         primary: '#f59e0b',
-        secondary: '#f97316',
-        bg: '#120e09',
-        surface: '#241c13',
+        secondary: '#06b6d4',
+        bg: '#120e0a',
+        surface: '#241c14',
         border: '#3d2d18'
     },
     {
         id: 'purple',
         name: 'Nebulosa Púrpura',
-        badge: 'Cosmos Violeta',
-        desc: 'Violeta cósmico y fucsia estelar sobre negro espacial',
+        badge: 'Cosmos & Neón',
+        desc: 'Púrpura cósmico profundo con cian estelar y amarillo supernova',
         mode: 'dark',
         primary: '#a855f7',
-        secondary: '#ec4899',
-        bg: '#0e071c',
+        secondary: '#00f0ff',
+        bg: '#0f081c',
         surface: '#1b0e33',
         border: '#321854'
     },
     {
         id: 'stealth',
         name: 'Stealth Carbon',
-        badge: 'Grafito Minimal',
-        desc: 'Monocromo grafito con toques titanio y azul cielo glaciar',
+        badge: 'Titanio Táctico',
+        desc: 'Carbono mate con blanco titanio, cian de radar y verde táctico',
         mode: 'dark',
-        primary: '#e2e8f0',
-        secondary: '#38bdf8',
-        bg: '#09090b',
-        surface: '#18181b',
-        border: '#27272a'
-    },
-    {
-        id: 'crema',
-        name: 'Crema & Moka',
-        badge: 'Claro Cálido',
-        desc: 'Marfil suave, café moka, caramelo tostado y verde salvia',
-        mode: 'light',
-        primary: '#d97706',
-        secondary: '#059669',
-        bg: '#f6f2ea',
-        surface: '#ffffff',
-        border: '#d6ccb8'
-    },
-    {
-        id: 'blanco',
-        name: 'Blanco Puro',
-        badge: 'Claro Minimalista',
-        desc: 'Blanco pizarra impecable con azul real y detalles acero',
-        mode: 'light',
-        primary: '#2563eb',
-        secondary: '#0284c7',
-        bg: '#f8fafc',
-        surface: '#ffffff',
-        border: '#cbd5e1'
+        primary: '#f1f5f9',
+        secondary: '#0ea5e9',
+        bg: '#0a0b0e',
+        surface: '#18191f',
+        border: '#272933'
     }
 ];
 window.AVAILABLE_THEMES = AVAILABLE_THEMES;
 
 function getActiveThemeId() {
     try {
-        return localStorage.getItem('agenticos_theme') || 'cyberpunk';
+        const saved = localStorage.getItem('agenticos_theme');
+        if (saved === 'crema' || saved === 'blanco' || !saved) {
+            return 'cyberpunk';
+        }
+        return saved;
     } catch(e) {
         return 'cyberpunk';
     }
@@ -6572,10 +6552,6 @@ function aplicarTema(themeId, notify = false) {
             rimGlowEl.setAttribute('stroke', '#a855f7');
         } else if (theme.id === 'stealth') {
             rimGlowEl.setAttribute('stroke', '#e2e8f0');
-        } else if (theme.id === 'crema') {
-            rimGlowEl.setAttribute('stroke', '#d97706');
-        } else if (theme.id === 'blanco') {
-            rimGlowEl.setAttribute('stroke', '#2563eb');
         } else {
             rimGlowEl.setAttribute('stroke', '#ff2d78');
         }
@@ -6596,10 +6572,6 @@ function aplicarTema(themeId, notify = false) {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#a855f7]/15 border border-[#a855f7]/50 shadow-[0_0_15px_rgba(168,85,247,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else if (theme.id === 'stealth') {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-[#e2e8f0]/15 border border-[#e2e8f0]/50 shadow-[0_0_15px_rgba(226,232,240,0.3)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
-            } else if (theme.id === 'crema') {
-                cfgBtn.className = "w-full !py-2.5 !text-xs text-[#292524] bg-[#d97706]/15 border border-[#d97706]/40 shadow-[0_2px_10px_rgba(217,119,6,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
-            } else if (theme.id === 'blanco') {
-                cfgBtn.className = "w-full !py-2.5 !text-xs text-[#0f172a] bg-[#2563eb]/15 border border-[#2563eb]/40 shadow-[0_2px_10px_rgba(37,99,235,0.2)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             } else {
                 cfgBtn.className = "w-full !py-2.5 !text-xs text-white bg-primary/15 border border-primary/50 shadow-[0_0_15px_rgba(255,45,120,0.35)] flex items-center gap-2.5 px-3 rounded-xl transition-all cursor-pointer select-none";
             }
@@ -6613,10 +6585,6 @@ function aplicarTema(themeId, notify = false) {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#c084fc] to-[#a855f7] border border-[#a855f7] text-white shadow-[0_0_12px_rgba(168,85,247,0.7)] transition-all shrink-0";
             } else if (theme.id === 'stealth') {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#ffffff] to-[#cbd5e1] border border-[#e2e8f0] text-[#09090b] shadow-[0_0_12px_rgba(226,232,240,0.65)] transition-all shrink-0";
-            } else if (theme.id === 'crema') {
-                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#f59e0b] to-[#d97706] border border-[#d97706] text-white shadow-[0_2px_8px_rgba(217,119,6,0.4)] transition-all shrink-0";
-            } else if (theme.id === 'blanco') {
-                iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-gradient-to-br from-[#38bdf8] to-[#2563eb] border border-[#2563eb] text-white shadow-[0_2px_8px_rgba(37,99,235,0.4)] transition-all shrink-0";
             } else {
                 iconBox.className = "w-7 h-7 flex items-center justify-center rounded-lg bg-primary border border-primary text-white shadow-[0_0_12px_rgba(255,45,120,0.65)] transition-all shrink-0";
             }
@@ -6630,10 +6598,6 @@ function aplicarTema(themeId, notify = false) {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]";
             } else if (theme.id === 'stealth') {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(226,232,240,0.5)]";
-            } else if (theme.id === 'crema') {
-                textEl.className = "font-bold text-[#292524]";
-            } else if (theme.id === 'blanco') {
-                textEl.className = "font-bold text-[#0f172a]";
             } else {
                 textEl.className = "font-bold text-white drop-shadow-[0_0_8px_rgba(255,45,120,0.4)]";
             }

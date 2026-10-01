@@ -29,7 +29,8 @@ app = FastAPI(title="Tripulacion.IA Dashboard")
 
 BASE_DIR = Path(__file__).resolve().parent
 AGENTES_DIR = BASE_DIR.parent
-LUFFY_DIR = AGENTES_DIR / "Luffy"
+LUFFY_DIR = AGENTES_DIR / "Agente_Orquestador"
+AGENTE_ORQUESTADOR_DIR = LUFFY_DIR
 
 # Montar archivos estáticos
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -1362,7 +1363,10 @@ def detener_tripulacion_emergencia():
                 continue
             if 'python' in (p.info['name'] or '').lower():
                 cmd = " ".join(p.info['cmdline'] or []).lower()
-                if any(x in cmd for x in ['base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent']):
+                if any(x in cmd for x in [
+                    'base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
+                    'agente_orquestador', 'subagente_desarrollo', 'subagente_diseno', 'subagente_ciberseguridad', 'subagente_asistencia'
+                ]):
                     p.terminate()
     except Exception:
         pass
@@ -2029,7 +2033,10 @@ def check_procesos_tripulacion():
                 continue
             if 'python' in (p.info['name'] or '').lower():
                 cmd = " ".join(p.info['cmdline'] or []).lower()
-                if any(x in cmd for x in ['base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent']):
+                if any(x in cmd for x in [
+                    'base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
+                    'agente_orquestador', 'subagente_desarrollo', 'subagente_diseno', 'subagente_ciberseguridad', 'subagente_asistencia'
+                ]):
                     return True
     except Exception:
         pass
@@ -2037,6 +2044,13 @@ def check_procesos_tripulacion():
 
 def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> dict:
     agentes = ["luffy", "zoro", "sanji", "robin", "nami"]
+    alias_map = {
+        "luffy": ["luffy", "agente_orquestador", "orquestador"],
+        "zoro": ["zoro", "subagente_desarrollo", "desarrollo"],
+        "sanji": ["sanji", "subagente_asistencia", "asistencia"],
+        "robin": ["robin", "subagente_ciberseguridad", "ciberseguridad"],
+        "nami": ["nami", "subagente_diseno", "diseno", "diseño"]
+    }
     
     if not is_activo:
         return {ag: "off" for ag in agentes}
@@ -2051,8 +2065,8 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
                 est = str(t.get("estado", "")).strip().upper()
                 resp = str(t.get("responsable", "")).strip().lower()
                 if est in ["EN_PROCESO", "EJECUTANDO", "TRABAJANDO", "PROCESANDO", "EN PROCESO", "NUEVO"]:
-                    for ag in agentes:
-                        if ag in resp:
+                    for ag, aliases in alias_map.items():
+                        if any(al in resp for al in aliases):
                             agentes_con_tarea.add(ag)
                             
     # 2. Identificar procesos de python corriendo específicamente por agente
@@ -2064,8 +2078,13 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
                 continue
             if 'python' in (p.info['name'] or '').lower():
                 cmd = " ".join(p.info['cmdline'] or []).lower()
-                for ag in agentes:
-                    if f"{ag}_agent" in cmd or (ag in cmd and "base_listener" in cmd):
+                for ag, aliases in alias_map.items():
+                    if any(
+                        f"{al}_agent" in cmd or
+                        (al in cmd and "base_listener" in cmd) or
+                        f"/{al}/" in cmd or f"\\{al}\\" in cmd
+                        for al in aliases
+                    ):
                         procesos_por_agente.add(ag)
     except Exception:
         pass
@@ -2082,12 +2101,24 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
             estados[ag] = "activo"
             continue
             
-        # C. Analizar archivo de log del agente
-        log_file = logs_dir / f"{ag.capitalize()}.log"
-        if not log_file.exists():
-            log_file = logs_dir / f"{ag}.log"
+        # C. Analizar archivo de log del agente (nombres canónicos y legados)
+        log_candidates = [
+            logs_dir / f"{ag.capitalize()}.log",
+            logs_dir / f"{ag}.log"
+        ]
+        alias_log_names = {
+            "luffy": ["Agente_Orquestador", "agente_orquestador"],
+            "zoro": ["Subagente_Desarrollo", "subagente_desarrollo"],
+            "sanji": ["Subagente_Asistencia", "subagente_asistencia"],
+            "robin": ["Subagente_Ciberseguridad", "subagente_ciberseguridad"],
+            "nami": ["Subagente_Diseno", "subagente_diseno"]
+        }.get(ag, [])
+        for an in alias_log_names:
+            log_candidates.append(logs_dir / f"{an}.log")
+
+        log_file = next((f for f in log_candidates if f.exists() and f.stat().st_size > 0), None)
             
-        if log_file.exists() and log_file.stat().st_size > 0:
+        if log_file:
             mtime = log_file.stat().st_mtime
             delta_seg = ahora - mtime
             
@@ -2345,11 +2376,21 @@ def parse_bitacora(ruta):
                 val = re.split(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
                 criterios = limpiar_formato_md(val)
         
-        # Si el responsable dice Luffy pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
-        if t_id and responsable.lower() == "luffy":
-            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI)\b', t_id, re.IGNORECASE)
+        # Si el responsable dice Luffy/Orquestador pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
+        if t_id and responsable.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI|DESARROLLO|ASISTENCIA|CIBERSEGURIDAD|DISENO)\b', t_id, re.IGNORECASE)
             if m_ag:
-                responsable = m_ag.group(1).capitalize()
+                ag_map = {
+                    "DESARROLLO": "Subagente_Desarrollo",
+                    "ZORO": "Subagente_Desarrollo",
+                    "ASISTENCIA": "Subagente_Asistencia",
+                    "SANJI": "Subagente_Asistencia",
+                    "CIBERSEGURIDAD": "Subagente_Ciberseguridad",
+                    "ROBIN": "Subagente_Ciberseguridad",
+                    "DISENO": "Subagente_Diseno",
+                    "NAMI": "Subagente_Diseno"
+                }
+                responsable = ag_map.get(m_ag.group(1).upper(), m_ag.group(1).capitalize())
 
         tareas.append({
             "id": t_id,
@@ -2401,11 +2442,21 @@ def parse_tickets_md(ruta):
         if not t_id and not desc and not tarea_especifica:
             continue
 
-        # Si el responsable dice Luffy pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
-        if t_id and responsable.lower() == "luffy":
-            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI)\b', t_id, re.IGNORECASE)
+        # Si el responsable dice Luffy/Orquestador pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
+        if t_id and responsable.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI|DESARROLLO|ASISTENCIA|CIBERSEGURIDAD|DISENO)\b', t_id, re.IGNORECASE)
             if m_ag:
-                responsable = m_ag.group(1).capitalize()
+                ag_map = {
+                    "DESARROLLO": "Subagente_Desarrollo",
+                    "ZORO": "Subagente_Desarrollo",
+                    "ASISTENCIA": "Subagente_Asistencia",
+                    "SANJI": "Subagente_Asistencia",
+                    "CIBERSEGURIDAD": "Subagente_Ciberseguridad",
+                    "ROBIN": "Subagente_Ciberseguridad",
+                    "DISENO": "Subagente_Diseno",
+                    "NAMI": "Subagente_Diseno"
+                }
+                responsable = ag_map.get(m_ag.group(1).upper(), m_ag.group(1).capitalize())
 
         tickets.append({
             "id": t_id,

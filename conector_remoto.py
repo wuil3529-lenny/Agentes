@@ -57,7 +57,7 @@ def obtener_metricas_locales():
     ram = psutil.virtual_memory().percent
     
     # Leer estado de agentes locales si existe
-    estado_path = BASE_DIR / "Luffy" / "estado_tripulacion.json"
+    estado_path = (BASE_DIR / "Agente_Orquestador" / "estado_tripulacion.json") if (BASE_DIR / "Agente_Orquestador" / "estado_tripulacion.json").exists() else (BASE_DIR / "Luffy" / "estado_tripulacion.json")
     agentes_estado = {"luffy": "activo", "zoro": "activo", "sanji": "espera", "robin": "activo", "nami": "espera"}
     if estado_path.exists():
         try:

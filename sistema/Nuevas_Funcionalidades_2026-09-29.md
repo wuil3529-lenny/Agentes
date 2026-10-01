@@ -84,3 +84,6 @@ Se reforzaron las reglas de exclusión para asegurar que ningún dato sensible n
 - Memorias vivas y operativas (`memoria/`, `Cerebro.md`, `Bitacora.md`, logs).
 - Archivos de chat e historial de mensajería (`canal_usuario.json`, carpetas de chat).
 - Carpetas personales y reportes de prueba de los agentes (`Zoro/proyectos/`, `Robin/reportes/`, `Robin/informes/`, `Sanji/documentos_sanji/`, `Nami/informes/`).
+
+---
+**Pertenece a:** [[Perfil_Agente_Orquestador]]

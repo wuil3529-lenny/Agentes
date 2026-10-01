@@ -53,7 +53,7 @@ def _clasificar_error(stderr_o_resultado: str) -> str:
         return (
             "### CAUSA RAÍZ: Error de permisos ###\n"
             "INSTRUCCIÓN OBLIGATORIA: Verifica que la ruta de destino esté dentro de "
-            "'/app/Zoro/' o '/app/Archivos_temporales/'. Rutas fuera de estos directorios "
+            "'/app/Subagente_Desarrollo/' o '/app/Archivos_temporales/'. Rutas fuera de estos directorios "
             "están bloqueadas. Si la ruta es correcta, usa `ejecutar_comando('ls -la <dir>', '/app/')` "
             "para inspeccionar los permisos reales."
         )

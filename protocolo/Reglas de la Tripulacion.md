@@ -1,4 +1,4 @@
-> 🔗 **Nexo:** [[Cerebro]], [[memoria]], [[Perfil_Luffy]], [[Perfil_Zoro]], [[Perfil_Nami]], [[Perfil_Robin]], [[Perfil_Sanji]], [[Bitacora]]
+> 🔗 **Nexo:** [[Cerebro]], [[memoria]], [[Perfil_Agente_Orquestador]], [[Perfil_Subagente_Desarrollo]], [[Perfil_Subagente_Diseno]], [[Perfil_Subagente_Ciberseguridad]], [[Perfil_Subagente_Asistencia]], [[Bitacora]]
 
 # ⚖️ Reglas de la Tripulación
 
@@ -8,11 +8,11 @@
 > [!NOTE] 🗺️ Mapa de Rutas del Ecosistema
 > - **Raíz del Sistema:** `C:\Users\admin\Documents\Agentes\`
 >   - **Agentes (Espacios Locales):** Aquí vive cada agente. Dentro de sus carpetas van sus skills (habilidades) locales y los códigos o proyectos que realice cada uno.
->     - **Luffy:** `C:\Users\admin\Documents\Agentes\Luffy\`
->     - **Zoro:** `C:\Users\admin\Documents\Agentes\Zoro\`
->     - **Robin:** `C:\Users\admin\Documents\Agentes\Robin\`
->     - **Nami:** `C:\Users\admin\Documents\Agentes\Nami\`
->     - **Sanji:** `C:\Users\admin\Documents\Agentes\Sanji\`
+>     - **Agente Orquestador (Luffy):** `C:\Users\admin\Documents\Agentes\Agente_Orquestador\`
+>     - **Subagente de Desarrollo (Zoro):** `C:\Users\admin\Documents\Agentes\Subagente_Desarrollo\`
+>     - **Subagente de Ciberseguridad (Robin):** `C:\Users\admin\Documents\Agentes\Subagente_Ciberseguridad\`
+>     - **Subagente de Diseño (Nami):** `C:\Users\admin\Documents\Agentes\Subagente_Diseno\`
+>     - **Subagente de Asistencia (Sanji):** `C:\Users\admin\Documents\Agentes\Subagente_Asistencia\`
 >   - **Archivos Temporales:** `C:\Users\admin\Documents\Agentes\Archivos_temporales\` (Para basura, logs de prueba, o archivos temporales).
 >   - `protocolo\`: Protocolos de comportamiento y estructura.
 
@@ -153,7 +153,7 @@ Cuando Luffy (en su rol de Curador Automático) resuelve exitosamente un ticket 
 
 ## 23. Regla Anti-Orfandad para Obsidian (Conexiones Obligatorias)
 Todo archivo generado por cualquier agente debe incluir obligatoriamente en su pie de página una conexión al grafo:
-- Si es un archivo temporal en `Archivos_temporales/`, debe incluir: **Conexiones:** `archivos_temporales/` y tu propio perfil (ej. `[[Perfil_Zoro]]`).
+- Si es un archivo temporal en `Archivos_temporales/`, debe incluir: **Conexiones:** `archivos_temporales/` y tu propio perfil (ej. `[[Perfil_Subagente_Desarrollo]]`).
 - Si es un documento en tus carpetas locales (ej. `proyectos/`, `reportes/`), debe vincularse al índice de esa carpeta (ej. `proyectos/`) y a tu perfil.
 - **PROHIBIDO:** No debes vincular archivos de trabajo a `Bitácora` ni a `Cerebro` o `[[memoria]]`. Esos nodos son exclusivos del orquestador y la memoria central, y enlazarlos ensucia el grafo de Obsidian con conexiones irrelevantes.
 Ningún archivo puede quedar suelto en el grafo de Obsidian.

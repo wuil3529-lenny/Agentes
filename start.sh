@@ -40,8 +40,8 @@ log "Contenido de /app:"
 ls /app | head -20
 
 # ── Verificar que existan los archivos clave ──────────────────────────────────
-LISTENER="/app/Luffy/base_listener.py"
-BRIDGE="/app/Luffy/telegram_bridge.py"
+LISTENER="/app/Agente_Orquestador/base_listener.py"
+BRIDGE="/app/Agente_Orquestador/telegram_bridge.py"
 
 if [[ ! -f "$LISTENER" ]]; then
     err "No se encontró base_listener.py en $LISTENER"
@@ -51,7 +51,7 @@ fi
 
 if [[ ! -f "$BRIDGE" ]]; then
     # Fallback: buscar en skills/
-    BRIDGE_FALLBACK="/app/Luffy/skills/telegram_bridge.py"
+    BRIDGE_FALLBACK="/app/Agente_Orquestador/skills/telegram_bridge.py"
     if [[ -f "$BRIDGE_FALLBACK" ]]; then
         warn "telegram_bridge.py no está en raíz. Usando fallback: $BRIDGE_FALLBACK"
         # Copiar al lugar correcto para que start.sh lo encuentre siempre
@@ -96,12 +96,12 @@ trap cleanup SIGTERM SIGINT
 # Asegurar que exista la carpeta de logs
 mkdir -p /app/logs
 
-# 🚀 Lanzar base_listener.py (Luffy como Daemon principal) 🚀
-log "Iniciando motor principal: base_listener.py para Luffy..."
-python -u /app/Luffy/base_listener.py luffy \
-    2>&1 | while IFS= read -r line; do echo "[Luffy] $line" | tee -a /app/logs/Luffy.log; done &
+# 🚀 Lanzar base_listener.py (Orquestador como Daemon principal) 🚀
+log "Iniciando motor principal: base_listener.py para Agente_Orquestador..."
+python -u /app/Agente_Orquestador/base_listener.py Agente_Orquestador \
+    2>&1 | while IFS= read -r line; do echo "[Agente_Orquestador] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
 PID_LUFFY=$!
-ok "Luffy (Daemon) iniciado con PID $PID_LUFFY"
+ok "Agente_Orquestador (Daemon) iniciado con PID $PID_LUFFY"
 
 # Pequeña pausa para que el listener arranque
 sleep 2
@@ -109,8 +109,8 @@ sleep 2
 # ── Lanzar telegram_bridge.py ─────────────────────────────────────────────────
 if [[ "$BRIDGE_DISABLED" == "false" ]]; then
     log "Iniciando puente Telegram: telegram_bridge.py ..."
-    python -u /app/Luffy/telegram_bridge.py \
-        2>&1 | while IFS= read -r line; do echo "[telegram_bridge] $line" | tee -a /app/logs/Luffy.log; done &
+    python -u /app/Agente_Orquestador/telegram_bridge.py \
+        2>&1 | while IFS= read -r line; do echo "[telegram_bridge] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
     BRIDGE_PID=$!
     ok "telegram_bridge.py iniciado con PID $BRIDGE_PID"
 else
