@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_buscar_internet_nami. Implementada en Python por Subagente_Diseno.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Diseno]]
+**Pertenece a:** [[Perfil_Subagente_Diseno]]

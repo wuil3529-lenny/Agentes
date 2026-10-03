@@ -1,4 +1,4 @@
-# Ignorar tokens de Google Workspace por recomendación de auditoría (Robin)
+# Ignorar tokens de Google Workspace por recomendación de auditoría por el Subagente de Ciberseguridad
 credentials.json
 token.json
 data/credentials.json

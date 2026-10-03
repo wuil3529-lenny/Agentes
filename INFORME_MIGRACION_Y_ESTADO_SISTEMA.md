@@ -148,6 +148,9 @@ Una vez que abras la carpeta raíz `C:\Users\admin\Documents\Agentes` en Antigra
 ---
 **Documento Certificado:** Listo para transición y apertura del espacio de trabajo desde la carpeta raíz `Agentes`.
 
+---
+**Pertenece a:** [[archivos_temporales]]
+
 
 ---
 **Pertenece a:** [[Perfil_Agente_Orquestador]]

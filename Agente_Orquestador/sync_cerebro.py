@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[1]
-LUFFY_DIR = APP_ROOT / "Agente_Orquestador"
-SKILLS_DIR = LUFFY_DIR / "skills"
+ORQUESTADOR_DIR = APP_ROOT / "Agente_Orquestador"
+SKILLS_DIR = ORQUESTADOR_DIR / "skills"
 
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
@@ -89,7 +89,14 @@ def sincronizar_conocimiento():
     for agente in agentes_conocidos:
         agente_dir = APP_ROOT / agente
         
-        # Soportar tanto _agents como .agents y nombres de perfiles
+        # Soportar agente.md (modelo canónico), Perfil_{agente}.md existente o *_perfil.json
+        candidatos_agente_md = [
+            agente_dir / "_agents" / f"{agente}.md",
+            agente_dir / "_agents" / "agente.md",
+            agente_dir / ".agents" / "agente.md"
+        ]
+        agente_md_file = next((m for m in candidatos_agente_md if m.exists()), None)
+
         candidatos_perfil = [
             agente_dir / "_agents" / f"{agente.lower()}_perfil.json",
             agente_dir / ".agents" / f"{agente.lower()}_perfil.json"
@@ -105,12 +112,30 @@ def sincronizar_conocimiento():
         perfil_json = next((p for p in candidatos_perfil if p.exists()), None)
         carpeta_skills_agy = (agente_dir / "_agents" / "skills") if (agente_dir / "_agents" / "skills").exists() else (agente_dir / ".agents" / "skills")
         
-        if perfil_json and perfil_json.exists():
+        desc = None
+        ruta_md = agente_dir / f"Perfil_{agente}.md"
+
+        if ruta_md.exists():
+            try:
+                p_txt = ruta_md.read_text(encoding="utf-8")
+                m_p = re.search(r"^#\s+[^\n]+\n\n(.*?)(?=\n\n---\n|\Z)", p_txt, re.DOTALL)
+                if m_p and m_p.group(1).strip():
+                    desc = m_p.group(1).strip()
+            except Exception:
+                pass
+
+        if not desc and perfil_json and perfil_json.exists():
             try:
                 datos = json.loads(perfil_json.read_text(encoding="utf-8"))
-                desc = datos.get("presentacion", f"Perfil base de {agente}")
-                
-                ruta_md = agente_dir / f"Perfil_{agente}.md"
+                desc = datos.get("presentacion")
+            except Exception:
+                pass
+
+        if not desc and agente_md_file and agente_md_file.exists():
+            desc = f"Perfil canónico de {agente} configurado en agente.md."
+
+        if desc:
+            try:
                 # Conexiones centrales: Atraen a los agentes al medio
                 enlaces = ["Reglas de la Tripulacion", "Bitacora", "Cerebro"]
                 
@@ -195,13 +220,13 @@ def sincronizar_conocimiento():
                     "Subagente_Desarrollo": "proyectos",
                     "Subagente_Diseno": "informes",
                     "Subagente_Ciberseguridad": "reportes",
-                    "Subagente_Asistencia": "documentos_sanji",
+                    "Subagente_Asistencia": "documentos_asistencia",
                     # Compatibilidad
                     "Luffy": "memoria",
                     "Zoro": "proyectos",
                     "Nami": "informes",
                     "Robin": "reportes",
-                    "Sanji": "documentos_sanji"
+                    "Sanji": "documentos_asistencia"
                 }
                 carpeta_trabajo = mapa_carpetas.get(agente, "proyectos")
                 
@@ -233,7 +258,9 @@ def sincronizar_conocimiento():
                     for md_file in directorio.rglob("*.md"):
                         if md_file.name == ruta_md.name: continue
                         if md_file.name in ["Hub_Central.md", "Bitacora.md", "Reglas de la Tripulacion.md", "Cerebro.md"]: continue
-                        if md_file.name.startswith("Skill_") and md_file.parent.name in ["skills", agente]: continue
+                        if md_file.name.startswith("Skill_") or "skills" in md_file.parts:
+                            sanear_enlace_exclusivo(md_file, f"[[Perfil_{agente}]]")
+                            continue
                         
                         try:
                             # 1. Archivos HUB de cada carpeta de trabajo (conectan directamente a su agente o pilares)
@@ -255,11 +282,15 @@ def sincronizar_conocimiento():
                                 link_destino = "[[Perfil_Subagente_Diseno]]"
                             elif md_file.name in ["documentos_sanji.md", "documentos_asistencia.md"]:
                                 link_destino = "[[Perfil_Subagente_Asistencia]]"
+                            elif md_file.name == "agente.md" or "_agents" in md_file.parts:
+                                link_destino = f"[[Perfil_{agente}]]"
                             # 2. Archivos contenidos dentro de cada carpeta (conectan a su nodo carpeta)
                             elif "reportes" in md_file.parts:
                                 link_destino = "[[reportes]]"
                             elif "memoria" in md_file.parts:
                                 link_destino = "[[memoria]]"
+                            elif "documentos_asistencia" in md_file.parts:
+                                link_destino = "[[documentos_asistencia]]"
                             elif md_file.name == "SKILL.md":
                                 link_destino = f"[[Perfil_{agente}]]"
                             elif agente in ["Agente_Orquestador", "Luffy"]:
@@ -285,9 +316,13 @@ def sincronizar_conocimiento():
     if reglas_md.exists():
         agregar_al_rag("PROTOCOLO-REGLAS", reglas_md.read_text(encoding="utf-8"), {"tipo": "regla_global", "ruta": str(reglas_md)})
 
-    agents_md = LUFFY_DIR / ".agents" / "AGENTS.md"
+    agents_md = ORQUESTADOR_DIR / "_agents" / "agente.md"
     if not agents_md.exists():
-        agents_md = LUFFY_DIR / "_agents" / "AGENTS.md"
+        agents_md = ORQUESTADOR_DIR / ".agents" / "agente.md"
+    if not agents_md.exists():
+        agents_md = ORQUESTADOR_DIR / "_agents" / "AGENTS.md"
+    if not agents_md.exists():
+        agents_md = ORQUESTADOR_DIR / ".agents" / "AGENTS.md"
     if agents_md.exists():
         agregar_al_rag("PROTOCOLO-ORQUESTADOR", agents_md.read_text(encoding="utf-8"), {"tipo": "regla_orquestador", "ruta": str(agents_md)})
 

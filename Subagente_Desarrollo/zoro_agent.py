@@ -69,11 +69,11 @@ from skill_ngrok import HERRAMIENTAS_NGROK
 from skill_git        import HERRAMIENTAS_GIT
 from skill_frontend_design import HERRAMIENTAS_FRONTEND_DESIGN
 from skill_limpiar_zoro import tool_limpiar_habitacion_zoro
-from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from sentry.skill_sentry import tool_consultar_sentry_errores, tool_registrar_solucion_error
 
 HERRAMIENTAS_ZORO = [
-    consultar_sentry_errores,
-    registrar_solucion_error,
+    tool_consultar_sentry_errores,
+    tool_registrar_solucion_error,
 ] + HERRAMIENTAS_BASE + HERRAMIENTAS_WEB + HERRAMIENTAS_MOBILE + HERRAMIENTAS_SOFTWARE + HERRAMIENTAS_N8N + HERRAMIENTAS_N8N_DOCS + HERRAMIENTAS_N8N_TEMPLATES + HERRAMIENTAS_N8N_UPDATER + HERRAMIENTAS_NGROK + HERRAMIENTAS_GIT + HERRAMIENTAS_FRONTEND_DESIGN + [tool_limpiar_habitacion_zoro]
 
 NOMBRE_AGENTE = "Zoro"

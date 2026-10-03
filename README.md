@@ -148,4 +148,8 @@ python Agente_Orquestador/sync_cerebro.py
 *Desarrollado y mantenido por Wuilfredo en colaboración con el sistema multi-agente Antigravity 2.0.*
 
 ---
+**Pertenece a:** [[archivos_temporales]]
+
+
+---
 **Pertenece a:** [[Perfil_Agente_Orquestador]]

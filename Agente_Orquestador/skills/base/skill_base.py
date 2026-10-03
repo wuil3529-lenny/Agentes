@@ -1,28 +1,52 @@
-import re
 """
 skill_base.py — Habilidades Base: Sistema de Archivos y Comandos de Shell
 ==========================================================================
-Herramientas fundamentales de I/O y ejecución de procesos.
-Son la base que soporta todos los demás skills de Zoro.
+Herramientas fundamentales de entrada/salida (I/O) y ejecución de procesos
+para el Agente Orquestador y los subagentes del ecosistema.
 
 Herramientas disponibles:
-  - crear_archivo      : Crear/sobreescribir cualquier archivo
-  - leer_archivo       : Leer el contenido de un archivo
-  - listar_directorio  : Explorar la estructura de un proyecto
-  - ejecutar_comando   : Ejecutar comandos de shell (npm, pip, python, npx...)
-
-Documentación en Obsidian: agentes/Zoro_Skills.md
+  - crear_archivo      : Crear/sobreescribir cualquier archivo con control de firewall
+  - leer_archivo       : Leer contenido con censura de metadatos Obsidian (anti-alucinación)
+  - listar_directorio  : Explorar la estructura de carpetas y tamaños de archivos
+  - ejecutar_comando   : Ejecutar comandos de shell con lista blanca y timeout seguro
 """
+
 import os
 import sys
+import re
+import json
+import subprocess
 from pathlib import Path
+from typing import Optional, Dict, Any, List
+from langchain_core.tools import tool
 
 _CURRENT = Path(__file__).resolve()
 _APP_ROOT = _CURRENT.parents[3] if len(_CURRENT.parents) > 3 and _CURRENT.parents[2].name.lower() in ["luffy", "agente_orquestador"] else _CURRENT.parents[2]
 
-import json
-import subprocess
-from langchain_core.tools import tool
+
+def obtener_prompt_base() -> str:
+    """
+    System Prompt especializado y encapsulado para las operaciones base de sistema de archivos
+    y ejecución de comandos de terminal.
+    """
+    return """[🛑 HARD-STOP: MODO OPERACIONES BASE DE SISTEMA Y COMANDOS ACTIVO 🛑]
+Eres el Operador de Infraestructura y Sistema de Archivos de la tripulación de agentes.
+Tu misión es gestionar lecturas, escrituras, exploración de directorios y ejecución de procesos en el sistema operativo con rigor técnico, respetando el firewall determinístico y previniendo la corrupción de datos o la saturación de contexto.
+
+DIRECTIVAS OPERATIVAS FUNDAMENTALES:
+1. PRECISIÓN DE RUTAS Y VERIFICACIÓN PREVIA:
+   - Antes de escribir o leer un archivo, valida su existencia o la de sus directorios contenedores usando `listar_directorio`.
+   - Utiliza rutas absolutas o normalizadas basadas en la raíz del entorno (/app en Docker o la raíz del repositorio).
+2. FIREWALL DETERMINÍSTICO Y REGLAS DE SEGURIDAD:
+   - Tienes terminantemente prohibido ejecutar comandos destructivos de sistema (rm -rf, del /f, format, mkfs, shutdown, etc.).
+   - Solo ejecuta comandos en la lista blanca de herramientas autorizadas (npm, pip, python, git, docker, ls, cat, etc.).
+   - Respeta el timeout máximo de 120 segundos por comando.
+3. INTEGRIDAD DEL CONOCIMIENTO (OBSIDIAN & GRAFO):
+   - Nunca escribas manualmente en Cerebro.md. El conocimiento estructurado debe registrarse mediante las herramientas RAG oficiales.
+   - Todo archivo markdown generado debe conservar conexiones limpias hacia el perfil o carpeta correspondiente.
+4. CONTROL DE VOLUMEN DE CONTEXTO:
+   - Al leer archivos, ten en cuenta que el contenido se censura de metadatos de grafo y se pagina a un máximo de seguridad para no desbordar la ventana de contexto del modelo.
+"""
 
 
 @tool
@@ -32,7 +56,7 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
     Crea automáticamente los directorios padres si no existen.
 
     Args:
-        ruta_absoluta: Ruta completa del archivo (ej: C:/Users/admin/proyecto/index.html)
+        ruta_absoluta: Ruta completa del archivo (ej: /app/proyectos/index.html)
         contenido: Contenido completo a escribir en el archivo
     """
     # Limpiar links relativos que contaminan el grafo de Obsidian
@@ -80,16 +104,22 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
             # Limpiar cualquier intento de enlace doble a la Triada en el contenido
             contenido = re.sub(r'\[\[(Bitacora|Cerebro|Reglas de la Tripulacion|Memoria_Viva_Errores)\]\]', r'[\1]', contenido)
             
-            # Determinar a donde pertenece segun la ruta
+            # Determinar a donde pertenece segun la ruta (rutas canonicas y legadas)
             enlace_fuerte = None
-            if "/Nami/informes" in ruta_str: enlace_fuerte = "[[informes]]"
-            elif "/Zoro/proyectos" in ruta_str: enlace_fuerte = "[[proyectos]]"
-            elif "/Robin/reportes" in ruta_str: enlace_fuerte = "[[reportes]]"
-            elif "/Sanji/documentos_sanji" in ruta_str: enlace_fuerte = "[[documentos_sanji]]"
-            elif "/Archivos_temporales" in ruta_str: enlace_fuerte = "[[archivos_temporales]]"
+            if "/Subagente_Diseno/informes" in ruta_str or "/Nami/informes" in ruta_str:
+                enlace_fuerte = "[[informes]]"
+            elif "/Subagente_Desarrollo/proyectos" in ruta_str or "/Zoro/proyectos" in ruta_str:
+                enlace_fuerte = "[[proyectos]]"
+            elif "/Subagente_Ciberseguridad/reportes" in ruta_str or "/Robin/reportes" in ruta_str:
+                enlace_fuerte = "[[reportes]]"
+            elif "/Subagente_Asistencia/documentos_sanji" in ruta_str or "/Sanji/documentos_sanji" in ruta_str:
+                enlace_fuerte = "[[documentos_sanji]]"
+            elif "/Archivos_temporales" in ruta_str:
+                enlace_fuerte = "[[archivos_temporales]]"
             elif "/skills/" in ruta_str:
                 match = re.search(r'/Agentes/([^/]+)/skills', ruta_str)
-                if match: enlace_fuerte = f"[[Perfil_{match.group(1)}]]"
+                if match:
+                    enlace_fuerte = f"[[Perfil_{match.group(1)}]]"
             
             if enlace_fuerte and enlace_fuerte not in contenido:
                 if "**Pertenece a:**" in contenido:
@@ -121,10 +151,19 @@ def leer_archivo(ruta_absoluta: str) -> str:
         if not ruta.exists():
             # Fallback para reglas de la tripulación o protocolos
             nombre_archivo = ruta.name
-            ruta_fallback = (_APP_ROOT / "memoria_compartida" / "protocolo" / nombre_archivo)
-            if ruta_fallback.exists():
-                ruta = ruta_fallback
-            else:
+            rutas_posibles = [
+                _APP_ROOT / "protocolo" / nombre_archivo,
+                _APP_ROOT / "memoria" / nombre_archivo,
+                Path("/app/protocolo") / nombre_archivo,
+                Path("/app/memoria") / nombre_archivo
+            ]
+            encontrado = False
+            for rp in rutas_posibles:
+                if rp.exists():
+                    ruta = rp
+                    encontrado = True
+                    break
+            if not encontrado:
                 return json.dumps({"status": "error", "mensaje": f"Archivo no encontrado: {ruta_absoluta}"})
         
         contenido = ruta.read_text(encoding="utf-8")
@@ -183,7 +222,7 @@ def listar_directorio(ruta_absoluta: str) -> str:
 def ejecutar_comando(command: str, directorio: str) -> str:
     """
     Ejecuta un comando de shell en el directorio especificado.
-    Soporta: npm, npx, pip, python, node, flutter, git, etc.
+    Soporta: npm, npx, pip, python, node, flutter, git, docker, etc.
     Timeout máximo: 120 segundos.
 
     Args:
@@ -227,5 +266,5 @@ def ejecutar_comando(command: str, directorio: str) -> str:
         return json.dumps({"status": "error", "mensaje": str(e)})
 
 
-# Lista de herramientas de este skill (para importar en zoro_agent.py)
+# Lista de herramientas fundamentales de I/O y sistema
 HERRAMIENTAS_BASE = [crear_archivo, leer_archivo, listar_directorio, ejecutar_comando]

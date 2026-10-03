@@ -1,21 +1,21 @@
 {
-  "mes_activo": "2026-09",
-  "tokens": 2219241,
-  "costo": 0.321716,
+  "mes_activo": "2026-10",
+  "tokens": 2295618,
+  "costo": 0.333057,
   "bloqueado_por_presupuesto": false,
   "presupuesto_maximo": 5.0,
   "agentes": {
     "luffy": {
-      "tokens": 1735305,
-      "costo": 0.252896
+      "tokens": 438175,
+      "costo": 0.062132
     },
     "zoro": {
-      "tokens": 25748,
-      "costo": 0.003752
+      "tokens": 0,
+      "costo": 0.0
     },
     "sanji": {
-      "tokens": 458188,
-      "costo": 0.065068
+      "tokens": 0,
+      "costo": 0.0
     },
     "robin": {
       "tokens": 0,
@@ -24,7 +24,32 @@
     "nami": {
       "tokens": 0,
       "costo": 0.0
+    },
+    "agente_orquestador": {
+      "tokens": 2084197,
+      "costo": 0.302377
+    },
+    "subagente_desarrollo": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "subagente_diseno": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "subagente_ciberseguridad": {
+      "tokens": 0,
+      "costo": 0.0
+    },
+    "subagente_asistencia": {
+      "tokens": 211421,
+      "costo": 0.03068
     }
   },
-  "historial_meses": {}
+  "historial_meses": {
+    "2026-09": {
+      "costo": 0.321716,
+      "tokens": 2219241
+    }
+  }
 }

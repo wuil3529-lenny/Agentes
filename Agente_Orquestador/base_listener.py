@@ -21,7 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 load_dotenv((_APP_ROOT / ".env"))
 
 # ══════════════════════════════════════════════════════════════════════════════
-# UBICACIÓN COMÚN DE ARCHIVOS TEMPORALES PARA TODOS LOS AGENTES (Luffy, Zoro, Nami, Robin, Sanji)
+# UBICACIÓN COMÚN DE ARCHIVOS TEMPORALES PARA TODOS LOS AGENTES (Orquestador y Subagentes)
 # ══════════════════════════════════════════════════════════════════════════════
 # Cualquier archivo temporal que pueda ser borrado y no forme parte ni de skins,
 # ni habilidades, ni funciones, debe guardarse en: Archivos_temporales/
@@ -171,9 +171,9 @@ def _verificar_timeout() -> None:
     1. Lee turno.json y obtiene hora_inicio del agente activo.
     2. Calcula (Hora Actual - hora_inicio).
     3. Si el delta > 300:
-       a. Libera el turno forzosamente (lo devuelve a "Luffy").
+       a. Libera el turno forzosamente (lo devuelve a "Agente_Orquestador").
        b. Inyecta en canal_comunicacion.json un mensaje de error
-          firmado por el agente infractor para que Luffy lo vea.
+          firmado por el agente infractor para que el Agente_Orquestador lo vea.
     4. Si hora_inicio es None (agente aún no reclamó), no hace nada.
 
     Esta función NUNCA lanza excepciones hacia el bucle principal.
@@ -184,7 +184,7 @@ def _verificar_timeout() -> None:
         import json as _json
 
         turno = leer_turno()
-        agente_activo = turno.get("turno_actual", "Luffy")
+        agente_activo = turno.get("turno_actual", "Agente_Orquestador")
         hora_inicio_str = turno.get("hora_inicio")
 
         # Si el agente aún no reclamó el turno, no hay nada que controlar
@@ -204,18 +204,18 @@ def _verificar_timeout() -> None:
 
         # ── Paso 4: Liberación Forzada ───────────────────────────────────────────
         turno_file = (_APP_ROOT / "turno.json")
-        turno["turno_actual"] = "Luffy"   # El Capitán siempre recupera el control
-        turno["hora_inicio"]  = None       # El turno está libre, sin tiempo iniciado
+        turno["turno_actual"] = "Agente_Orquestador"   # El Orquestador siempre recupera el control
+        turno["hora_inicio"]  = None                   # El turno está libre, sin tiempo iniciado
         turno_file.write_text(
             _json.dumps(turno, ensure_ascii=False, indent=2), encoding="utf-8"
         )
-        print(f"[Arbitro] ✅  Turno liberado. Control devuelto a Luffy.")
+        print(f"[Arbitro] ✅  Turno liberado. Control devuelto al Agente_Orquestador.")
 
         # ── Paso 5: Reporte de Falla ────────────────────────────────────────────
         # Inyecta un mensaje en el canal como si fuera el agente infractor
         publicar_mensaje(
             de=agente_activo,
-            para="Luffy",
+            para="Agente_Orquestador",
             tipo="error",
             contenido={
                 "texto": (
@@ -229,7 +229,7 @@ def _verificar_timeout() -> None:
                 "duracion_bloqueo_seg": round(delta, 1),
             }
         )
-        print(f"[Arbitro] 📨  Reporte de falla inyectado al canal para Luffy.")
+        print(f"[Arbitro] 📨  Reporte de falla inyectado para Agente_Orquestador.")
 
     except Exception as arb_e:
         # El árbitro nunca detiene el bucle
@@ -411,8 +411,8 @@ def _extraer_tickets_pizarra(texto_markdown: str) -> list:
         tarea = _get_field("Tarea")
         responsable_raw = _get_field("Responsable")
         if responsable_raw:
-            m_resp = re.search(r'(?i)\b(luffy|zoro|nami|robin|sanji)\b', responsable_raw)
-            responsable = m_resp.group(1).capitalize() if m_resp else responsable_raw
+            m_resp = re.search(r'(?i)\b(agente_orquestador|subagente_desarrollo|subagente_diseno|subagente_ciberseguridad|subagente_asistencia|orquestador|desarrollo|diseno|diseño|ciberseguridad|asistencia|luffy|zoro|nami|robin|sanji)\b', responsable_raw)
+            responsable = m_resp.group(1) if m_resp else responsable_raw
         else:
             responsable = None
         estado = _get_field("Estado")
@@ -436,31 +436,22 @@ def _extraer_tickets_pizarra(texto_markdown: str) -> list:
     return tickets
 
 def build_system_prompt(agente_nombre):
+    if agente_nombre.lower() in ["agente_orquestador", "orquestador", "luffy"]:
+        agente_md = _APP_ROOT / "Agente_Orquestador" / "_agents" / "agente.md"
+        if agente_md.exists():
+            return agente_md.read_text(encoding="utf-8").strip()
+
     perfil = cargar_perfil_agente(agente_nombre)
     identidad = perfil.get("presentacion", f"Eres {agente_nombre}.")
     manual = perfil.get("manual_quirurgico", "")
     if manual:
         identidad += f"\n\n--- MANUAL QUIRÚRGICO Y FEW-SHOTS ---\n{manual}\n"
-        
-    if agente_nombre.upper() == "LUFFY":
-        try:
-            from memory import listar_perfiles_disponibles
-            perfiles = listar_perfiles_disponibles()
-            radiografia = "\n--- RADIOGRAFÍA DE LA TRIPULACIÓN (BOOT SEQUENCE) ---\nEres el Director del sistema. Aquí está la radiografía de tu equipo para saber a quién delegar qué:\n"
-            for p in perfiles:
-                if p.upper() != "LUFFY":
-                    p_data = cargar_perfil_agente(p)
-                    desc = p_data.get("presentacion", "Agente sin rol definido.")
-                    radiografia += f"- **{p}**: {desc[:300]}...\n"
-            identidad += radiografia
-        except Exception as e:
-            print(f"Error cargando radiografía: {e}")
     
     reglas = leer_nodo_obsidian("protocolo/Reglas de la Tripulacion.md")
     protocolo = leer_nodo_obsidian("protocolo/Protocolo Inter-Agente.md")
     memoria_viva = leer_nodo_obsidian("memoria/Memoria_Viva_Errores.md")
     return f"""{identidad}
-Tu capitán es Luffy. Él te delegará tareas. Si eres Luffy, tú eres el Capitán.
+El Agente_Orquestador es el Director de Operaciones y Supervisor del Sistema. Él te delega tareas mediante la Bitácora.
 Siempre debes comunicarte usando el formato JSON especificado.
 DIRECTIVA CRÍTICA: Cuando uses herramientas para leer archivos o investigar, NO respondas simplemente "he leído el archivo". DEBES incluir un resumen detallado de lo que aprendiste y extraer el conocimiento útil en tu respuesta.
 
@@ -484,8 +475,8 @@ El bloque Markdown del ticket actualizado DEBE tener obligatoriamente esta estru
 - **Responsable:** (Nombre del agente que debe procesarlo ahora)
 
 REGLAS DE TRANSICIÓN:
-1. Si eres un SUBAGENTE (Zoro, Nami, etc.) y terminaste: NO uses COMPLETADO. Cambia el Estado a "PENDIENTE_REVISION" y el Responsable a "Luffy".
-2. Si eres LUFFY (Capitán) y recibes un ticket en PENDIENTE_REVISION: Audítalo. Si el subagente falló y puede corregirlo, redacta la lección aprendida en el Historial, cambia el Estado a "PENDIENTE" y el Responsable al subagente. Si es éxito total, extrae la información, cambia el Estado a "CERRADO", y comunícate con el usuario usando tu herramienta tool_enviar_telegram.
+1. Si eres un SUBAGENTE (Desarrollo, Diseño, Ciberseguridad, Asistencia) y terminaste: NO uses COMPLETADO. Cambia el Estado a "PENDIENTE_REVISION" y el Responsable a "Agente_Orquestador".
+2. Si eres el AGENTE_ORQUESTADOR y recibes un ticket en PENDIENTE_REVISION: Audítalo. Si el subagente falló y puede corregirlo, redacta la lección aprendida en el Historial, cambia el Estado a "PENDIENTE" y el Responsable al subagente. Si es éxito total, cambia el Estado a "CERRADO" y notifica al usuario usando tu herramienta tool_enviar_telegram.
 3. Si necesitas delegar a otro agente: Cambia Responsable al nombre del agente y Estado a "PENDIENTE".
 
 --- REGLA DE EVIDENCIA FÍSICA (OBLIGATORIO) ---
@@ -493,7 +484,7 @@ Además del campo en el markdown, TU JSON DEBE incluir obligatoriamente el campo
   "Evidencia_Fisica": "<ruta_absoluta_del_archivo_generado_o_modificado>"
 Si la tarea fue consultiva (no generaste archivo), usa "N/A".
 ¡REQUISITO CRÍTICO DEL AUDITOR!: TU JSON TAMBIÉN DEBE INCLUIR A NIVEL RAÍZ EL CAMPO "evidencia_hallazgo" con una descripción CONCRETA y ESPECÍFICA de lo que hiciste, qué encontraste o qué corregiste. NO puede estar vacío, nulo ni ser un dict vacío {{}}.
-EJEMPLO CORRECTO: "evidencia_hallazgo": "Se corrigió la función _transformar_ruta_linux en skill_ia_creativa.py que causaba [Errno 2] por rutas Windows en Docker Linux. Se verificó que el archivo existe en /app/Nami/informes/."
+EJEMPLO CORRECTO: "evidencia_hallazgo": "Se completó la implementación y se verificó que el archivo existe en /app/.../informes/."
 EJEMPLO INCORRECTO: "evidencia_hallazgo": "" ← ESTO SERÁ RECHAZADO.
 Si este campo falta o está vacío, el Auditor RECHAZARÁ tu trabajo y entrarás en un bucle infinito de corrección. NUNCA lo omitas.
 
@@ -540,6 +531,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 return funcion_nodo(estado)
             raise e
     try:
+        if str(_APP_ROOT) not in sys.path:
+            sys.path.insert(0, str(_APP_ROOT))
         agente_dir = str(_APP_ROOT / agente_nombre)
         skills_dir = str(_APP_ROOT / agente_nombre / "skills")
         if agente_dir not in sys.path:
@@ -550,12 +543,13 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
         # Resolución flexible del módulo y nodo de agente (tanto canónico como pirata)
         candidatos_modulos = [
             f"{agente_nombre.lower()}_agent",
+            f"perfil_{agente_nombre.lower()}",
             {
-                "agente_orquestador": "luffy_agent",
+                "agente_orquestador": "agente_orquestador_agent",
                 "subagente_desarrollo": "zoro_agent",
                 "subagente_diseno": "nami_agent",
                 "subagente_ciberseguridad": "robin_agent",
-                "subagente_asistencia": "sanji_agent"
+                "subagente_asistencia": "subagente_asistencia_agent"
             }.get(agente_nombre.lower(), f"{agente_nombre.lower()}_agent")
         ]
         modulo_agente = None
@@ -571,11 +565,11 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
         candidatos_nodos = [
             f"funcion_nodo_{agente_nombre.lower()}",
             {
-                "agente_orquestador": "funcion_nodo_luffy",
+                "agente_orquestador": "funcion_nodo_agente_orquestador",
                 "subagente_desarrollo": "funcion_nodo_zoro",
                 "subagente_diseno": "funcion_nodo_nami",
                 "subagente_ciberseguridad": "funcion_nodo_robin",
-                "subagente_asistencia": "funcion_nodo_sanji"
+                "subagente_asistencia": "funcion_nodo_subagente_asistencia"
             }.get(agente_nombre.lower(), "")
         ]
         funcion_nodo = None
@@ -739,7 +733,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                         rondas_consecutivas += 1
                                         
                                         if rondas_consecutivas > 25 or ronda_actual >= 30:
-                                            print(f"[Luffy Orquestador] 🛑 ¡BUCLE DETECTADO! {agente_asignado} superó el límite seguro de iteraciones.")
+                                            print(f"[Orquestador] 🛑 ¡BUCLE DETECTADO! {agente_asignado} superó el límite seguro de iteraciones.")
                                             timeout_kill = True
                                             process.terminate()
                                             break
@@ -749,7 +743,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             
                             while process.poll() is None:
                                 if time.time() - last_log_time > 300:
-                                    print(f"[Luffy Orquestador] 🛑 ¡CUELGUE DETECTADO! {agente_asignado} no reportó logs por 5 minutos.")
+                                    print(f"[Orquestador] 🛑 ¡CUELGUE DETECTADO! {agente_asignado} no reportó logs por 5 minutos.")
                                     timeout_kill = True
                                     process.terminate()
                                     break
@@ -760,7 +754,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             resultado_returncode = -9 if timeout_kill else process.returncode
                             
                             # Auditoría post-ejecución (Kill -> Inspect)
-                            print(f"[Luffy Orquestador] 🛑 Proceso de {agente_asignado} terminado (código {resultado_returncode}). Auditando...")
+                            print(f"[Orquestador] 🛑 Proceso de {agente_asignado} terminado (código {resultado_returncode}). Auditando...")
                             
                             # Leer bitácora actualizada
                             try:
@@ -771,35 +765,35 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                 t_post = None
                                 
                             if t_post and t_post['estado'] in ['PENDIENTE_REVISION', 'PENDIENTE_APROBACION', 'COMPLETADO']:
-                                print(f"[Luffy Orquestador] ✅ Auditoría exitosa: {agente_asignado} completó {id_tk} correctamente.")
+                                print(f"[Orquestador] ✅ Auditoría exitosa: {agente_asignado} completó {id_tk} correctamente.")
                                 import re
                                 nb = t_post['bloque_original']
-                                nb = re.sub(r"(?i)(-?\s*\*\*Responsable:\*\*\s*)\w+", r"\g<1>Luffy", nb)
-                                nb += f"\n  - [Sistema - {datetime.now().isoformat()[:19]}]: Tarea completada por {agente_asignado}. Luffy, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
+                                nb = re.sub(r"(?i)(-?\s*\*\*Responsable:\*\*\s*)\w+", r"\g<1>Agente_Orquestador", nb)
+                                nb += f"\n  - [Sistema - {datetime.now().isoformat()[:19]}]: Tarea completada por {agente_asignado}. Agente_Orquestador, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
                                 texto_b = texto_b.replace(t_post['bloque_original'], nb)
                                 BITACORA_MD.write_text(texto_b, encoding="utf-8")
-                                print(f"[Luffy Orquestador] 🔄 Ticket devuelto a Luffy para notificación final.")
+                                print(f"[Orquestador] 🔄 Ticket devuelto a Agente_Orquestador para notificación final.")
                                 break
                             else:
                                 if intento < max_intentos:
-                                    print(f"[Luffy Orquestador] Aplicando penalización/corrección en la pizarra para reintento...")
+                                    print(f"[Orquestador] Aplicando penalización/corrección en la pizarra para reintento...")
                                     if t_post:
                                         # Inyectar advertencia
                                         texto_b = texto_b.replace(t_post['bloque_original'], t_post['bloque_original'] + f"\n  - [Sistema - Intento {intento}]: Fallo crítico en ejecución. Revisa las reglas y reintenta.")
                                         BITACORA_MD.write_text(texto_b, encoding="utf-8")
                                 else:
-                                    print(f"[Luffy Orquestador] ❌ Límite de intentos alcanzado. Abortando flujo de {id_tk}.")
-                                    # Abortar el ticket directamente para evitar que Luffy lo usurpe, y notificar
+                                    print(f"[Orquestador] ❌ Límite de intentos alcanzado. Abortando flujo de {id_tk}.")
+                                    # Abortar el ticket directamente para evitar que el Orquestador lo usurpe, y notificar
                                     if t_post:
                                         bloque = t_post['bloque_original']
-                                        nuevo_bloque = re.sub(r'(?i)(-?\\s*\\*\\*Estado:\\*\\*\\s*).*', r'\\g<1>ABORTADO', bloque)
-                                        nuevo_bloque += f"\\n  - [Sistema - Final]: Límite de intentos alcanzado. Tarea abortada."
+                                        nuevo_bloque = re.sub(r'(?i)(-?\s*\*\*Estado:\*\*\s*).*', r'\g<1>ABORTADO', bloque)
+                                        nuevo_bloque += f"\n  - [Sistema - Final]: Límite de intentos alcanzado. Tarea abortada."
                                         texto_b = texto_b.replace(bloque, nuevo_bloque)
                                         
-                                        # Generar SYS-REPAIR para Luffy
+                                        # Generar SYS-REPAIR para Agente_Orquestador
                                         # Analizamos los últimos logs
                                         ultimos_logs = "\n".join(log_history[-15:])
-                                        ticket_reparacion = f"\n\n## TKT-SYS-REPAIR-{agente_asignado}-{int(time.time())}\n- **Tarea:** Reparar el agente {agente_asignado}. Falló 3 veces seguidas o fue asesinado por el monitor (código {resultado_returncode}). Últimos logs:\n```text\n{ultimos_logs}\n```\n- **Evidencia_Fisica:** c:/Users/admin/Documents/Agentes/{agente_asignado}/{agente_asignado.lower()}_agent.py\n- **Responsable:** Luffy\n- **Estado:** PENDIENTE\n"
+                                        ticket_reparacion = f"\n\n## TKT-SYS-REPAIR-{agente_asignado}-{int(time.time())}\n- **Tarea:** Reparar el agente {agente_asignado}. Falló 3 veces seguidas o fue asesinado por el monitor (código {resultado_returncode}). Últimos logs:\n```text\n{ultimos_logs}\n```\n- **Evidencia_Fisica:** c:/Users/admin/Documents/Agentes/{agente_asignado}/{agente_asignado.lower()}_agent.py\n- **Responsable:** Agente_Orquestador\n- **Estado:** PENDIENTE\n"
                                         texto_b += ticket_reparacion
                                         
                                         BITACORA_MD.write_text(texto_b, encoding="utf-8")
@@ -833,7 +827,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                     try:
                         from memory import _cargar_canal, _guardar_canal
                         canal_u = _cargar_canal("usuario")
-                        cu_nuevos = [m for m in canal_u.get("mensajes", []) if "luffy" not in [str(x).lower() for x in m.get("leido_por", [])]]
+                        cu_nuevos = [m for m in canal_u.get("mensajes", []) if not any(al in [str(x).lower() for x in m.get("leido_por", [])] for al in aliases_orq)]
                         
                         texto_piezas = []
                         for m in cu_nuevos:
@@ -854,7 +848,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             texto_bitacora_actual = BITACORA_MD.read_text(encoding="utf-8") if BITACORA_MD.exists() else "La pizarra está vacía."
                             estado_inicial = {"messages": [HumanMessage(content=f"{historial_reciente}\n====================================\n\nHas recibido el siguiente mensaje NUEVO del usuario:\n\n{texto_completo}\n\n=== ESTADO ACTUAL DE LA PIZARRA ===\n{texto_bitacora_actual}\n====================================\n\n[MODO ORQUESTADOR ACTIVO]: Tienes total libertad para utilizar todas tus herramientas.\nREGLA ANTI-DUPLICADOS: Si la tarea pedida YA EXISTE (mismo objetivo) y está PENDIENTE o EN_PROGRESO, NO CREES NINGÚN TICKET NUEVO, solo avisa al usuario.\nREGLA DE REFINAMIENTO (BLAST): Si la orden del usuario es muy vaga, ambigua o le falta precisión quirúrgica, ESTÁ ESTRICTAMENTE PROHIBIDO CREAR UN TICKET O INVENTAR REQUISITOS. Debes invocar inmediatamente la herramienta 'tool_validar_objetivo' para devolver el turno al usuario con una pregunta aclaratoria y detenerte.\nSi necesitas auditar algo, investigar un bug de los agentes, o buscar contexto adicional, USA TUS HERRAMIENTAS (leer_archivo, grep_search, tool_buscar_soluciones, etc.) antes de responder.\nSi debes delegar, genera un bloque Markdown que empiece obligatoriamente por `## TKT-` con Estado y Responsable al final.")]}
                         
-                            print(f"[{agente_nombre} Listener] Llamando a funcion_nodo_luffy directamente en memoria...")
+                            print(f"[{agente_nombre} Listener] Llamando a funcion_nodo directamente en memoria...")
                             resultado = _ejecutar_nodo_con_reintento_429(funcion_nodo, estado_inicial, agente_nombre)
                             respuesta_ai = resultado["messages"][-1].content
                         
@@ -929,8 +923,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         canal_u = _cargar_canal("usuario")
                         for m in canal_u.get("mensajes", []):
                             leidos = [str(x).lower() for x in m.get("leido_por", [])]
-                            if "luffy" not in leidos:
-                                m.setdefault("leido_por", []).append("Luffy")
+                            if not any(al in leidos for al in ["luffy", "agente_orquestador", "orquestador"]):
+                                m.setdefault("leido_por", []).extend(["Luffy", "Agente_Orquestador"])
                         _guardar_canal(canal_u, "usuario")
 
                     except Exception as e_del:
@@ -941,8 +935,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             canal_u = _cargar_canal("usuario")
                             for m in canal_u.get("mensajes", []):
                                 leidos = [str(x).lower() for x in m.get("leido_por", [])]
-                                if "luffy" not in leidos:
-                                    m.setdefault("leido_por", []).append("Luffy")
+                                if not any(al in leidos for al in ["luffy", "agente_orquestador", "orquestador"]):
+                                    m.setdefault("leido_por", []).extend(["Luffy", "Agente_Orquestador"])
                             _guardar_canal(canal_u, "usuario")
                         except Exception:
                             pass
@@ -997,12 +991,12 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                     if intentos_curacion >= max_intentos_curacion:
                         print(f"[{agente_nombre} Listener] ❌ Límite de intentos de curación superado. Abortando.")
                         try:
-                            # Transferir ticket a Luffy
+                            # Transferir ticket a Agente_Orquestador
                             texto_b = BITACORA_MD.read_text(encoding="utf-8")
                             import re
                             if ticket_activo and 'bloque_original' in ticket_activo:
                                 bloque_mod = ticket_activo.get('bloque_original')
-                                bloque_mod = re.sub(r'(-\s*\*\*Responsable:\*\*\s*)\w+', r'\g<1>Luffy', bloque_mod, flags=re.IGNORECASE)
+                                bloque_mod = re.sub(r'(-\s*\*\*Responsable:\*\*\s*)\w+', r'\g<1>Agente_Orquestador', bloque_mod, flags=re.IGNORECASE)
                                 bloque_mod = re.sub(r'(-\s*\*\*Estado:\*\*\s*)\w+', r'\g<1>PENDIENTE_REVISION', bloque_mod, flags=re.IGNORECASE)
                                 bloque_mod += f"\n  - [Sistema - Fallo Crítico]: El agente {agente_nombre} sufrió un fallo crítico de auto-curación. Error: {str(e)[:200]}... Por favor, analiza y notifica al usuario."
                                 texto_b = texto_b.replace(ticket_activo.get('bloque_original'), bloque_mod)
@@ -1013,7 +1007,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                     
                     print(f"[{agente_nombre} Listener] 🛠️ Activando Auto-Curación (Intento {intentos_curacion + 1})...")
                     try:
-                        from luffy_agent import crear_llm
+                        from agente_orquestador_agent import crear_llm
                         
                         from pathlib import Path
                         skills_path = Path(__file__).parent / "skills"
@@ -1021,9 +1015,9 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             sys.path.insert(0, str(skills_path))
                         from curador.skill_curador import HERRAMIENTAS_CURADOR
                         
-                        llm_curador = crear_llm(agente="LUFFY").bind_tools(HERRAMIENTAS_CURADOR)
+                        llm_curador = crear_llm(agente="AGENTE_ORQUESTADOR").bind_tools(HERRAMIENTAS_CURADOR)
                         prompt_curador = SystemMessage(
-                            content="Eres el Curador del Sistema Antigravity 2.0. Ha ocurrido un error crítico en la ejecución de un agente. Tu objetivo es usar las herramientas para leer el código fuente, encontrar la causa del error, y parchear el archivo directamente en caliente para solucionarlo."
+                            content="Eres el Curador del Sistema. Ha ocurrido un error crítico en la ejecución de un agente. Tu objetivo es usar las herramientas para leer el código fuente, encontrar la causa del error, y parchear el archivo directamente en caliente para solucionarlo."
                         )
                         msg_error = HumanMessage(
                             content=f"Error detectado:\n```\n{tb}\n```\nTarea original del agente:\n{nuevo_bloque}\nPor favor, lee los archivos relevantes, parchea el error y confirma la solución."
@@ -1104,8 +1098,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
 
             # FASE 1 - CIERRE MINIMALISTA AUTOMÁTICO (Evitar cuello de botella de NVIDIA NIM):
             if isinstance(parsed_data, dict) and "ticket_actualizado" not in parsed_data and parsed_data.get("tipo") != "error_formato":
-                if ticket_activo.get('id_bloque').startswith("## TKT-MSG") and agente_nombre == "Luffy":
-                    print(f"[{agente_nombre} Listener] 🛡️ HARD-STOP: Cierre minimalista bloqueado para TKT-MSG. Luffy DEBE enviar ticket_actualizado.")
+                if ticket_activo.get('id_bloque').startswith("## TKT-MSG") and agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+                    print(f"[{agente_nombre} Listener] 🛡️ HARD-STOP: Cierre minimalista bloqueado para TKT-MSG. El Orquestador DEBE enviar ticket_actualizado.")
                 else:
                     # Síntesis automática universal del ticket minimalista
                     evidencia = (
@@ -1120,7 +1114,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         parsed_data.get("estado") or 
                         parsed_data.get("status") or 
                         parsed_data.get("status_code") or 
-                        ("CERRADO" if agente_nombre.lower() == "luffy" else "PENDIENTE_REVISION")
+                        ("CERRADO" if agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"] else "PENDIENTE_REVISION")
                     ).upper()
                     resumen = (
                         parsed_data.get("resumen") or 
@@ -1155,21 +1149,20 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
             if not (isinstance(parsed_data, dict) and "ticket_actualizado" in parsed_data):
                 print(f"[{agente_nombre} Listener] ⚠️ El LLM no incluyó 'ticket_actualizado'. Inyectando recordatorio correctivo (few-shot)...")
                 id_limpio = ticket_activo.get('id_bloque').replace('## ', '').strip()
-                if True:
-                    prompt_cierre = (
-                        "RECORDATORIO CRÍTICO DE PROTOCOLO:\n"
-                        "Tu respuesta anterior no incluyó la clave obligatoria 'ticket_actualizado' en el JSON.\n"
-                        "DEBES cerrar tu turno respondiendo ÚNICAMENTE con el JSON válido.\n"
-                        "¡ATENCIÓN CON EVIDENCIA FÍSICA!: En 'Evidencia_Fisica' debes escribir LA RUTA REAL DEL ARCHIVO QUE CREASTE O MODIFICASTE en tus herramientas anteriores (por ejemplo /app/Robin/reportes/... o N/A si fue solo consulta). PROHIBIDO INVENTAR RUTAS FALSAS.\n\n"
-                        "Estructura JSON requerida:\n"
-                        "{\n"
-                        f'  "ticket_actualizado": "## {id_limpio}\\n- **Tarea:** {ticket_activo.get("tarea")}\\n- **Responsable:** {"Luffy" if agente_nombre.lower() != "luffy" else "Luffy"}\\n- **Estado:** {"PENDIENTE_REVISION" if agente_nombre.lower() != "luffy" else "CERRADO"}\\n- **Evidencia_Fisica:** <RUTA_REAL_DEL_ARCHIVO_GENERADO_O_NA>\\n- **Contexto:** {ticket_activo.get("contexto")}\\n- **Historial:**\\n  - [{agente_nombre} - Fecha]: Trabajo completado.",\n'
-                        '  "Evidencia_Fisica": "<RUTA_REAL_DEL_ARCHIVO_GENERADO_O_NA>",\n'
-                        '  "evidencia_hallazgo": "Descripción concreta de lo que se hizo, encontró o corrigió (NUNCA VACÍO).",\n'
-                        
-                        "}\n"
-                        "Devuelve SÓLO el JSON sin texto adicional ni bloques de código markdown alrededor."
-                    )
+                es_orq = agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]
+                prompt_cierre = (
+                    "RECORDATORIO CRÍTICO DE PROTOCOLO:\n"
+                    "Tu respuesta anterior no incluyó la clave obligatoria 'ticket_actualizado' en el JSON.\n"
+                    "DEBES cerrar tu turno respondiendo ÚNICAMENTE con el JSON válido.\n"
+                    "¡ATENCIÓN CON EVIDENCIA FÍSICA!: En 'Evidencia_Fisica' debes escribir LA RUTA REAL DEL ARCHIVO QUE CREASTE O MODIFICASTE en tus herramientas anteriores (por ejemplo en tu carpeta informes/... o N/A si fue solo consulta). PROHIBIDO INVENTAR RUTAS FALSAS.\n\n"
+                    "Estructura JSON requerida:\n"
+                    "{\n"
+                    f'  "ticket_actualizado": "## {id_limpio}\\n- **Tarea:** {ticket_activo.get("tarea")}\\n- **Responsable:** {"Agente_Orquestador"}\\n- **Estado:** {"CERRADO" if es_orq else "PENDIENTE_REVISION"}\\n- **Evidencia_Fisica:** <RUTA_REAL_DEL_ARCHIVO_GENERADO_O_NA>\\n- **Contexto:** {ticket_activo.get("contexto")}\\n- **Historial:**\\n  - [{agente_nombre} - Fecha]: Trabajo completado.",\n'
+                    '  "Evidencia_Fisica": "<RUTA_REAL_DEL_ARCHIVO_GENERADO_O_NA>",\n'
+                    '  "evidencia_hallazgo": "Descripción concreta de lo que se hizo, encontró o corrigió (NUNCA VACÍO)."\n'
+                    "}\n"
+                    "Devuelve SÓLO el JSON sin texto adicional ni bloques de código markdown alrededor."
+                )
                 try:
                     mensajes_previos = resultado.get("messages", estado_inicial["messages"])
                     mensajes_previos.append(HumanMessage(content=prompt_cierre))
@@ -1210,7 +1203,18 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         rechazo_auditor = None
                         
                         # 1. Validar evidencia_hallazgo
-                        evidencia_hallazgo = parsed_data.get("evidencia_hallazgo")
+                        evidencia_hallazgo = (
+                            parsed_data.get("evidencia_hallazgo")
+                            or parsed_data.get("Evidencia_Hallazgo")
+                            or parsed_data.get("evidencia")
+                        )
+                        if not evidencia_hallazgo and "ticket_actualizado" in parsed_data:
+                            import re as _re_eh
+                            m_eh = _re_eh.search(r'(?i)(?:###\s*🧾?\s*Evidencia de Hallazgo|evidencia_hallazgo)[:\*\s]*\n?(.*?)(?=\n(?:###|-?\s*\*\*)|$)', parsed_data["ticket_actualizado"], _re_eh.DOTALL)
+                            if m_eh and len(m_eh.group(1).strip()) > 10:
+                                evidencia_hallazgo = m_eh.group(1).strip()
+                                parsed_data["evidencia_hallazgo"] = evidencia_hallazgo
+
                         if not evidencia_hallazgo or (isinstance(evidencia_hallazgo, dict) and len(evidencia_hallazgo) == 0):
                             print(f"[Auditor] ⚠️  {agente_nombre}: Infracción de protocolo — campo 'evidencia_hallazgo' ausente o vacío.")
                             rechazo_auditor = "Campo 'evidencia_hallazgo' ausente o vacío. El agente debe analizar los datos antes de cerrar."
@@ -1267,7 +1271,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                 texto_actualizado
                             )
                             if nuevo_ticket['estado'] in ['CERRADO', 'COMPLETADO']:
-                                # El archivado ahora es responsabilidad exclusiva de Luffy (vía tool_guardar_solucion o tool_limpiar_pizarra)
+                                # El archivado ahora es responsabilidad exclusiva del Agente_Orquestador (vía tool_guardar_solucion o tool_limpiar_pizarra)
                                 pass
                             elif nuevo_ticket['estado'] == 'PENDIENTE_REVISION' and 'SYS-REPAIR' in str(nuevo_ticket.get('id_bloque', '')):
                                 texto_actualizado = re.sub(
@@ -1311,16 +1315,16 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 
             print(f"[{agente_nombre} Listener] 🛠️ Activando Auto-Curación GLOBAL (Intento {global_crash_count}/3)...")
             try:
-                from luffy_agent import crear_llm
+                from agente_orquestador_agent import crear_llm
                 from pathlib import Path
                 skills_path = Path(__file__).parent / "skills"
                 if str(skills_path) not in sys.path:
                     sys.path.insert(0, str(skills_path))
                 from curador.skill_curador import HERRAMIENTAS_CURADOR
                 
-                llm_curador = crear_llm(agente="LUFFY").bind_tools(HERRAMIENTAS_CURADOR)
+                llm_curador = crear_llm(agente="AGENTE_ORQUESTADOR").bind_tools(HERRAMIENTAS_CURADOR)
                 prompt_curador = SystemMessage(
-                    content="Eres el Curador del Sistema Antigravity 2.0. Ha ocurrido un error crítico general en el bucle principal del agente. Tu objetivo es leer el código, encontrar la causa y parchearlo en caliente usando reemplazar exacto."
+                    content="Eres el Curador del Sistema. Ha ocurrido un error crítico general en el bucle principal del agente. Tu objetivo es leer el código, encontrar la causa y parchearlo en caliente usando reemplazar exacto."
                 )
                 
                 # Intentamos extraer contexto del ticket si existe, para dárselo al curador
@@ -1357,7 +1361,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
             except Exception as e_curador:
                 print(f"[{agente_nombre} Listener] ❌ Error en curación global: {e_curador}")
 
-        if agente_nombre in ["Luffy", "Agente_Orquestador"]:
+        if agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
             try:
                 ruta_skills = str(_APP_ROOT / "Agente_Orquestador" / "skills")
                 if ruta_skills not in sys.path:
@@ -1373,11 +1377,11 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
             time.sleep(2)
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Motor Listener Tripulación IA")
-    parser.add_argument("agente", type=str, help="Nombre del agente (Luffy, Zoro, etc.)")
+    parser = argparse.ArgumentParser(description="Motor Listener del Sistema Multi-Agente")
+    parser.add_argument("agente", type=str, help="Nombre del agente (Agente_Orquestador, Subagente_Desarrollo, etc.)")
     parser.add_argument("--ticket", type=str, default=None, help="ID del ticket para ejecución efímera (Spawn->Exec->Kill)")
     
     args = parser.parse_args()
-    agente = args.agente.capitalize()
+    agente = args.agente
     
     iniciar_listener(agente, ticket_efimero=args.ticket)

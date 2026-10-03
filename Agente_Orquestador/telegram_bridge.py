@@ -3,7 +3,7 @@ import sys
 import time
 import requests
 
-def enviar_mensaje_telegram(mensaje: str, remitente: str = "Luffy") -> str:
+def enviar_mensaje_telegram(mensaje: str, remitente: str = "Agente_Orquestador") -> str:
     """
     Envía un mensaje a través de Telegram usando el bot y asegura el espejo en la consola.
     """
@@ -78,7 +78,7 @@ def daemon_mode():
                     if texto:
                         print(f"[telegram_bridge] Comando de usuario recibido: {texto}")
                         if publicar_mensaje:
-                            publicar_mensaje("usuario", "Luffy", "mensaje_telegram", {"texto": texto}, "usuario")
+                            publicar_mensaje("usuario", "Agente_Orquestador", "mensaje_telegram", {"texto": texto}, "usuario")
             
             time.sleep(1)
         except Exception as e:

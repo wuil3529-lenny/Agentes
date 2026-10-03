@@ -6,7 +6,7 @@ Gestiona la memoria persistente que todos los agentes comparten.
 NUEVO FLUJO ARQUITECTÓNICO:
   1. Canal JSON  → Comunicación LIBRE entre agentes (preguntas, coordinación, info).
                    NO se usa para delegar tareas operativas.
-  2. Bitácora.md → TABLERO DE TAREAS. Luffy (o Robin) crean tickets aquí.
+  2. Bitácora.md → TABLERO DE TAREAS. Agente_Orquestador crea tickets aquí.
                    Los agentes leen SUS tickets PENDIENTES y los actualizan.
   3. Cerebro.md  → Memoria a largo plazo. Solo se escribe cuando una tarea
                    está COMPLETADA. Genera automáticamente el archivo en /memoria.
@@ -46,7 +46,8 @@ CANAL_USUARIO_MD = _APP_ROOT / "CanalUsuario.md"
 BITACORA_MD = _APP_ROOT / "Bitacora.md"
 CEREBRO_MD  = _APP_ROOT / "Cerebro.md"
 ARCHIVOS_TEMPORALES_PATH = _APP_ROOT / "Archivos_temporales"
-LUFFY_PERFIL_FILE = _APP_ROOT / "Agente_Orquestador" / "_agents" / "luffy_perfil.json" if (_APP_ROOT / "Agente_Orquestador" / "_agents" / "luffy_perfil.json").exists() else (_APP_ROOT / "Agente_Orquestador" / ".agents" / "luffy_perfil.json")
+ORQUESTADOR_PERFIL_FILE = _APP_ROOT / "Agente_Orquestador" / "_agents" / "agente.md" if (_APP_ROOT / "Agente_Orquestador" / "_agents" / "agente.md").exists() else (_APP_ROOT / "Agente_Orquestador" / ".agents" / "agente.md")
+LUFFY_PERFIL_FILE = ORQUESTADOR_PERFIL_FILE
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. PILAR CANAL (Comunicación y Errores - JSON)
@@ -138,7 +139,7 @@ def leer_mensajes(agente: str) -> list[dict]:
 
 def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> str:
     """
-    Construye el contexto de conversación para Luffy con presupuesto controlado (~3,500 tokens).
+    Construye el contexto de conversación para el Agente_Orquestador con presupuesto controlado (~3,500 tokens).
     Implementa compresión rodante:
     - Los mensajes recientes se conservan textuales palabra por palabra.
     - Los mensajes antiguos fuera del presupuesto se comprimen en un resumen ejecutivo cronológico.
@@ -153,7 +154,7 @@ def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> s
     if len(mensajes) <= min_recientes:
         lineas = []
         for m in mensajes:
-            emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
+            emisor = "Tú (Agente_Orquestador)" if str(m.get("de", "")).lower() in ("luffy", "agente_orquestador", "orquestador") else "Usuario"
             c = m.get("contenido", {})
             t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
             ts = str(m.get("timestamp", ""))[:16].replace("T", " ")
@@ -167,7 +168,7 @@ def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> s
     idx_corte = len(mensajes) - min_recientes
     for i in range(len(mensajes) - 1, -1, -1):
         m = mensajes[i]
-        emisor = "Tú (Luffy)" if str(m.get("de", "")).lower() == "luffy" else "Usuario"
+        emisor = "Tú (Agente_Orquestador)" if str(m.get("de", "")).lower() in ("luffy", "agente_orquestador", "orquestador") else "Usuario"
         c = m.get("contenido", {})
         t = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
         ts = str(m.get("timestamp", ""))[:16].replace("T", " ")
@@ -194,16 +195,16 @@ def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> s
         t_clean = " ".join(t.split())
         ts = str(m.get("timestamp", ""))[:10]
         
-        if de != "luffy":
+        if de not in ("luffy", "agente_orquestador", "orquestador"):
             if len(t_clean) > 120:
                 t_clean = t_clean[:117] + "..."
             resumen_lineas.append(f"- [{ts}] Orden Usuario: {t_clean}")
         else:
             m_res = re.search(r'(misión completada|ticket [^\n\.]+ listo|resultado: [^\n\.]+)', t_clean, re.IGNORECASE)
             if m_res:
-                resumen_lineas.append(f"- [{ts}] Luffy: {m_res.group(0)}")
+                resumen_lineas.append(f"- [{ts}] Agente_Orquestador: {m_res.group(0)}")
             elif len(t_clean) > 100:
-                resumen_lineas.append(f"- [{ts}] Luffy: {t_clean[:97]}...")
+                resumen_lineas.append(f"- [{ts}] Agente_Orquestador: {t_clean[:97]}...")
                 
     if len(resumen_lineas) > 15:
         resumen_lineas = resumen_lineas[:3] + ["... (conversaciones intermedias resumidas) ..."] + resumen_lineas[-10:]
@@ -257,14 +258,14 @@ def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> None:
 >     - **Subagente_Asistencia:** `C:\\Users\\admin\\Documents\\Agentes\\Subagente_Asistencia\\`
 >   - **Archivos Temporales:** `C:\\Users\\admin\\Documents\\Agentes\\Archivos_temporales\\` (Cualquier archivo temporal que pueda ser borrado y no forme parte de las funciones de los agentes, debe guardarse aquí).
 >   - **Carpetas de Configuración y Documentación en Raíz:**
->     - `protocolo\\`: Protocolos de comportamiento y estructura de la tripulación (`Reglas de la Tripulacion.md`).
+>     - `protocolo\\`: Protocolos de comportamiento y estructura de la flota (`Reglas de la Tripulacion.md`).
 >     - `sistema\\`: Documentación arquitectónica de Antigravity.
 >     - `perfiles\\`: Perfiles detallados de cada agente y el del usuario (Wuilfredo).
 >     - `recursos_externos\\`: Recursos, exports y plantillas externas.
 >   - **Memoria Compartida:** `C:\\Users\\admin\\Documents\\Agentes\\memoria_compartida\\`
 >     - `memoria\\`: Archivos detallados del Cerebro a largo plazo (bóveda).
 >   - **Archivos Base en Raíz:**
->     - `Bitacora.md`: Tablero de tareas. Luffy y Robin crean tickets aquí. Los agentes buscan sus tickets PENDIENTES.
+>     - `Bitacora.md`: Tablero de tareas. Agente_Orquestador crea tickets aquí. Los agentes buscan sus tickets PENDIENTES.
 >     - `Cerebro.md`: Registro de conocimiento a largo plazo (solo tareas COMPLETADAS).
 >     - `canal_comunicacion.json`: Canal libre de comunicación entre agentes.
 """
@@ -285,7 +286,7 @@ def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> None:
 
 import uuid as _uuid
 
-def crear_ticket_bitacora(asignado_a: str, descripcion: str, creado_por: str = "Luffy") -> str:
+def crear_ticket_bitacora(asignado_a: str, descripcion: str, creado_por: str = "Agente_Orquestador") -> str:
     """
     Crea un ticket de tarea en la Bitácora con el nuevo formato Pizarra (Blackboard).
     """
@@ -522,7 +523,18 @@ def cargar_perfil_agente(nombre: str) -> dict:
     carpeta_agente = mapa_carpetas.get(nombre_norm, nombre)
     dir_agente = _APP_ROOT / carpeta_agente
     
-    # 1. Buscar en .agents o _agents del agente
+    # 0. Buscar primero en agente.md (modelo canónico consolidado)
+    for subc in ["_agents", ".agents"]:
+        ag_md = dir_agente / subc / "agente.md"
+        if ag_md.exists():
+            texto = ag_md.read_text(encoding="utf-8")
+            return {
+                "nombre": carpeta_agente,
+                "presentacion": texto,
+                "manual_quirurgico": ""
+            }
+
+    # 1. Buscar en .agents o _agents del agente (*_perfil.json)
     candidatos = []
     for subc in [".agents", "_agents"]:
         d = dir_agente / subc
@@ -567,8 +579,8 @@ _TURNO_FILE = (_APP_ROOT / "turno.json")
 def leer_turno() -> dict:
     """[DEPRECADO] El sistema de turnos ha sido reemplazado por Orquestación On-Demand."""
     return {
-        "turno_actual": "Luffy",
-        "orden": ["Luffy"],
+        "turno_actual": "Agente_Orquestador",
+        "orden": ["Agente_Orquestador"],
         "hora_inicio": None,
     }
 

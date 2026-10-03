@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_sentry. Implementada en Python por Robin.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Ciberseguridad]]
+**Pertenece a:** [[Perfil_Subagente_Ciberseguridad]]

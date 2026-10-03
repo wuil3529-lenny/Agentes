@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_imagenes_locales. Implementada en Python por Nami.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Diseno]]
+**Pertenece a:** [[Perfil_Subagente_Diseno]]

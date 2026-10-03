@@ -1364,7 +1364,7 @@ def detener_tripulacion_emergencia():
             if 'python' in (p.info['name'] or '').lower():
                 cmd = " ".join(p.info['cmdline'] or []).lower()
                 if any(x in cmd for x in [
-                    'base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
+                    'base_listener', 'agente_orquestador_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
                     'agente_orquestador', 'subagente_desarrollo', 'subagente_diseno', 'subagente_ciberseguridad', 'subagente_asistencia'
                 ]):
                     p.terminate()
@@ -2034,7 +2034,7 @@ def check_procesos_tripulacion():
             if 'python' in (p.info['name'] or '').lower():
                 cmd = " ".join(p.info['cmdline'] or []).lower()
                 if any(x in cmd for x in [
-                    'base_listener', 'luffy_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
+                    'base_listener', 'agente_orquestador_agent', 'zoro_agent', 'sanji_agent', 'robin_agent', 'nami_agent',
                     'agente_orquestador', 'subagente_desarrollo', 'subagente_diseno', 'subagente_ciberseguridad', 'subagente_asistencia'
                 ]):
                     return True

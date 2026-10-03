@@ -58,7 +58,7 @@ from skill_presentaciones import HERRAMIENTAS_PRESENTACIONES
 from skill_video import HERRAMIENTAS_VIDEO
 from skill_imagenes_locales import HERRAMIENTAS_IMAGENES
 from skill_ia_creativa import HERRAMIENTAS_IA_CREATIVA
-from sentry.skill_sentry import consultar_sentry_errores, registrar_solucion_error
+from sentry.skill_sentry import tool_consultar_sentry_errores, tool_registrar_solucion_error
 from skill_buscar_internet_nami import tool_buscar_internet_nami
 from base.skill_base import HERRAMIENTAS_BASE
 
@@ -621,8 +621,8 @@ def funcion_nodo_nami(estado: dict) -> dict:
     llm = crear_llm(temperatura=0.3, agente=NOMBRE_AGENTE)
     
     HERRAMIENTAS_NAMI = (
-        consultar_sentry_errores,
-        registrar_solucion_error,
+        tool_consultar_sentry_errores,
+        tool_registrar_solucion_error,
         publicar_post_redes,
         analizar_tendencias,
         conceptualizar_ui_ux,

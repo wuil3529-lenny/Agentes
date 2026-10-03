@@ -2,7 +2,7 @@ import os
 import time
 from openai import OpenAI
 
-def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt=""):
+def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt="", agente: str = "agente_orquestador"):
     """
     Llama a la API de NVIDIA NIM utilizando un modelo principal con reintentos.
     Si falla, salta automáticamente al modelo de respaldo.
@@ -39,7 +39,7 @@ def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt=""):
                     from costos_tracker import registrar_consumo_tokens
                     in_t = getattr(response.usage, "prompt_tokens", 0) or 0
                     out_t = getattr(response.usage, "completion_tokens", 0) or 0
-                    registrar_consumo_tokens("luffy", in_t, out_t, model_1)
+                    registrar_consumo_tokens(agente, in_t, out_t, model_1)
                 except Exception:
                     pass
             return response.choices[0].message.content
@@ -65,7 +65,7 @@ def call_nim_with_fallback(api_key, model_1, model_2, prompt, system_prompt=""):
                 from costos_tracker import registrar_consumo_tokens
                 in_t = getattr(response.usage, "prompt_tokens", 0) or 0
                 out_t = getattr(response.usage, "completion_tokens", 0) or 0
-                registrar_consumo_tokens("luffy", in_t, out_t, model_2)
+                registrar_consumo_tokens(agente, in_t, out_t, model_2)
             except Exception:
                 pass
         return response.choices[0].message.content

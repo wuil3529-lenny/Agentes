@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_video. Implementada en Python por Nami.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Diseno]]
+**Pertenece a:** [[Perfil_Subagente_Diseno]]

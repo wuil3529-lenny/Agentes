@@ -1,254 +1,267 @@
+"""
+skill_supervisor.py — Auditoría de Consistencia y Supervisión de la Pizarra (SSOT)
+==================================================================================
+Habilidad del Agente Orquestador para supervisar la integridad de Bitacora.md,
+verificar la existencia física de evidencias de tareas terminadas y mantener
+la verdad única del sistema libre de tickets huérfanos o inconsistentes.
+"""
+
 import os
 import sys
-import json
-import time
 import re
+import subprocess
 from pathlib import Path
-from datetime import datetime, timedelta
-
-_CURRENT = Path(__file__).resolve()
-_APP_ROOT = _CURRENT.parents[3] if len(_CURRENT.parents) > 3 and _CURRENT.parents[2].name.lower() in ["luffy", "agente_orquestador"] else _CURRENT.parents[2]
-
-# Asegurar importaciones relativas
-sys.path.insert(0, str(_APP_ROOT / "Agente_Orquestador"))
-try:
-    from memory import _cargar_canal, publicar_mensaje, _cargar_bitacora, _cargar_cerebro, registrar_bitacora
-except ImportError:
-    _cargar_canal = None
-    publicar_mensaje = None
-    _cargar_bitacora = None
-    _cargar_cerebro = None
-    registrar_bitacora = None
-
-try:
-    from nim_client import call_nim_with_fallback
-except ImportError:
-    call_nim_with_fallback = None
-
-# --- Configuraciones ---
-MAX_MENSAJES_BUCLE = 15
-TIEMPO_BUCLE_MINUTOS = 10
+from typing import List, Dict, Any, Optional
+from langchain_core.tools import tool
 
 
-def auditar_tickets_pizarra():
+def _obtener_raiz_proyecto() -> Path:
+    """Encuentra la raíz del proyecto tanto en entorno local como en contenedor."""
+    actual = Path(__file__).resolve()
+    for parent in actual.parents:
+        if (parent / "Bitacora.md").exists() or (parent / "Agente_Orquestador").exists():
+            return parent
+    if Path("/app/Bitacora.md").exists():
+        return Path("/app")
+    return actual.parents[2]
+
+
+def _resolver_ruta_evidencia(ruta_evidencia: str, raiz: Path) -> Path:
     """
-    Lee Bitacora.md e informa si la pizarra tiene tickets abiertos o si está limpia.
+    Resuelve la ruta de evidencia física de manera elástica,
+    soportando tanto rutas absolutas dentro de Docker (/app/...) como rutas del host.
     """
-    bitacora_path = _APP_ROOT / "Bitacora.md"
+    ruta_limpia = ruta_evidencia.strip().strip('`"\' ')
+    p = Path(ruta_limpia)
+
+    # Si existe directamente (ej. ruta local o dentro de Docker)
+    if p.exists():
+        return p
+
+    # Si empieza con /app/ pero estamos en el host (Windows/Linux)
+    if ruta_limpia.startswith("/app/"):
+        relativa = ruta_limpia[5:]  # remover "/app/"
+        p_host = raiz / relativa
+        if p_host.exists():
+            return p_host
+        return p_host
+
+    # Si es ruta relativa a la raíz
+    p_rel = raiz / ruta_limpia
+    return p_rel
+
+
+def obtener_prompt_supervisor() -> str:
+    """
+    System Prompt especializado y encapsulado para el modo de supervisión
+    y auditoría del SSOT (Pizarra / Bitácora).
+    """
+    return """[🛑 HARD-STOP: MODO SUPERVISIÓN Y AUDITORÍA DE CONSISTENCIA SSOT ACTIVO 🛑]
+Eres el Supervisor de Integridad y Consistencia Operativa del Agente Orquestador.
+Tu misión inquebrantable es auditar que la `Bitacora.md` represente la única y verdadera realidad (Single Source of Truth) del sistema multi-agente.
+
+DIRECTIVAS OPERATIVAS FUNDAMENTALES:
+1. LA PIZARRA ES EL ÚNICO SSOT:
+   - La `Bitacora.md` es la única fuente de la verdad de las tareas en curso.
+   - Ninguna tarea se considera finalizada verbalmente ni por mención; sólo existe lo registrado formalmente en la pizarra.
+2. REGLA ESTRICTA DE EVIDENCIA FÍSICA (ZERO TRUST):
+   - Todo ticket en estado `COMPLETADO` o `REVISION` DEBE contar obligatoriamente con el campo `- **Evidencia_Fisica:** <ruta>`.
+   - Dicho archivo debe existir físicamente en el disco y tener contenido verificable.
+   - Si la evidencia física no existe en el sistema de archivos, el ticket está INCONSISTENTE y debe ser rechazado inmediatamente.
+3. CENTRALIZACIÓN DE DELEGACIÓN:
+   - Los subagentes tienen prohibido delegarse tareas entre sí o crear tickets arbitrarios.
+   - La delegación es responsabilidad exclusiva del Agente Orquestador (y del Agente de Ciberseguridad para reportes de seguridad).
+4. HIGIENE Y TRANSICIÓN DE ESTADOS:
+   - Audita que los estados sean estrictamente: PENDIENTE, EN_PROGRESO, REVISION, PENDIENTE_REVISION, COMPLETADO, CERRADO, ABORTADO.
+   - No toleres tickets huérfanos, sin responsable o con estados contradictorios.
+"""
+
+
+def auditar_tickets_pizarra() -> Dict[str, Any]:
+    """
+    Analiza la Bitacora.md para auditar el estado y consistencia de todos los tickets.
+    Verifica la existencia física de las evidencias reportadas.
+    """
+    raiz = _obtener_raiz_proyecto()
+    bitacora_path = raiz / "Bitacora.md"
+
+    resultado: Dict[str, Any] = {
+        "existe_bitacora": False,
+        "total_tickets": 0,
+        "tickets_abiertos": [],
+        "tickets_completados": [],
+        "inconsistencias": [],
+        "listos_para_archivar": []
+    }
+
     if not bitacora_path.exists():
-        print("[Supervisor] ℹ️ Bitacora.md no existe.")
-        return []
+        resultado["inconsistencias"].append("El archivo Bitacora.md no existe en la raíz del proyecto.")
+        return resultado
+
+    resultado["existe_bitacora"] = True
 
     try:
         texto = bitacora_path.read_text(encoding="utf-8")
-        bloques = re.split(r"(?=## TKT-[A-Z0-9\-]+(?:[^\n]*)\n)", texto)
-        tickets_abiertos = []
-        
+        bloques = re.split(r"(?=##\s+TKT-[A-Z0-9\-]+(?:[^\n]*)\n)", texto)
+
+        estados_validos = {
+            "PENDIENTE", "EN_PROGRESO", "REVISION", "PENDIENTE_REVISION",
+            "COMPLETADO", "CERRADO", "ABORTADO"
+        }
+
         for bloque in bloques:
             bloque = bloque.strip()
             if not bloque.startswith("## TKT-"):
                 continue
-            
-            m_id = re.search(r"(## TKT-[A-Z0-9\-]+)", bloque)
-            m_tarea = re.search(r"\n(?:-?\s*\*\*|###\s*)Tarea[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
+
+            resultado["total_tickets"] += 1
+
+            m_id = re.search(r"##\s+(TKT-[A-Z0-9\-]+)", bloque)
+            m_tarea = re.search(r"\n(?:-?\s*\*\*|###\s*)(?:Tarea|Objetivo)[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
             m_resp = re.search(r"\n(?:-?\s*\*\*|###\s*)Responsable[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
             m_estado = re.search(r"\n(?:-?\s*\*\*|###\s*)Estado[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
-            
-            t_id = m_id.group(1).replace("## ", "").strip() if m_id else "DESCONOCIDO"
+            m_evidencia = re.search(r"\n(?:-?\s*\*\*|###\s*)Evidencia_Fisica[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
+
+            t_id = m_id.group(1).strip() if m_id else "ID_DESCONOCIDO"
             tarea = m_tarea.group(1).strip() if m_tarea else "N/A"
-            resp = m_resp.group(1).strip() if m_resp else "N/A"
-            estado = m_estado.group(1).split("\n")[0].strip() if m_estado else "DESCONOCIDO"
-            
-            if estado.upper() not in ["CERRADO", "ARCHIVADO"]:
-                tickets_abiertos.append({
-                    "id": t_id,
-                    "tarea": tarea,
-                    "responsable": resp,
-                    "estado": estado
-                })
-        
-        if tickets_abiertos:
-            print(f"[Supervisor] 📋 Auditoría de Pizarra: {len(tickets_abiertos)} ticket(s) abierto(s):")
-            for t in tickets_abiertos:
-                print(f"  - [{t['id']}] ({t['responsable']}) [{t['estado']}]: {t['tarea'][:80]}")
-        else:
-            print("[Supervisor] 🟢 Auditoría de Pizarra: Tablero limpio. No hay tickets abiertos ni pendientes.")
-            
-        return tickets_abiertos
+            resp = m_resp.group(1).strip() if m_resp else "DESCONOCIDO"
+            estado_raw = m_estado.group(1).split("\n")[0].strip() if m_estado else "DESCONOCIDO"
+            estado = estado_raw.upper()
+            evidencia = m_evidencia.group(1).split("\n")[0].strip() if m_evidencia else ""
+
+            info_ticket = {
+                "id": t_id,
+                "tarea": tarea,
+                "responsable": resp,
+                "estado": estado,
+                "evidencia": evidencia
+            }
+
+            # Validar estado
+            if estado not in estados_validos:
+                resultado["inconsistencias"].append(
+                    f"Ticket {t_id}: Estado '{estado_raw}' no es un estado válido del sistema."
+                )
+
+            # Validar Responsable
+            if resp == "DESCONOCIDO":
+                resultado["inconsistencias"].append(
+                    f"Ticket {t_id}: No tiene un Responsable formalmente asignado."
+                )
+
+            # Validar tickets que reclaman estar COMPLETADOS o en REVISION
+            if estado in ["COMPLETADO", "REVISION", "PENDIENTE_REVISION"]:
+                if not evidencia or evidencia.upper() in ["N/A", "NONE", "NULL"]:
+                    resultado["inconsistencias"].append(
+                        f"Ticket {t_id}: Marcado como '{estado}' pero carece del campo 'Evidencia_Fisica'."
+                    )
+                else:
+                    ruta_ev = _resolver_ruta_evidencia(evidencia, raiz)
+                    if not ruta_ev.exists():
+                        resultado["inconsistencias"].append(
+                            f"Ticket {t_id}: Evidencia física reportada '{evidencia}' NO existe físicamente en el disco."
+                        )
+                    else:
+                        info_ticket["evidencia_verificada"] = True
+
+                resultado["tickets_completados"].append(info_ticket)
+
+                if estado == "COMPLETADO" and info_ticket.get("evidencia_verificada"):
+                    resultado["listos_para_archivar"].append(t_id)
+
+            elif estado in ["CERRADO", "ABORTADO"]:
+                resultado["listos_para_archivar"].append(t_id)
+
+            else:
+                resultado["tickets_abiertos"].append(info_ticket)
+
+        return resultado
+
     except Exception as e:
-        print(f"[Supervisor] ⚠️ Error auditando tickets de la pizarra: {e}")
-        return []
+        resultado["inconsistencias"].append(f"Error procesando Bitacora.md: {str(e)}")
+        return resultado
 
 
-def auditar_consistencia_ssot():
+def sincronizar_grafo_obsidian() -> str:
     """
-    Verifica que las tareas marcadas como completadas existan tanto en el Canal como en la Bitácora.
+    Ejecuta el script oficial de sincronización del cerebro (sync_cerebro.py)
+    para actualizar el grafo de conocimiento en Obsidian y ChromaDB.
     """
-    if not _cargar_bitacora or not _cargar_canal:
-        return
-        
+    raiz = _obtener_raiz_proyecto()
+    script_sync = raiz / "Agente_Orquestador" / "sync_cerebro.py"
+
+    if not script_sync.exists():
+        return f"Error: No se encontró el script de sincronización en {script_sync}"
+
     try:
-        bitacora = _cargar_bitacora()
-        canal = _cargar_canal("interno")
-        mensajes = canal.get("mensajes", [])
-
-        ahora = datetime.now()
-        hace_poco = ahora - timedelta(minutes=10)
-
-        completados_bitacora = [b for b in bitacora if b.get("estado") == "COMPLETADO"]
-        for b in completados_bitacora[-5:]:
-            try:
-                t_bit = datetime.fromisoformat(b["timestamp"])
-                if t_bit >= hace_poco:
-                    agente = b["agente"]
-                    tiene_canal = any(m for m in mensajes if m.get("tipo") == "completado" and m.get("de") == agente and datetime.fromisoformat(m["timestamp"]) >= hace_poco)
-                    
-                    if not tiene_canal:
-                        print(f"[Supervisor] Inconsistencia SSOT detectada: {agente} marcó completado en Bitácora pero no reportó en Canal.")
-                        notificar_agente_inconsistencia(agente, "Marcaste una tarea como COMPLETADA en la Bitácora, pero olvidaste enviar el reporte oficial por el Canal de Comunicación.")
-            except:
-                pass
-
-        completados_canal = [m for m in mensajes if m.get("tipo") == "completado"]
-        for m in completados_canal[-5:]:
-            try:
-                t_msg = datetime.fromisoformat(m["timestamp"])
-                if t_msg >= hace_poco:
-                    agente = m["de"]
-                    tiene_bitacora = any(b for b in completados_bitacora if b["agente"] == agente and datetime.fromisoformat(b["timestamp"]) >= hace_poco)
-                    
-                    if not tiene_bitacora:
-                        print(f"[Supervisor] Inconsistencia SSOT detectada: {agente} reportó completado en Canal pero no actualizó la Bitácora.")
-                        notificar_agente_inconsistencia(agente, "Enviaste un reporte de 'completado' por el Canal, pero olvidaste actualizar el estado de tu tarea a COMPLETADO en la Bitácora.")
-            except:
-                pass
-    except Exception:
-        pass
-
-
-def notificar_agente_inconsistencia(agente, razon):
-    if not publicar_mensaje or not registrar_bitacora:
-        return
-    contenido_msg = {
-        "texto": f"SUPERVISOR ALERTA: {razon} Recuerda que la arquitectura SSOT exige que actualices todos los pilares. Por favor, corrige esto inmediatamente."
-    }
-    publicar_mensaje(de="Luffy (Supervisor)", para=agente, tipo="delegacion", contenido=contenido_msg)
-    registrar_bitacora(agente, "Corregir inconsistencia en los pilares SSOT reportada por el Supervisor.", "PENDIENTE")
-
-
-def detectar_bucles_y_desvios(api_key, model_1, model_2):
-    """
-    Frena bucles si superan el límite.
-    Bloquea tareas inventadas (desvíos) usando LLM.
-    """
-    if not _cargar_canal or not call_nim_with_fallback:
-        return
-        
-    try:
-        canal = _cargar_canal("interno")
-        mensajes = canal.get("mensajes", [])
-        
-        if not mensajes: return
-
-        ahora = datetime.now()
-        hace_bucle = ahora - timedelta(minutes=TIEMPO_BUCLE_MINUTOS)
-        mensajes_recientes = [m for m in mensajes if m.get("tipo") != "silencio"]
-        
-        recientes_tiempo = []
-        for m in mensajes_recientes:
-            try:
-                if datetime.fromisoformat(m["timestamp"]) >= hace_bucle:
-                    recientes_tiempo.append(m)
-            except:
-                pass
-                
-        if len(recientes_tiempo) > MAX_MENSAJES_BUCLE:
-            print("[Supervisor] Bucle masivo detectado. Forzando silencio.")
-            enviar_alerta_telegram(f"⚠️ Alerta: Posible bucle infinito o saturación en el canal. {len(recientes_tiempo)} mensajes en {TIEMPO_BUCLE_MINUTOS} minutos. Se forzará una pausa.")
-            if publicar_mensaje:
-                publicar_mensaje(de="Luffy (Supervisor)", para="Tripulación", tipo="error", contenido={"texto": "SISTEMA: Demasiados mensajes en poco tiempo. TODOS LOS AGENTES DEBEN HACER SILENCIO Y ESPERAR ÓRDENES DEL CAPITÁN."})
-            return
-
-        ultimo = mensajes[-1]
-        if ultimo.get("tipo") == "delegacion" and ultimo.get("de") not in ["Usuario", "Luffy (Supervisor)", "Luffy", "Luffy (Capitán)", "Sistema"]:
-            canal_user = _cargar_canal("usuario")
-            user_msgs = [m for m in canal_user.get("mensajes", []) if m.get("de") == "Usuario"]
-            ultimo_objetivo = user_msgs[-1]["contenido"]["texto"] if user_msgs else "Ningún objetivo definido."
-            
-            prompt = f"""
-Objetivo actual del usuario: "{ultimo_objetivo}"
-
-El agente {ultimo['de']} acaba de delegar la siguiente tarea a {ultimo['para']}:
-{json.dumps(ultimo['contenido'])}
-
-Teniendo en cuenta que los agentes SÓLO pueden delegar tareas si están directamente relacionadas con cumplir el objetivo del usuario (ej. dividir el trabajo en pasos técnicos para lograrlo), pero NO pueden inventar tareas nuevas post-objetivo.
-
-¿Esta delegación es válida y necesaria para cumplir el objetivo del usuario? 
-Responde ÚNICAMENTE con un JSON: {{"valida": true, "razon": "..."}} o {{"valida": false, "razon": "..."}}
-"""
-            try:
-                respuesta = call_nim_with_fallback(api_key, model_1, model_2, prompt, "Eres un supervisor estricto.")
-                if "```json" in respuesta:
-                    respuesta = respuesta.split("```json")[1].split("```")[0].strip()
-                evaluacion = json.loads(respuesta)
-                
-                if not evaluacion.get("valida"):
-                    print(f"[Supervisor] Delegación no autorizada de {ultimo['de']}. Bloqueando.")
-                    enviar_alerta_telegram(f"⛔ Supervisor bloqueó una delegación de {ultimo['de']} hacia {ultimo['para']} por desvío de objetivo.\nRazón: {evaluacion.get('razon')}")
-                    if publicar_mensaje:
-                        publicar_mensaje(de="Luffy (Supervisor)", para=ultimo["de"], tipo="error", contenido={"texto": f"SISTEMA: Delegación rechazada. Tarea inventada o no alineada con el objetivo del usuario. Razón: {evaluacion.get('razon')}"})
-            except Exception as e:
-                print(f"[Supervisor] Error evaluando desvío: {e}")
-    except Exception:
-        pass
-
-
-def enviar_alerta_telegram(texto):
-    """
-    Envía una alerta al telegram del usuario.
-    """
-    try:
-        from telegram_bridge import send_message
-        send_message(texto)
-        print(f"[Supervisor] Alerta enviada a Telegram: {texto}")
+        res = subprocess.run(
+            [sys.executable, str(script_sync)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        salida_resumida = [line.strip() for line in res.stdout.strip().split("\n") if line.strip()]
+        return f"Sincronización de Cerebro completada con éxito. ({len(salida_resumida)} registros procesados)."
+    except subprocess.CalledProcessError as e:
+        return f"Fallo al ejecutar sync_cerebro.py: {e.stderr or e.stdout}"
     except Exception as e:
-        print(f"[Supervisor] Fallo enviando a Telegram: {e}")
+        return f"Error ejecutando sincronización: {str(e)}"
 
 
-def sincronizar_grafo_obsidian():
+@tool
+def tool_auditar_ssot(sincronizar_cerebro: bool = False) -> str:
     """
-    Ejecuta sync_cerebro.py para organizar el grafo y notas de Obsidian.
+    Audita y supervisa la coherencia de la Pizarra oficial (Bitacora.md) como SSOT único.
+    Verifica que cada ticket tenga un responsable válido, estados correctos y que
+    la evidencia física de las tareas completadas exista realmente en el sistema de archivos.
+
+    Args:
+        sincronizar_cerebro: Si es True, ejecuta también la actualización del grafo de Obsidian y ChromaDB.
     """
-    print("[Supervisor] 🌐 Sincronizando el cerebro y organizando el grafo de Obsidian...")
-    try:
-        import subprocess
-        script_sync = str(_APP_ROOT / "Luffy" / "sync_cerebro.py")
-        res = subprocess.run([sys.executable, script_sync], capture_output=True, text=True, check=True)
-        for line in res.stdout.strip().split("\n"):
-            if line.strip():
-                print(f"  [Obsidian Sync] {line.strip()}")
-        print("[Supervisor] ✅ Grafo y notas de Obsidian organizados con éxito.")
-    except Exception as e:
-        print(f"[Supervisor] ❌ Error durante la sincronización de Obsidian: {e}")
+    print(f"\n[Agente Orquestador] Ejecutando: tool_auditar_ssot(sincronizar_cerebro={sincronizar_cerebro})...")
+
+    audit = auditar_tickets_pizarra()
+    lineas = ["[SUPERVISIÓN DE PIZARRA Y AUDITORÍA SSOT]"]
+
+    if not audit["existe_bitacora"]:
+        return "ERROR CRÍTICO: Bitacora.md no existe en la raíz del proyecto."
+
+    lineas.append(f"Total de tickets en tablero: {audit['total_tickets']}")
+    lineas.append(f"Tickets abiertos / en progreso: {len(audit['tickets_abiertos'])}")
+    lineas.append(f"Tickets completados / en revisión: {len(audit['tickets_completados'])}")
+
+    if audit["tickets_abiertos"]:
+        lineas.append("\n[TICKETS ACTIVOS]:")
+        for t in audit["tickets_abiertos"]:
+            lineas.append(f"  - [{t['id']}] Resp: {t['responsable']} | Estado: {t['estado']} | Tarea: {t['tarea'][:80]}")
+
+    if audit["listos_para_archivar"]:
+        lineas.append(f"\n[LISTOS PARA ARCHIVAR] ({len(audit['listos_para_archivar'])}):")
+        for tid in audit["listos_para_archivar"]:
+            lineas.append(f"  - {tid} (listo para `tool_limpiar_pizarra`)")
+
+    if audit["inconsistencias"]:
+        lineas.append("\n[INCONSISTENCIAS Y VIOLACIONES DE SSOT DETECTADAS]:")
+        for inc in audit["inconsistencias"]:
+            lineas.append(f"  - [FALLO] {inc}")
+    else:
+        lineas.append("\n[SSOT CONSISTENTE] No se detectaron inconsistencias ni anomalías en la pizarra.")
+
+    if sincronizar_cerebro:
+        lineas.append("\n[SINCRONIZACIÓN DE CEREBRO]:")
+        res_sync = sincronizar_grafo_obsidian()
+        lineas.append(f"  {res_sync}")
+
+    return "\n".join(lineas)
 
 
-def ejecutar_supervision(api_key=None, model_1="deepseek-chat", model_2="deepseek-chat"):
+def ejecutar_supervision(*args, **kwargs) -> str:
     """
-    Rutina completa del modo supervisor ejecutada al final del turno de Luffy.
+    Función de compatibilidad para el daemon de escucha (base_listener.py).
+    Ejecuta la auditoría y supervisión de consistencia del SSOT en la pizarra.
     """
-    print("\n[Supervisor] 👁️  Iniciando modo supervisor de la tripulación...")
-    auditar_tickets_pizarra()
-    auditar_consistencia_ssot()
-    if api_key:
-        detectar_bucles_y_desvios(api_key, model_1, model_2)
-    sincronizar_grafo_obsidian()
-    print("[Supervisor] ✅ Modo supervisor completado.\n")
+    return tool_auditar_ssot.invoke({"sincronizar_cerebro": False}) if hasattr(tool_auditar_ssot, "invoke") else tool_auditar_ssot(sincronizar_cerebro=False)
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv((_APP_ROOT / ".env"))
-    ak = os.getenv("NVIDIA_API_KEY_LUFFY")
-    m1 = os.getenv("MODEL_LUFFY_1", "deepseek-chat")
-    m2 = os.getenv("MODEL_LUFFY_2", "deepseek-chat")
-    ejecutar_supervision(ak, m1, m2)
+    print(tool_auditar_ssot(sincronizar_cerebro=False))

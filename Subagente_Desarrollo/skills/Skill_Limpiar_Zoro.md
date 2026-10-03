@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_limpiar_zoro. Implementada en Python por Zoro.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Desarrollo]]
+**Pertenece a:** [[Perfil_Subagente_Desarrollo]]

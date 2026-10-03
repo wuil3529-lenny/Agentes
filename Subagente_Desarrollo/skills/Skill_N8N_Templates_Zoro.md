@@ -3,4 +3,4 @@
 Herramienta/Habilidad: skill_n8n_templates. Implementada en Python por Zoro.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Desarrollo]]
+**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
