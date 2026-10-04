@@ -291,8 +291,11 @@ def auditar_evidencia(contenido_dict: dict, agente_nombre: str, hora_inicio_str:
     evidencia_raw = str(evidencia).strip()
     # Transformar rutas Windows a Docker
     evidencia_raw = transformar_rutas_windows(evidencia_raw)
-    # Dividir por comas
-    rutas_evidencia = [r.strip() for r in evidencia_raw.split(",") if r.strip()]
+    import re
+    # Descartar notas entre paréntesis ANTES de dividir para evitar cortes en números con coma ej: (12,515 bytes)
+    evidencia_limpia_base = re.sub(r'\s*\([^)]*\)', '', evidencia_raw)
+    # Dividir por comas, pipes |, signos +, punto medio · o saltos de línea
+    rutas_evidencia = [r.strip() for r in re.split(r'[,|+\n·]|(?:\s+[ye]\s+)', evidencia_limpia_base) if r.strip()]
     
     if not rutas_evidencia:
         rutas_evidencia = [evidencia_raw]
@@ -301,7 +304,6 @@ def auditar_evidencia(contenido_dict: dict, agente_nombre: str, hora_inicio_str:
     rutas_validas = []
     rutas_limpias = []
     for evidencia_item in rutas_evidencia:
-        import re
         evidencia_path = str(evidencia_item).strip()
         # 1. Si viene como markdown link [label](path), extraer sólo el path
         m_md = re.search(r'\[([^\]]+)\]\(([^)]+)\)', evidencia_path)
@@ -324,6 +326,8 @@ def auditar_evidencia(contenido_dict: dict, agente_nombre: str, hora_inicio_str:
         if not os.path.exists(evidencia_path):
             candidatos = [
                 str(_APP_ROOT / evidencia_path),
+                str(_APP_ROOT / "Subagente_Desarrollo" / os.path.basename(evidencia_path)),
+                str(_APP_ROOT / "Subagente_Desarrollo" / "proyectos" / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / agente_nombre / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "Subagente_Diseno" / os.path.basename(evidencia_path)),
                 str(_APP_ROOT / "recursos_externos" / os.path.basename(evidencia_path)),
@@ -546,7 +550,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
             f"perfil_{agente_nombre.lower()}",
             {
                 "agente_orquestador": "agente_orquestador_agent",
-                "subagente_desarrollo": "zoro_agent",
+                "subagente_desarrollo": "subagente_desarrollo_agent",
                 "subagente_diseno": "nami_agent",
                 "subagente_ciberseguridad": "robin_agent",
                 "subagente_asistencia": "subagente_asistencia_agent"

@@ -1,0 +1,51 @@
+{
+  "name": "Flujo_Lead_CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-inbound"
+      },
+      "name": "Webhook_Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ .body.score }}",
+              "operation": "largerEqual",
+              "value2": "70"
+            }
+          ]
+        }
+      },
+      "name": "Filtrar_Score_Alto",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook_Inbound": {
+      "main": [
+        [
+          {
+            "node": "Filtrar_Score_Alto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

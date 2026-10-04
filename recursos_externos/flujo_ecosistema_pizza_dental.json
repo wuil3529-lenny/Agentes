@@ -1,0 +1,488 @@
+{
+  "name": "Ecosistema_Pizza_Dental_Unificado",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ecosistema-pizza-dental",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-001",
+      "name": "Webhook_Disparo_Unificado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        200,
+        400
+      ],
+      "webhookId": "ecosistema-pizza-dental"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.tipo }}",
+                    "rightValue": "pedido_pizza",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "pedido_pizza"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.tipo }}",
+                    "rightValue": "cita_odontologica",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "cita_odontologica"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-bifurcador-002",
+      "name": "Bifurcar_Por_Tipo",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        460,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.monto }}",
+              "rightValue": 15,
+              "operator": {
+                "type": "number",
+                "operation": "largerEqual"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-monto-pizza-003",
+      "name": "Filtro_Monto_Pizza",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        740,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "comanda-id",
+              "name": "comanda_id",
+              "value": "=CMD-{{ $now.toFormat('yyyyMMddHHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "comanda-tipo",
+              "name": "tipo_comanda",
+              "value": "COCINA_PIZZA",
+              "type": "string"
+            },
+            {
+              "id": "comanda-cliente",
+              "name": "cliente",
+              "value": "={{ $json.body.cliente }}",
+              "type": "string"
+            },
+            {
+              "id": "comanda-items",
+              "name": "items",
+              "value": "={{ $json.body.items }}",
+              "type": "array"
+            },
+            {
+              "id": "comanda-monto",
+              "name": "monto",
+              "value": "={{ $json.body.monto }}",
+              "type": "number"
+            },
+            {
+              "id": "comanda-estado",
+              "name": "estado",
+              "value": "EN_PREPARACION",
+              "type": "string"
+            },
+            {
+              "id": "comanda-prioridad",
+              "name": "prioridad",
+              "value": "={{ $json.body.monto >= 50 ? 'ALTA' : 'NORMAL' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-comanda-cocina-004",
+      "name": "Generar_Comanda_Cocina",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1020,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "rechazo-estado",
+              "name": "estado",
+              "value": "RECHAZADO",
+              "type": "string"
+            },
+            {
+              "id": "rechazo-motivo",
+              "name": "motivo",
+              "value": "Monto inferior al minimo de pedido (USD 15)",
+              "type": "string"
+            },
+            {
+              "id": "rechazo-monto",
+              "name": "monto_recibido",
+              "value": "={{ $json.body.monto }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-rechazo-pizza-005",
+      "name": "Rechazar_Pedido_Minimo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1020,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.especialidad }}",
+                    "rightValue": "ortodoncia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "ortodoncia"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.especialidad }}",
+                    "rightValue": "endodoncia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "endodoncia"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.body.especialidad }}",
+                    "rightValue": "odontopediatria",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "odontopediatria"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "id": "switch-especialidad-006",
+      "name": "Clasificar_Especialidad",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        740,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cita-id",
+              "name": "cita_id",
+              "value": "=CITA-{{ $now.toFormat('yyyyMMddHHmmss') }}",
+              "type": "string"
+            },
+            {
+              "id": "cita-especialidad",
+              "name": "especialidad",
+              "value": "={{ $json.body.especialidad }}",
+              "type": "string"
+            },
+            {
+              "id": "cita-paciente",
+              "name": "paciente",
+              "value": "={{ $json.body.paciente }}",
+              "type": "string"
+            },
+            {
+              "id": "cita-fecha",
+              "name": "fecha_solicitada",
+              "value": "={{ $json.body.fecha }}",
+              "type": "string"
+            },
+            {
+              "id": "cita-duracion",
+              "name": "duracion_min",
+              "value": "={{ $json.body.especialidad === 'endodoncia' ? 90 : ($json.body.especialidad === 'ortodoncia' ? 45 : 30) }}",
+              "type": "number"
+            },
+            {
+              "id": "cita-estado",
+              "name": "estado",
+              "value": "CONFIRMADA",
+              "type": "string"
+            },
+            {
+              "id": "cita-mensaje",
+              "name": "mensaje_confirmacion",
+              "value": "=Su cita de {{ $json.body.especialidad }} ha sido confirmada para el {{ $json.body.fecha }}.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-confirmacion-cita-007",
+      "name": "Confirmar_Cita_Odontologica",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1020,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "deriv-estado",
+              "name": "estado",
+              "value": "DERIVADO",
+              "type": "string"
+            },
+            {
+              "id": "deriv-motivo",
+              "name": "motivo",
+              "value": "Especialidad no reconocida, requiere triaje manual",
+              "type": "string"
+            },
+            {
+              "id": "deriv-especialidad",
+              "name": "especialidad_recibida",
+              "value": "={{ $json.body.especialidad }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-derivacion-008",
+      "name": "Derivar_Triaje_Manual",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1020,
+        800
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook_Disparo_Unificado": {
+      "main": [
+        [
+          {
+            "node": "Bifurcar_Por_Tipo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Bifurcar_Por_Tipo": {
+      "main": [
+        [
+          {
+            "node": "Filtro_Monto_Pizza",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Clasificar_Especialidad",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Filtro_Monto_Pizza": {
+      "main": [
+        [
+          {
+            "node": "Generar_Comanda_Cocina",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rechazar_Pedido_Minimo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clasificar_Especialidad": {
+      "main": [
+        [
+          {
+            "node": "Confirmar_Cita_Odontologica",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirmar_Cita_Odontologica",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Confirmar_Cita_Odontologica",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Derivar_Triaje_Manual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": [
+    {
+      "name": "ecosistema-pizza-dental"
+    },
+    {
+      "name": "produccion"
+    }
+  ],
+  "active": false,
+  "pinData": {}
+}

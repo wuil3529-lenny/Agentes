@@ -58,10 +58,12 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
    - Cuando se solicite crear un documento en Google Docs, es obligatorio cumplir el Estándar de Oro: Título centrado (H1), espaciado de párrafos (8-10pt), `keepWithNext=True` en encabezados, `avoidWidowAndOrphan=True` en párrafos, tablas con cabecera de color corporativo e imágenes centradas con leyenda (`caption`).
 7. **[HS-07] HIGIENE CENTRALIZADA DE SCRATCH:**
    - Prohibido crear carpetas temporales o `temp/` dentro de la habitación del subagente. Toda basura o archivo volátil va a `Archivos_temporales/` en la raíz.
+8. **[HS-08] PROTOCOLO DE PAUSA OPERATIVA Y AUXILIO EN PIZARRA:**
+   - Si estás bloqueado porque necesitas un insumo de otro subagente (ej. script de Subagente_Desarrollo, diseño de Subagente_Diseno), o necesitas orientación del Agente_Orquestador, o necesitas un dato/re-autenticación OAuth del Usuario: NO inventes datos ni caigas en bucles de error. Invoca inmediatamente `tool_solicitar_ayuda_pizarra(...)`. Esto registrará el ticket en Bitacora.md asignado al Agente_Orquestador para que lo gestione y pause tu ejecución.
 
 ---
 
-## 5. Catálogo Completo y Detallado de Habilidades Operativas (Las 11 Skills Canónicas)
+## 5. Catálogo Completo y Detallado de Habilidades Operativas (Las 12 Skills Canónicas)
 
 ### 1. Base del Sistema Operativo (`skills/base/`)
 - **Propósito:** Manipulación atómica, segura y auditada del sistema de archivos y ejecución de comandos locales.
@@ -134,22 +136,29 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
   - `tool_google_drive_recientes(max_results=10)`: Lista cronológicamente los últimos archivos editados o creados en la unidad.
 - **Gatillos:** Encontrar enlaces web de documentos existentes (`webViewLink`), auditar plantillas o localizar entregables previos.
 
-### 11. Triaje en Tiempo Real y Vigilancia de Gmail (`skills/inbox/`)
-- **Propósito:** Sensor de mensajería entrante y clasificador semántico para el sistema de tareas de la flota. CERO generación de Google Docs.
+### 11. Gestión Integral, Triaje y Respuesta de Correo Electrónico (`skills/correo_electronico/`)
+- **Propósito:** Vigilancia activa de la bandeja de entrada de Gmail, comprensión profunda de mensajes sin burocracia de informes pesados, catalogación estricta por prioridades descartando spam, despacho de alertas hacia la mensajería del usuario (Telegram / audio matutino) y capacidad resolutiva de responder correos directamente en su nombre.
 - **Herramientas:**
-  - `tool_inbox_analizar_nuevos_correos(max_correos=15, solo_no_leidos=True)`: Examina correos no procesados y emite alertas interactivas inmediatas solo ante correos importantes.
-  - `tool_inbox_clasificar_correo(correo_id)`: Inspección granular de un correo específico por su ID.
-  - `tool_inbox_resumen_estado()`: Consulta métricas de correos analizados y estado de la memoria local (`data/correos_procesados.json`).
-- **Categorías Evaluadas:**
-  - `alerta_seguridad` (CRÍTICA): 2FA, accesos sospechosos o alertas bancarias.
-  - `respuesta_humano` (ALTA): Respuestas en hilos de personas reales, clientes o procesos de selección.
-  - `oferta_laboral` (ALTA si coincide con Python/IA/Data/Remoto, BAJA si no).
-  - `beca` (ALTA): Convocatorias de IA, investigación y formación técnica.
-  - `oferta_compra` (BAJA - Silenciado): Publicidad comercial y descuentos.
-  - `spam` (BAJA - Silenciado): Boletines masivos y notificaciones de redes vacías.
-  - `otro`: Correos transaccionales neutros.
-- **Protocolo de Alerta:** Toda notificación de correo importante incluye: Remitente, Asunto, Categoría, Resumen, Enlace directo a Gmail y la pregunta de acción:
-  > *"¿Deseas que prepare un borrador de respuesta o prefieres responder tú directamente?"*
+  - `tool_correo_recibir_y_analizar(max_correos=10, solo_no_leidos=True, notificar_prioritarios=True)`: Inspecciona correos entrantes, clasifica por prioridades y despacha alertas ejecutivas automáticas ante mensajes de alto valor.
+  - `tool_correo_consultar_detalle(id_correo_o_tema, pregunta_especifica="")`: Lee a fondo el cuerpo del correo y responde preguntas puntuales (fechas, códigos, importes o requerimientos) de forma concisa.
+  - `tool_correo_responder(id_correo_o_destinatario, mensaje_respuesta, asunto="", como_borrador=False)`: Envía correos oficiales en nombre del usuario a través de Gmail (o crea borradores), manteniendo hilos de conversación.
+  - `tool_correo_notificar_usuario(mensaje_notificacion, prioridad="ALTA")`: Envía alertas estructuradas a la mensajería del usuario (Telegram / canal usuario).
+  - `tool_correo_seguimiento_pendientes()`: Supervisa los correos prioritarios notificados que esperan decisión o respuesta.
+- **Lista de Prioridades:**
+  - `CRÍTICA`: 2FA, alertas de seguridad, accesos sospechosos o bancos. (Notificación inmediata).
+  - `ALTA`: Clientes, propuestas de negocios, respuestas humanas en hilos, ofertas técnicas y becas de IA. (Notificación inmediata).
+  - `MEDIA`: Recibos transaccionales y confirmaciones de compra. (Silenciado salvo consulta).
+  - `BAJA`: Publicidad comercial, promociones y spam. (Silenciado absoluto).
+- **Protocolo de Acción:**
+  - Notificación limpia a mensajería: Remitente, Asunto, Síntesis y pregunta de acción: *"¿Deseas que responda [propuesta de respuesta] o prefieres responder tú directamente?"*.
+  - Si el usuario autoriza la respuesta, el agente redacta y envía el correo en Gmail mediante `tool_correo_responder`.
+
+### 12. Solicitud de Soporte, Pausa y Delegación en Pizarra (`skills/solicitar_soporte_pizarra/`)
+- **Propósito:** Permite pausar la ejecución del subagente y generar un ticket formal en la Pizarra (`Bitacora.md`) asignado al `Agente_Orquestador` cuando se requiera asistencia de otro subagente, del orquestador o del usuario (re-autenticación OAuth, autorizaciones).
+- **Herramientas:**
+  - `tool_solicitar_ayuda_pizarra(tarea_requerida, destinatario_tipo, subagente_sugerido, motivo_bloqueo, contexto_actual, evidencia_previa)`: Genera el ticket en `Bitacora.md` con Estado `PENDIENTE` y Responsable `Agente_Orquestador`, notificando además por canal interno.
+  - `tool_consultar_estado_ticket_pizarra(ticket_id)`: Consulta en la Bitácora el estado y avances de un ticket de soporte previamente generado.
+- **Gatillos:** Únicamente ante bloqueos reales, dependencias de otros especialistas, dudas de requerimientos o falta de credenciales/tokens del usuario.
 
 ---
 

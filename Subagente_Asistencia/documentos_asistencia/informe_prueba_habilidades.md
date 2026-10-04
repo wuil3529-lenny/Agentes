@@ -92,4 +92,4 @@ Se ejecutó la prueba integral de validación operativa de las 9 habilidades can
 **Firma:** Subagente_Asistencia (Sanji) — Brazo ofimático y de triaje de la tripulación.
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Pertenece a:** [[documentos_asistencia]]

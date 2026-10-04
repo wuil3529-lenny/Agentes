@@ -5,6 +5,12 @@ El ecosistema multi-agente está diseñado como un **Gemelo Digital Vivo (RAG + 
 ## 1. El Agente Orquestador (Dirección Estratégica)
 El **Agente Orquestador** (alias operativo: *Luffy*) actúa como el núcleo orquestador. Es el responsable global del sistema y mantiene amarrados los nodos globales (Bitácora, Cerebro, Protocolos, Sistema) a su perfil en Obsidian (`Perfil_Agente_Orquestador.md`). Los demás agentes (Subagente de Desarrollo, Subagente de Diseño, Subagente de Ciberseguridad y Subagente de Asistencia) operan como sub-nodos especializados.
 
+### 1.1. Subnodos Especializados
+- **Subagente de Asistencia (`Sanji`):** Gestión ofimática, comunicaciones (Gmail), agenda (Calendar), almacenamiento cloud (Drive), redacción ejecutiva (Docs), extracción PDF, clima y observabilidad (Sentry). Documentación completa en [[Documentacion_Subagente_Asistencia]] y [[Script_Subagente_Asistencia_Agent]].
+- **Subagente de Desarrollo (`Zoro`):** Ingeniería de software, backend/frontend, automatización y testing.
+- **Subagente de Diseño (`Nami`):** Maquetación UI/UX, visualización, diagramas y diseño de interfaces.
+- **Subagente de Ciberseguridad (`Robin`):** Auditoría de seguridad, análisis de vulnerabilidades e integridad.
+
 ## 2. El Gemelo Digital (La Memoria Bifocal)
 El ecosistema sincroniza la información simultáneamente en dos frentes matemáticamente idénticos mediante `sync_cerebro.py`:
 1. **La Vista Humana (Grafo de Obsidian):** Cada agente tiene su archivo de perfil canónico (`Perfil_Agente_Orquestador.md`, `Perfil_Subagente_Desarrollo.md`, etc.). Las herramientas (`skills`) y archivos manuales se enlazan orgánicamente a cada agente.

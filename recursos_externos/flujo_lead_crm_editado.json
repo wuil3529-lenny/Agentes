@@ -1,0 +1,76 @@
+{
+  "name": "Flujo_Lead_CRM_Enriquecido",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-inbound"
+      },
+      "name": "Webhook_Inbound",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ .body.score }}",
+              "operation": "largerEqual",
+              "value2": "70"
+            }
+          ]
+        }
+      },
+      "name": "Filtrar_Score_Alto",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "gpt-4o-mini",
+        "prompt": "Clasifica la urgencia de este lead"
+      },
+      "name": "AI_Clasificador_Lead",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook_Inbound": {
+      "main": [
+        [
+          {
+            "node": "Filtrar_Score_Alto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar_Score_Alto": {
+      "main": [
+        [
+          {
+            "node": "AI_Clasificador_Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

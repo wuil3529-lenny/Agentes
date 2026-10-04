@@ -133,11 +133,26 @@ from Subagente_Asistencia.skills.google_drive.skill_google_drive import (
 )
 HERRAMIENTAS_ASISTENCIA.extend([tool_google_drive_buscar, tool_google_drive_recientes])
 
-# 11. Inbox & Triaje en Tiempo Real
-from Subagente_Asistencia.skills.inbox.skill_inbox import (
-    tool_inbox_analizar_nuevos_correos, tool_inbox_clasificar_correo, tool_inbox_resumen_estado, tool_inbox_gmail, obtener_prompt_inbox
+# 11. Correo Electrónico (Recepción, Triaje, Alertas y Respuestas)
+from Subagente_Asistencia.skills.correo_electronico.skill_correo_electronico import (
+    tool_correo_recibir_y_analizar,
+    tool_correo_consultar_detalle,
+    tool_correo_responder,
+    tool_correo_notificar_usuario,
+    tool_correo_seguimiento_pendientes,
+    obtener_prompt_correo_electronico,
+    HERRAMIENTAS_CORREO_ELECTRONICO
 )
-HERRAMIENTAS_ASISTENCIA.extend([tool_inbox_analizar_nuevos_correos, tool_inbox_clasificar_correo, tool_inbox_resumen_estado])
+HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_CORREO_ELECTRONICO)
+
+# 12. Solicitud de Soporte, Pausa y Delegación en Pizarra
+from Subagente_Asistencia.skills.solicitar_soporte_pizarra.skill_solicitar_soporte_pizarra import (
+    tool_solicitar_ayuda_pizarra,
+    tool_consultar_estado_ticket_pizarra,
+    obtener_prompt_solicitar_soporte_pizarra,
+    HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA
+)
+HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA)
 
 NOMBRE_AGENTE = "Subagente_Asistencia"
 NOMBRE_AGENTE_ALIAS = "Sanji"
@@ -171,11 +186,15 @@ MAPA_HERRAMIENTA_PROMPTS = {
     # 10. Google Drive
     "tool_google_drive_buscar": ("Google Drive", obtener_prompt_google_drive),
     "tool_google_drive_recientes": ("Google Drive", obtener_prompt_google_drive),
-    # 11. Inbox
-    "tool_inbox_analizar_nuevos_correos": ("Triaje de Correos Gmail", obtener_prompt_inbox),
-    "tool_inbox_clasificar_correo": ("Triaje de Correos Gmail", obtener_prompt_inbox),
-    "tool_inbox_resumen_estado": ("Triaje de Correos Gmail", obtener_prompt_inbox),
-    "tool_inbox_gmail": ("Triaje de Correos Gmail", obtener_prompt_inbox),
+    # 11. Correo Electrónico
+    "tool_correo_recibir_y_analizar": ("Gestión y Triaje de Correo", obtener_prompt_correo_electronico),
+    "tool_correo_consultar_detalle": ("Consulta Puntual de Correo", obtener_prompt_correo_electronico),
+    "tool_correo_responder": ("Respuesta de Correo en Gmail", obtener_prompt_correo_electronico),
+    "tool_correo_notificar_usuario": ("Notificación de Correo Prioritario", obtener_prompt_correo_electronico),
+    "tool_correo_seguimiento_pendientes": ("Seguimiento de Correos Pendientes", obtener_prompt_correo_electronico),
+    # 12. Solicitud de Soporte en Pizarra
+    "tool_solicitar_ayuda_pizarra": ("Solicitud de Soporte en Pizarra", obtener_prompt_solicitar_soporte_pizarra),
+    "tool_consultar_estado_ticket_pizarra": ("Consulta de Ticket en Pizarra", obtener_prompt_solicitar_soporte_pizarra),
 }
 
 # ─── Configuración LLM ─────────────────────────────────────────────────────────
@@ -219,11 +238,11 @@ def detectar_prompts_habilidad(texto: str) -> List[str]:
     t = texto.lower()
     inyectados = []
 
-    # Inbox / Gmail
-    if any(k in t for k in ["correo", "email", "inbox", "gmail", "bandeja de entrada", "triaje", "tool_inbox"]):
+    # Correo Electrónico / Gmail
+    if any(k in t for k in ["correo", "email", "inbox", "gmail", "bandeja de entrada", "triaje", "responder correo", "notificar correo", "borrador", "tool_correo"]):
         try:
-            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Inbox/Gmail.")
-            inyectados.append(obtener_prompt_inbox())
+            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Correo Electrónico.")
+            inyectados.append(obtener_prompt_correo_electronico())
         except Exception:
             pass
 
@@ -296,6 +315,14 @@ def detectar_prompts_habilidad(texto: str) -> List[str]:
         try:
             print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Operaciones Base.")
             inyectados.append(obtener_prompt_base())
+        except Exception:
+            pass
+
+    # Solicitud de Soporte en Pizarra
+    if any(k in t for k in ["ayuda", "soporte", "pausa", "pausar", "bloqueo", "bloqueado", "ticket pizarra", "insumo", "delegar", "pedir ayuda", "auxilio", "orquestador", "ayuda usuario", "tool_solicitar_ayuda_pizarra"]):
+        try:
+            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Solicitud de Soporte en Pizarra.")
+            inyectados.append(obtener_prompt_solicitar_soporte_pizarra())
         except Exception:
             pass
 

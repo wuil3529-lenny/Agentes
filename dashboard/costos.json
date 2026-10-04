@@ -1,7 +1,7 @@
 {
   "mes_activo": "2026-10",
-  "tokens": 2295618,
-  "costo": 0.333057,
+  "tokens": 18700727,
+  "costo": 2.671923,
   "bloqueado_por_presupuesto": false,
   "presupuesto_maximo": 5.0,
   "agentes": {
@@ -26,12 +26,12 @@
       "costo": 0.0
     },
     "agente_orquestador": {
-      "tokens": 2084197,
-      "costo": 0.302377
+      "tokens": 3332631,
+      "costo": 0.488724
     },
     "subagente_desarrollo": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 15156675,
+      "costo": 2.152519
     },
     "subagente_diseno": {
       "tokens": 0,

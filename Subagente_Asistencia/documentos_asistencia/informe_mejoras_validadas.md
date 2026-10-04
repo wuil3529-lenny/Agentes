@@ -73,4 +73,4 @@ Se ejecutó la prueba integral de validación operativa de las mejoras aplicadas
 *Documento generado automáticamente por Subagente_Asistencia — Validación de mejoras TKT-ASI-20261003002.*
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Pertenece a:** [[documentos_asistencia]]
