@@ -32,7 +32,7 @@ Para evitar el desbordamiento de contexto y minimizar los costos de inferencia, 
 flowchart TD
     A["Tarea Asignada / Instrucción"] --> B["Nivel 1: Detección Preventiva de Intención"]
     B -->|"Filtro Quirúrgico de Palabras Clave"| C["Inyección inicial de Prompts de Skills relevantes"]
-    C --> D["Invocación al LLM con Tool Calling (30 Tools)"]
+    C --> D["Invocación al LLM con Tool Calling (32 Tools)"]
     D -->|"LLM decide ejecutar Herramienta X"| E["Ejecución de Tool"]
     E --> F["Nivel 2: Inyección Viva Post-Tool"]
     F -->|"Inyecta Directivas Específicas de Skill X en el ToolMessage"| D
@@ -40,9 +40,9 @@ flowchart TD
 ```
 
 1. **Nivel 1 (Pre-ejecución — Filtro Quirúrgico):** Analiza la orden asignada e inyecta preventivamente únicamente los system prompts de las habilidades requeridas (ej. si solo se pide agenda, solo inyecta Calendar; no satura el prompt con Docs, Drive o Clima).
-2. **Nivel 2 (Inter-rondas en Vivo — `MAPA_HERRAMIENTA_PROMPTS`):** Cada vez que se ejecuta una herramienta (las 30 herramientas están mapeadas individualmente), el runtime inyecta las directivas operativas vivas de esa habilidad en la respuesta de la herramienta, guiando al LLM hacia la mejor práctica para la siguiente ronda de razonamiento.
+2. **Nivel 2 (Inter-rondas en Vivo — `MAPA_HERRAMIENTA_PROMPTS`):** Cada vez que se ejecuta una herramienta (las 32 herramientas están mapeadas individualmente), el runtime inyecta las directivas operativas vivas de esa habilidad en la respuesta de la herramienta, guiando al LLM hacia la mejor práctica para la siguiente ronda de razonamiento.
 
-### 2.3. Catálogo de Habilidades Modulares (12 Skills)
+### 2.3. Catálogo de Habilidades Modulares (13 Skills)
 Cada habilidad se encuentra completamente desacoplada en su propio paquete bajo `Subagente_Asistencia/skills/<nombre_skill>/`:
 1. **`base`:** Manipulación de archivos locales (`crear_archivo`, `leer_archivo`, `listar_directorio`, `ejecutar_comando`) con firewall determinístico.
 2. **`obtener_clima`:** Consulta meteorológica en tiempo real vía Open-Meteo (`tool_obtener_clima`).
@@ -56,6 +56,7 @@ Cada habilidad se encuentra completamente desacoplada en su propio paquete bajo 
 10. **`google_docs`:** Redacción y maquetación documental estructurada (`tool_google_docs`).
 11. **`correo_electronico`:** Gestión integral de correo en Gmail: recepción, triaje con prioridades, notificación a mensajería (Telegram), respuesta en nombre del usuario (o borradores) y seguimiento de pendientes (`tool_correo_recibir_y_analizar`, `tool_correo_consultar_detalle`, `tool_correo_responder`, `tool_correo_notificar_usuario`, `tool_correo_seguimiento_pendientes`).
 12. **`solicitar_soporte_pizarra`:** Pausa operativa y delegación de tickets en Pizarra ante bloqueos o solicitudes externas (`tool_solicitar_ayuda_pizarra`, `tool_consultar_estado_ticket_pizarra`).
+13. **`auto_aprendizaje`:** Memoria procedural de playbooks y plantillas reutilizables para ejecución ofimática One-Shot (`tool_consultar_playbook_memoria`, `tool_registrar_playbook_memoria`).
 
 ### 2.4. Firewall Determinístico y Zonas Seguras
 El script incorpora un firewall estricto de rutas de entrada/salida implementado en `skill_base.py`:

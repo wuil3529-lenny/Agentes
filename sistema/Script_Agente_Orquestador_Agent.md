@@ -34,6 +34,7 @@ Para evitar la saturación del contexto con directivas masivas, el script implem
 - **Modo Refinamiento:** Provee los criterios de viabilidad técnica y análisis de riesgos para validar requerimientos.
 - **Modo Supervisión y Control de Calidad:** Aplica las reglas de verificación de entregables, cumplimiento de formatos y aprobación de misiones.
 - **Modo Sentry / Observabilidad:** Inyecta pautas para la inspección y diagnóstico de trazas de error reportadas por los subagentes.
+- **Modo Auto-Aprendizaje y Playbooks:** Inyecta directivas del Paso 0 (consulta obligatoria de antecedentes para ejecución One-Shot) y Paso Final (registro procedural de playbooks pioneros).
 
 ### 2.4. Caja de Herramientas Canónicas
 El script expone y vincula al LLM las herramientas operativas de su dominio:
@@ -41,6 +42,7 @@ El script expone y vincula al LLM las herramientas operativas de su dominio:
 - **Inspección de Workspace:** Comandos para listar directorios, inspeccionar archivos del proyecto y localizar patrones de código (`grep`).
 - **Gestión de Memoria y Pizarra:** Creación de tickets en la Bitácora, registro de conocimiento consolidado en el Cerebro y comunicación por canales internos.
 - **Notificaciones Externas:** Envío de mensajes ejecutivos hacia la interfaz de usuario y Telegram.
+- **Auto-Aprendizaje y Playbooks:** Consulta (`tool_consultar_playbook_memoria`) y registro (`tool_registrar_playbook_memoria`) de recetas procedurales en `memoria/` y ChromaDB.
 
 ---
 

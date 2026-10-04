@@ -154,6 +154,15 @@ from Subagente_Asistencia.skills.solicitar_soporte_pizarra.skill_solicitar_sopor
 )
 HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA)
 
+# 13. Auto-Aprendizaje Continuo y Memoria Procedural
+from Subagente_Asistencia.skills.auto_aprendizaje.skill_auto_aprendizaje import (
+    tool_consultar_playbook_memoria,
+    tool_registrar_playbook_memoria,
+    obtener_prompt_auto_aprendizaje,
+    HERRAMIENTAS_AUTO_APRENDIZAJE
+)
+HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_AUTO_APRENDIZAJE)
+
 NOMBRE_AGENTE = "Subagente_Asistencia"
 NOMBRE_AGENTE_ALIAS = "Sanji"
 
@@ -195,6 +204,9 @@ MAPA_HERRAMIENTA_PROMPTS = {
     # 12. Solicitud de Soporte en Pizarra
     "tool_solicitar_ayuda_pizarra": ("Solicitud de Soporte en Pizarra", obtener_prompt_solicitar_soporte_pizarra),
     "tool_consultar_estado_ticket_pizarra": ("Consulta de Ticket en Pizarra", obtener_prompt_solicitar_soporte_pizarra),
+    # 13. Auto-Aprendizaje
+    "tool_consultar_playbook_memoria": ("Auto-Aprendizaje Continuo", obtener_prompt_auto_aprendizaje),
+    "tool_registrar_playbook_memoria": ("Auto-Aprendizaje Continuo", obtener_prompt_auto_aprendizaje),
 }
 
 # ─── Configuración LLM ─────────────────────────────────────────────────────────
@@ -323,6 +335,14 @@ def detectar_prompts_habilidad(texto: str) -> List[str]:
         try:
             print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Solicitud de Soporte en Pizarra.")
             inyectados.append(obtener_prompt_solicitar_soporte_pizarra())
+        except Exception:
+            pass
+
+    # Auto-Aprendizaje y Memoria Procedural de Playbooks
+    if any(k in t for k in ["playbook", "blueprint", "memoria procedural", "auto-aprendizaje", "autoaprendizaje", "one-shot", "receta", "aprender", "tool_consultar_playbook", "tool_registrar_playbook"]):
+        try:
+            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Auto-Aprendizaje.")
+            inyectados.append(obtener_prompt_auto_aprendizaje())
         except Exception:
             pass
 

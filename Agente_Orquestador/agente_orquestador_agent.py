@@ -231,6 +231,11 @@ from limpiar_pizarra.skill_limpiar_pizarra import tool_limpiar_pizarra, obtener_
 from limpiar_workspace.skill_limpiar_workspace import tool_limpiar_workspace, obtener_prompt_limpiar_workspace
 from registrar_agente.skill_registrar_agente import tool_registrar_agente, obtener_prompt_registrar_agente
 from crear_herramienta.skill_crear_herramienta import iniciar_creacion_skill, obtener_prompt_creador_herramienta
+from auto_aprendizaje.skill_auto_aprendizaje import (
+    tool_consultar_playbook_memoria,
+    tool_registrar_playbook_memoria,
+    obtener_prompt_auto_aprendizaje
+)
 
 @tool
 def tool_enviar_telegram(mensaje: str) -> str:
@@ -304,6 +309,8 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_registrar_agente,
     tool_limpiar_pizarra,
     tool_crear_skill_tripulacion,
+    tool_consultar_playbook_memoria,
+    tool_registrar_playbook_memoria,
 ]
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -404,6 +411,16 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
             prompt_inyectado += obtener_prompt_sentry()
         except Exception as e:
             print(f"[Agente_Orquestador] Error al cargar prompt sentry: {e}")
+
+    # 6. Modo Auto-Aprendizaje y Playbooks
+    gatillos_auto_aprendizaje = ["playbook", "blueprint", "memoria procedural", "auto-aprendizaje", "autoaprendizaje", "one-shot", "receta", "aprender"]
+    es_modo_auto_aprendizaje = any(g in ultimo_texto for g in gatillos_auto_aprendizaje)
+    if es_modo_auto_aprendizaje:
+        print("[Agente_Orquestador] 🧬 Inyectando System Prompt especializado: Auto-Aprendizaje y Playbooks.")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_auto_aprendizaje()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt auto_aprendizaje: {e}")
 
     # Aplicar la inyección dinámica al último mensaje
     if prompt_inyectado and mensajes_langgraph:

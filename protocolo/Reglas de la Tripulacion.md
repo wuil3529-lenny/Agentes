@@ -164,6 +164,10 @@ Ningún archivo puede quedar suelto en el grafo de Obsidian.
 1. **Ante un error:** Si al ejecutar un código o comando fallas y obtienes un error en tu turno, **ANTES de rendirte o adivinar**, DEBES ejecutar consultar_sentry_errores(mensaje_error). Esto te dirá si otro agente ya pasó por ahí y te dará la receta exacta para superarlo.
 2. **Soluciones Inéditas:** Si el error es nuevo y logras resolverlo tú mismo con tu ingenio, **INMEDIATAMENTE DESPUÉS del éxito** es obligatorio que ejecutes egistrar_solucion_error(error, como_se_soluciono). Esta es la única forma de que la nave aprenda y no volvamos a tropezar con la misma piedra.
 
+## Regla 25: AUTO-APRENDIZAJE CONTINUO Y MEMORIA PROCEDURAL [HS-07]
+1. **Paso 0 Obligatorio (Consulta antes de crear/planificar):** Antes de programar cualquier web, interfaz, flujo n8n, API, reporte ofimático o plan maestro de delegación, la PRIMERA acción obligatoria de cualquier agente es invocar `tool_consultar_playbook_memoria`. Si en `memoria/` o ChromaDB ya existe un blueprint/playbook probado, se adopta de inmediato para ejecutar en **One-Shot** adaptando las variables requeridas sin rodeos ni pasos exploratorios redundantes.
+2. **Paso Final Obligatorio (Registro de primera vez):** Si una tarea o arquitectura se realizó por primera vez con éxito verificado y auditoría Zero-Trust aprobada, antes de cerrar el ticket o concluir la misión es **OBLIGATORIO** invocar `tool_registrar_playbook_memoria` para archivar la receta paso a paso, variables adaptables, esquemas y tokens de diseño en `memoria/` y ChromaDB.
+
 ---
 > **Conexiones Core:** Reglas de la Tripulación, Cerebro, Bitácora, [[memoria]], 
 

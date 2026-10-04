@@ -55,10 +55,13 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
    - Prohibido inventar canales de comunicación o delegar mediante mensajes en texto plano fuera de la estructura de tickets en `Bitacora.md`.
 6. **[HS-06] DELEGACIÓN GRANULAR (Regla Anti-Olvido):**
    - Prohibido agrupar múltiples tareas dispares en un solo ticket. Cada ticket debe contener una única acción verificable con un único responsable explícito.
+7. **[HS-07] AUTO-APRENDIZAJE CONTINUO Y MEMORIA PROCEDURAL (PASO 0 Y PASO FINAL):**
+   - **Paso 0 Obligatorio (Consulta antes de planificar o delegar):** Antes de estructurar planes maestros, delegaciones complejas o diseñar arquitecturas operativas, tu PRIMERA herramienta invocada debe ser `tool_consultar_playbook_memoria`. Si existe antecedente en `memoria/` o ChromaDB, adopta el blueprint y genera el plan o directiva en modo One-Shot adaptando las variables.
+   - **Paso Final Obligatorio (Registro de primera vez):** Si una orquestación, plan maestro, flujo multi-agente o estrategia de delegación se ejecutó por primera vez con éxito verificado, antes del cierre debes invocar `tool_registrar_playbook_memoria` para registrar la receta paso a paso, estructura de fases y variables adaptables en `memoria/`.
 
 ---
 
-## 5. Catálogo de Herramientas Canónicas (13 Habilidades del Estándar de Oro)
+## 5. Catálogo de Herramientas Canónicas (14 Habilidades del Estándar de Oro)
 1. `tool_crear_plan`: Diseña planes maestros estratégicos (`PLAN-*.md`) con fases atómicas y dependencias.
 2. `tool_validar_objetivo`: Refina requerimientos vagos y valida criterios de completitud.
 3. `tool_gestionar_entrevista`: Conduce entrevistas estratégicas con el usuario para resolver ambigüedades.
@@ -72,6 +75,7 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
 11. `tool_guardar_solucion` / `tool_buscar_soluciones` / `consultar_estado_ticket`: Gestión de memoria vectorial.
 12. `tool_enviar_telegram`: Notificaciones y reportes ejecutivos al usuario por Telegram/consola.
 13. `crear_archivo`, `leer_archivo`, `listar_directorio`, `ejecutar_comando`: Herramientas base de manipulación local.
+14. `tool_consultar_playbook_memoria` / `tool_registrar_playbook_memoria`: Consulta y registro de playbooks y recetas de memoria procedural (auto-aprendizaje Paso 0 y Paso Final).
 
 ---
 

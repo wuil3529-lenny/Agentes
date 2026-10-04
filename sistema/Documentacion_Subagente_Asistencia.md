@@ -7,7 +7,7 @@
 **Script Ejecutable Principal:** `Subagente_Asistencia/subagente_asistencia_agent.py`  
 **Punto de Entrada Canónico:** `Subagente_Asistencia/Perfil_Subagente_Asistencia.py`  
 **Directorio de Entregables Oficiales:** `Subagente_Asistencia/documentos_asistencia/`  
-**Estado Operativo:** Modernizado, Modularizado en 11 Skills, Validado E2E (100% aprobado)
+**Estado Operativo:** Modernizado, Modularizado en 13 Skills (32 tools), Validado E2E (100% aprobado)
 
 ---
 
@@ -58,8 +58,8 @@ El Subagente de Asistencia fue completamente reestructurado bajo las **5 Reglas 
 
 | Regla de Oro | Implementación en Subagente_Asistencia | Beneficio Técnico |
 | :--- | :--- | :--- |
-| **1. Desacoplamiento Modular Absoluto** | Cada una de las 11 habilidades vive en su propia subcarpeta dentro de `Subagente_Asistencia/skills/<nombre_skill>/` con su propio `__init__.py`, script de lógica (`tool_<nombre>.py`) y archivo cognitivo (`Skill_<Nombre>.md`). | Cero acoplamiento; una modificación en `google_calendar` no altera `sentry` ni `obtener_clima`. |
-| **2. Decorador Canónico `@tool` con Tipado Fuerte** | Todas las 22 herramientas del catálogo utilizan el decorador formal `@tool` de LangChain con docstrings descriptivos y type hints estrictos (`str`, `int`, `dict`). | Compatibilidad nativa con modelos de inferencia multi-proveedor (OpenAI, DeepSeek, NIM) e inspección automática de esquemas. |
+| **1. Desacoplamiento Modular Absoluto** | Cada una de las 13 habilidades vive en su propia subcarpeta dentro de `Subagente_Asistencia/skills/<nombre_skill>/` con su propio `__init__.py`, script de lógica (`tool_<nombre>.py` o `skill_<nombre>.py`) y archivo cognitivo (`Skill_<Nombre>_Subagente_Asistencia.md`). | Cero acoplamiento; una modificación en `google_calendar` no altera `sentry` ni `auto_aprendizaje`. |
+| **2. Decorador Canónico `@tool` con Tipado Fuerte** | Todas las 32 herramientas del catálogo utilizan el decorador formal `@tool` de LangChain con docstrings descriptivos y type hints estrictos (`str`, `int`, `dict`). | Compatibilidad nativa con modelos de inferencia multi-proveedor (OpenAI, DeepSeek, NIM) e inspección automática de esquemas. |
 | **3. Encapsulamiento del Prompt de Habilidad** | Cada habilidad exporta una función dedicada `obtener_prompt_<nombre_skill>()` que carga dinámicamente su System Prompt desde su archivo `.md`. | Prohibición absoluta de prompts cableados en código duro (`hardcoded`); versionado independiente de la cognición. |
 | **4. Documentación Canónica y Obsidian Sync** | Cada habilidad cuenta con su documento Markdown `Skill_<Nombre>_Subagente_Asistencia.md` con enlaces directos (`[[Perfil_Subagente_Asistencia]]`, `[[Reglas de la Tripulacion]]`). | Sincronización transparente en el grafo visual de Obsidian y vectorización automática en ChromaDB. |
 | **5. Manejo Resiliente de Errores y Blindaje** | Todas las herramientas capturan excepciones en bloques estructurados `try/except`, registran detalles en logs y devuelven respuestas de diagnóstico sin romper la ejecución del agente. | Autotolerancia a fallos: caídas de red o tokens expirados no cuelgan el subproceso. |
@@ -84,7 +84,7 @@ Cuando el LLM decide invocar una herramienta específica durante sus rondas inte
 
 ---
 
-## 5. Catálogo Maestro de Habilidades (12 Skills / 24 Tools)
+## 5. Catálogo Maestro de Habilidades (13 Skills / 32 Tools)
 
 ```mermaid
 graph LR
@@ -101,6 +101,7 @@ graph LR
         A --> S10["10. Google Docs (Editorial)"]
         A --> S11["11. Inbox (Triaje Gmail)"]
         A --> S12["12. Soporte Pizarra (Pausa & Auxilio)"]
+        A --> S13["13. Auto-Aprendizaje (Playbooks & One-Shot)"]
     end
 ```
 
@@ -147,6 +148,9 @@ graph LR
 12. **`skills/solicitar_soporte_pizarra/`:**
     - `tool_solicitar_ayuda_pizarra(tarea_requerida, destinatario_tipo, subagente_sugerido, motivo_bloqueo, contexto_actual, evidencia_previa)`: Pausa operativa y generación de ticket en `Bitacora.md` asignado al `Agente_Orquestador`.
     - `tool_consultar_estado_ticket_pizarra(ticket_id)`: Consulta de estado y avances del ticket de auxilio en la Pizarra.
+13. **`skills/auto_aprendizaje/`:**
+    - `tool_consultar_playbook_memoria(tema_o_dominio)`: (Paso 0 Obligatorio) Consulta de playbooks y blueprints previos en `memoria/` y ChromaDB para reutilizar recetas probadas en One-Shot.
+    - `tool_registrar_playbook_memoria(titulo, categoria, dominio, paso_a_paso_skills, tokens_y_esquema, blueprint_reutilizable, variables_adaptables, evidencia_fisica)`: (Paso Final Obligatorio) Extracción y archivo de ADN metodológico de flujos pioneros en `memoria/`.
 
 ---
 

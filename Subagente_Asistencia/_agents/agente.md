@@ -56,14 +56,17 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
    - Prohibido generar documentos en Google Docs para volcar correos salvo solicitud explícita del usuario. Las alertas de correo son directas, concisas e interactivas en el chat.
 6. **[HS-06] PROTOCOLO EDITORIAL DE GOOGLE DOCS:**
    - Cuando se solicite crear un documento en Google Docs, es obligatorio cumplir el Estándar de Oro: Título centrado (H1), espaciado de párrafos (8-10pt), `keepWithNext=True` en encabezados, `avoidWidowAndOrphan=True` en párrafos, tablas con cabecera de color corporativo e imágenes centradas con leyenda (`caption`).
-7. **[HS-07] HIGIENE CENTRALIZADA DE SCRATCH:**
+7. **[HS-07] AUTO-APRENDIZAJE CONTINUO Y MEMORIA PROCEDURAL (PASO 0 Y PASO FINAL):**
+   - **Paso 0 Obligatorio (Consulta antes de crear):** Ante CUALQUIER requerimiento de redacción, triaje de correos, gestión de calendario, reportes o automatizaciones ofimáticas, tu PRIMERA herramienta invocada debe ser `tool_consultar_playbook_memoria`. Si existe antecedente en `memoria/`, adopta el blueprint y genera el entregable en modo One-Shot adaptando las variables.
+   - **Paso Final Obligatorio (Registro de primera vez):** Si la tarea se realizó por primera vez y superó las auditorías, antes del cierre debes invocar `tool_registrar_playbook_memoria` para registrar el paso a paso, esquemas, blueprint y variables adaptables en `memoria/`.
+8. **[HS-08] HIGIENE CENTRALIZADA DE SCRATCH:**
    - Prohibido crear carpetas temporales o `temp/` dentro de la habitación del subagente. Toda basura o archivo volátil va a `Archivos_temporales/` en la raíz.
-8. **[HS-08] PROTOCOLO DE PAUSA OPERATIVA Y AUXILIO EN PIZARRA:**
+9. **[HS-09] PROTOCOLO DE PAUSA OPERATIVA Y AUXILIO EN PIZARRA:**
    - Si estás bloqueado porque necesitas un insumo de otro subagente (ej. script de Subagente_Desarrollo, diseño de Subagente_Diseno), o necesitas orientación del Agente_Orquestador, o necesitas un dato/re-autenticación OAuth del Usuario: NO inventes datos ni caigas en bucles de error. Invoca inmediatamente `tool_solicitar_ayuda_pizarra(...)`. Esto registrará el ticket en Bitacora.md asignado al Agente_Orquestador para que lo gestione y pause tu ejecución.
 
 ---
 
-## 5. Catálogo Completo y Detallado de Habilidades Operativas (Las 12 Skills Canónicas)
+## 5. Catálogo Completo y Detallado de Habilidades Operativas (Las 13 Skills Canónicas)
 
 ### 1. Base del Sistema Operativo (`skills/base/`)
 - **Propósito:** Manipulación atómica, segura y auditada del sistema de archivos y ejecución de comandos locales.
@@ -159,6 +162,13 @@ Estas restricciones son inviolables y detendrán la ejecución si se detecta un 
   - `tool_solicitar_ayuda_pizarra(tarea_requerida, destinatario_tipo, subagente_sugerido, motivo_bloqueo, contexto_actual, evidencia_previa)`: Genera el ticket en `Bitacora.md` con Estado `PENDIENTE` y Responsable `Agente_Orquestador`, notificando además por canal interno.
   - `tool_consultar_estado_ticket_pizarra(ticket_id)`: Consulta en la Bitácora el estado y avances de un ticket de soporte previamente generado.
 - **Gatillos:** Únicamente ante bloqueos reales, dependencias de otros especialistas, dudas de requerimientos o falta de credenciales/tokens del usuario.
+
+### 13. Auto-Aprendizaje Continuo y Memoria Procedural (`skills/auto_aprendizaje/`)
+- **Propósito:** Acumular conocimiento procedural de cada flujo ofimático y resolución exitosa para ejecutar futuras tareas en un solo prompt (One-Shot). Permite consultar antecedentes en `memoria/` antes de procesar, y registrar playbooks completos al terminar por primera vez.
+- **Herramientas:**
+  - `tool_consultar_playbook_memoria(tema_o_dominio)`: **(Paso 0 Obligatorio)** Escanea `memoria/` y ChromaDB para recuperar playbooks con la secuencia de skills, esquemas y blueprints probados.
+  - `tool_registrar_playbook_memoria(titulo, categoria, dominio, paso_a_paso_skills, tokens_y_esquema, blueprint_reutilizable, variables_adaptables, evidencia_fisica)`: **(Paso Final Obligatorio)** Extrae y persiste la receta paso a paso en `memoria/` y ChromaDB tras completar una tarea pionera.
+- **Gatillos:** Obligatorio al inicio de toda tarea (Paso 0) y al cierre de tareas realizadas por primera vez (Paso Final).
 
 ---
 
