@@ -195,7 +195,7 @@ El daemon `base_listener.py` ejecuta una verificación **Zero-Trust**:
 - **Perfil Maestro de Obsidian:** [[Perfil_Subagente_Asistencia]]
 - **Documentación de Scripts:** [[Script_Subagente_Asistencia_Agent]]
 - **Arquitectura Global del Sistema:** [[Arquitectura]]
-- **Protocolo de la Pizarra:** [[La_Pizarra]]
+- **Protocolo de la Pizarra:** [[Bitacora]]
 - **Bóveda de Conocimiento Colectivo:** [[Cerebro]]
 - **Reglamento Operativo:** [[Reglas de la Tripulacion]]
 

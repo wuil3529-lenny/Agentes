@@ -23,7 +23,7 @@ El módulo implementa un ciclo de vida efímero bajo demanda (**Spawn -> Exec ->
 El agente no utiliza prompts cableados en código duro. Su identidad se carga dinámicamente:
 - **SSOT de Identidad:** Carga el archivo canónico único `Subagente_Asistencia/_agents/agente.md`.
 - **Estructura Libre de Duplicados:** Se erradicaron permanentemente los archivos redundantes (`sanji_agent.py`, `Subagente_Asistencia.md`), centralizando la configuración en un único archivo maestro de perfil.
-- **Topología del Sistema:** Define claramente los directorios autorizados, roles de la tripulación y los 6 Hard-Stops inviolables.
+- **Topología del Sistema:** Define claramente los directorios autorizados, roles de la tripulación y los 8 Hard-Stops inviolables ([HS-01] a [HS-08]).
 
 ### 2.2. Inyección Dinámica de Prompts en Dos Niveles
 Para evitar el desbordamiento de contexto y minimizar los costos de inferencia, el agente aplica una arquitectura de inyección en dos capas:
@@ -32,7 +32,7 @@ Para evitar el desbordamiento de contexto y minimizar los costos de inferencia, 
 flowchart TD
     A["Tarea Asignada / Instrucción"] --> B["Nivel 1: Detección Preventiva de Intención"]
     B -->|"Filtro Quirúrgico de Palabras Clave"| C["Inyección inicial de Prompts de Skills relevantes"]
-    C --> D["Invocación al LLM con Tool Calling"]
+    C --> D["Invocación al LLM con Tool Calling (30 Tools)"]
     D -->|"LLM decide ejecutar Herramienta X"| E["Ejecución de Tool"]
     E --> F["Nivel 2: Inyección Viva Post-Tool"]
     F -->|"Inyecta Directivas Específicas de Skill X en el ToolMessage"| D
@@ -40,9 +40,9 @@ flowchart TD
 ```
 
 1. **Nivel 1 (Pre-ejecución — Filtro Quirúrgico):** Analiza la orden asignada e inyecta preventivamente únicamente los system prompts de las habilidades requeridas (ej. si solo se pide agenda, solo inyecta Calendar; no satura el prompt con Docs, Drive o Clima).
-2. **Nivel 2 (Inter-rondas en Vivo — `MAPA_HERRAMIENTA_PROMPTS`):** Cada vez que se ejecuta una herramienta (las 22 herramientas están mapeadas individualmente), el runtime inyecta las directivas operativas vivas de esa habilidad en la respuesta de la herramienta, guiando al LLM hacia la mejor práctica para la siguiente ronda de razonamiento.
+2. **Nivel 2 (Inter-rondas en Vivo — `MAPA_HERRAMIENTA_PROMPTS`):** Cada vez que se ejecuta una herramienta (las 30 herramientas están mapeadas individualmente), el runtime inyecta las directivas operativas vivas de esa habilidad en la respuesta de la herramienta, guiando al LLM hacia la mejor práctica para la siguiente ronda de razonamiento.
 
-### 2.3. Catálogo de Habilidades Modulares (11 Skills)
+### 2.3. Catálogo de Habilidades Modulares (12 Skills)
 Cada habilidad se encuentra completamente desacoplada en su propio paquete bajo `Subagente_Asistencia/skills/<nombre_skill>/`:
 1. **`base`:** Manipulación de archivos locales (`crear_archivo`, `leer_archivo`, `listar_directorio`, `ejecutar_comando`) con firewall determinístico.
 2. **`obtener_clima`:** Consulta meteorológica en tiempo real vía Open-Meteo (`tool_obtener_clima`).
@@ -55,6 +55,7 @@ Cada habilidad se encuentra completamente desacoplada en su propio paquete bajo 
 9. **`google_drive`:** Exploración y recuperación de documentos (`tool_google_drive_buscar`, `tool_google_drive_recientes`).
 10. **`google_docs`:** Redacción y maquetación documental estructurada (`tool_google_docs`).
 11. **`correo_electronico`:** Gestión integral de correo en Gmail: recepción, triaje con prioridades, notificación a mensajería (Telegram), respuesta en nombre del usuario (o borradores) y seguimiento de pendientes (`tool_correo_recibir_y_analizar`, `tool_correo_consultar_detalle`, `tool_correo_responder`, `tool_correo_notificar_usuario`, `tool_correo_seguimiento_pendientes`).
+12. **`solicitar_soporte_pizarra`:** Pausa operativa y delegación de tickets en Pizarra ante bloqueos o solicitudes externas (`tool_solicitar_ayuda_pizarra`, `tool_consultar_estado_ticket_pizarra`).
 
 ### 2.4. Firewall Determinístico y Zonas Seguras
 El script incorpora un firewall estricto de rutas de entrada/salida implementado en `skill_base.py`:
