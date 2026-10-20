@@ -39,6 +39,57 @@ STATIC_CAPTURAS = _DASHBOARD_DIR / "static" / "capturas"
 STATIC_CAPTURAS.mkdir(parents=True, exist_ok=True)
 
 
+def purgar_capturas_antiguas(max_antiguedad_horas: float = 12.0, max_archivos: int = 25) -> Dict[str, Any]:
+    """
+    Higienizador de espacio en disco: purga capturas temporales web y de escritorio
+    en Archivos_temporales y dashboard/static/capturas para evitar saturación de almacenamiento.
+    Mantiene únicamente las últimas `max_archivos` capturas más recientes.
+    """
+    carpetas = [STATIC_CAPTURAS, ARCHIVOS_TEMPORALES]
+    ahora = time.time()
+    segundos_limite = max_antiguedad_horas * 3600
+    eliminados = 0
+    bytes_liberados = 0
+
+    for carpeta in carpetas:
+        if not carpeta.exists():
+            continue
+        archivos = []
+        try:
+            for f in carpeta.iterdir():
+                if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webp"] and (
+                    f.name.startswith("web_") or f.name.startswith("pantalla_") or f.name.startswith("captura_")
+                ):
+                    try:
+                        archivos.append((f.stat().st_mtime, f.stat().st_size, f))
+                    except Exception:
+                        pass
+        except Exception:
+            continue
+
+        # Ordenar de más reciente a más antiguo
+        archivos.sort(key=lambda x: x[0], reverse=True)
+
+        for idx, (mtime, size, fpath) in enumerate(archivos):
+            edad = ahora - mtime
+            if idx >= max_archivos or edad > segundos_limite:
+                try:
+                    fpath.unlink(missing_ok=True)
+                    eliminados += 1
+                    bytes_liberados += size
+                except Exception:
+                    pass
+
+    mb_liberados = round(bytes_liberados / (1024 * 1024), 2)
+    return {
+        "status": "success",
+        "archivos_eliminados": eliminados,
+        "espacio_liberado_mb": mb_liberados,
+        "mensaje": f"Purga de capturas completada: {eliminados} archivos eliminados ({mb_liberados} MB liberados)."
+    }
+
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. GESTOR DE NAVEGADOR WEB VISIBLE (PLAYWRIGHT)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -282,6 +333,7 @@ class GestorNavegadorWeb:
             try:
                 page.screenshot(path=str(out_path))
                 page.screenshot(path=str(static_path))
+                purgar_capturas_antiguas(max_antiguedad_horas=12.0, max_archivos=25)
             except Exception:
                 pass
 
@@ -566,6 +618,7 @@ class GestorNavegadorWeb:
             try:
                 page.screenshot(path=str(out_path))
                 page.screenshot(path=str(static_path))
+                purgar_capturas_antiguas(max_antiguedad_horas=12.0, max_archivos=25)
             except Exception:
                 pass
 
@@ -830,6 +883,7 @@ class GestorNavegadorWeb:
             page.screenshot(path=str(out_path), full_page=False)
             try:
                 page.screenshot(path=str(static_path), full_page=False)
+                purgar_capturas_antiguas(max_antiguedad_horas=12.0, max_archivos=25)
             except Exception:
                 pass
             return {
