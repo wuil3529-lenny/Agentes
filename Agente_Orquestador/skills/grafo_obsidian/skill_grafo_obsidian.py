@@ -129,8 +129,8 @@ Nodo central de memoria persistente de la tripulación y espejo estructurado de 
 ## 📂 Directorio y Estructura de `memoria/`
 
 ### 1. Gobernanza y Perfiles Humanos
-- `Perfil de wuil.md` — Perfil de identidad, preferencias operativas y requerimientos del Capitán Wuil.
-- `Perfil_Laboral_Wuil.md` — Trayectoria profesional, certificaciones y requisitos para postulaciones.
+- `Perfil_Usuario.md` — Perfil de identidad, preferencias operativas y requerimientos del usuario.
+- `Perfil_Laboral.md` — Trayectoria profesional, certificaciones y requisitos para proyectos.
 
 ### 2. Bóvedas de Incidencias e Inmunización
 - `Memoria_Viva_Errores.md` — Bóveda centralizada de diagnóstico, códigos de error y recetas de inmunización.

@@ -165,7 +165,7 @@ def tool_rellenar_formulario_web(campos_json: str, boton_enviar: str = "") -> st
     Detecta inputs por texto visible, etiquetas (label), placeholders, nombres o selectores CSS.
 
     Args:
-        campos_json: JSON con pares campo: valor. Ej: '{"Nombre": "Juan", "Email": "correo@gmail.com", "#terminos": true}'
+        campos_json: JSON con pares campo: valor. Ej: '{"Nombre": "Juan", "Email": "usuario@example.com", "#terminos": true}'
         boton_enviar: Texto visible o selector del botón de envío a presionar tras rellenar (opcional).
     """
     try:

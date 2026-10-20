@@ -93,3 +93,6 @@ Agente_Orquestador/informes/informe_busqueda_*
 Agente_Orquestador/informes/informe_plataformas_*
 Agente_Orquestador/data/sensores/analisis_plataformas_empleo*
 
+
+# Habilidades Personales y Privadas del Usuario (Aislamiento de Perfil)
+skills_personal/

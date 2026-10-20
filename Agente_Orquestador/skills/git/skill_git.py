@@ -31,8 +31,8 @@ PATRONES_GATE_ROBIN = [
     (r'8615\d{6,}:[A-Za-z0-9_-]{30,}', "Telegram Bot Token"),
     (r'-{5}BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-{5}', "Clave Privada PEM/SSH"),
     (r'-{5}BEGIN CERTIFICATE-{5}', "Certificado Criptográfico PEM"),
-    (r'shko\s*fgvp', "App Password Gmail"),
-    (r'wuil3529@gmail\.com', "Email Personal Wuil (PII no parametrizada)"),
+    (r'\b[a-z]{4}\s+[a-z]{4}\s+[a-z]{4}\s+[a-z]{4}\b', "App Password Gmail (16 caracteres)"),
+    (r'\b[A-Za-z0-9._%+-]+@(?:gmail|hotmail|yahoo|outlook)\.com\b', "Email Personal (PII no parametrizada)"),
 ]
 
 
@@ -137,7 +137,7 @@ def tool_git_commit(mensaje: str, forzar_sin_gate: bool = False, directorio: str
         for line in stdout_diff.splitlines():
             # Solo evaluamos líneas añadidas (+)
             if line.startswith("+") and not line.startswith("+++"):
-                if "PATRONES_GATE_ROBIN" in line or "PATRONES_SECRETOS" in line or "r'-{5}BEGIN" in line:
+                if "PATRONES_GATE_ROBIN" in line or "PATRONES_SECRETOS" in line or "r'-{5}BEGIN" in line or "App Password" in line or "Email Personal" in line:
                     continue
                 for pat, tipo in PATRONES_GATE_ROBIN:
                     if re.search(pat, line):

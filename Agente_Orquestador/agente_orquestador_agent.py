@@ -287,11 +287,19 @@ from grafo_obsidian.skill_grafo_obsidian import (
     tool_sincronizar_grafo_canonico,
     tool_capturar_verificar_grafo_obsidian,
 )
-from scout_laboral.skill_scout_laboral import (
-    tool_scout_laboral_multiplataforma,
-    tool_evaluar_compatibilidad_vacante,
-    obtener_prompt_scout_laboral,
-)
+# Carga desacoplada de scout_laboral (Capa de Usuario / skills_personal)
+try:
+    from skills_personal.Agente_Orquestador.scout_laboral.skill_scout_laboral import (
+        tool_scout_laboral_multiplataforma,
+        tool_evaluar_compatibilidad_vacante,
+        obtener_prompt_scout_laboral,
+    )
+    HERRAMIENTAS_SCOUT = [tool_scout_laboral_multiplataforma, tool_evaluar_compatibilidad_vacante]
+except Exception:
+    tool_scout_laboral_multiplataforma = None
+    tool_evaluar_compatibilidad_vacante = None
+    obtener_prompt_scout_laboral = lambda: ""
+    HERRAMIENTAS_SCOUT = []
 from git.skill_git import (
     HERRAMIENTAS_GIT,
     obtener_prompt_git,
@@ -411,9 +419,7 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_enviar_nota_voz,
     tool_hablar_por_cornetas,
     tool_escuchar_microfono,
-    tool_scout_laboral_multiplataforma,
-    tool_evaluar_compatibilidad_vacante,
-] + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN + HERRAMIENTAS_GIT
+] + HERRAMIENTAS_SCOUT + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN + HERRAMIENTAS_GIT
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -603,10 +609,12 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
         "postulacion laboral", "rec-scout-001"
     ]
     es_modo_scout = any(g in ultimo_texto for g in gatillos_scout)
-    if es_modo_scout:
-        print("[Agente_Orquestador] 🎯 Inyectando System Prompt especializado: Scout Laboral Multiplataforma.")
+    if es_modo_scout and callable(obtener_prompt_scout_laboral):
         try:
-            prompt_inyectado += "\n\n" + obtener_prompt_scout_laboral()
+            p_scout = obtener_prompt_scout_laboral()
+            if p_scout:
+                print("[Agente_Orquestador] 🎯 Inyectando System Prompt especializado: Scout Laboral Multiplataforma.")
+                prompt_inyectado += "\n\n" + p_scout
         except Exception as e:
             print(f"[Agente_Orquestador] Error al cargar prompt scout_laboral: {e}")
 

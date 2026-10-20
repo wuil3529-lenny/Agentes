@@ -48,27 +48,7 @@ _BITACORA_FILE = _APP_ROOT / "Bitacora.md"
 _DASHBOARD_TAREAS_FILE = _APP_ROOT / "dashboard" / "tareas_programadas.json"
 _ULTIMO_HASH_BITACORA: str = ""
 
-PLAYBOOK_REC_SCOUT_001 = """Rutina Semanal de Exploración y Postulación Laboral Multiplataforma Zero-Noise (Get on Board, LinkedIn Jobs y Computrabajo).
-
-PROCEDIMIENTO PASO A PASO:
-1. Scouting Multiplataforma Zero-Noise (Get on Board & LinkedIn):
-   - Invocar `tool_scout_laboral_multiplataforma(plataformas='todas')`.
-   - Inspeccionar digest emails IMAP, extraer ofertas activas y descartar expiradas/cerradas.
-   - Contrastar requerimientos técnicos contra 'memoria/Perfil_Laboral_Wuil.md' (umbral estricto >= 75%).
-   - Descartar en silencio absoluto puestos < 75% o incompatibles.
-
-2. Conexión CDP / Web Browser (Computrabajo Venezuela):
-   - Conectar mediante Chrome DevTools Protocol (CDP) a la sesión autenticada en 'http://localhost:9222'.
-   - Navegar al listado de ofertas de empleo recientes en Computrabajo.
-   - Filtrar áreas estratégicas de IA, Agentes, Python y Software.
-   - Responder Killer Questions con honestidad curricular y ejecutar postulación.
-
-3. Trazabilidad y Evidencia Física Zero-Trust:
-   - Guardar capturas de confirmación en 'Agente_Orquestador/informes/captura_postulacion_<ID>.png'.
-   - Generar reporte físico en 'Agente_Orquestador/informes/reporte_scouting_laboral_<FECHA>.md'.
-
-4. Cierre y Notificación:
-   - Notificar al Capitán por Telegram y nota de voz neural con las oportunidades compatibles encontradas o reporte de 0 compatibles."""
+PLAYBOOK_GENERICO_RUTINA = """Procedimiento estándar para la ejecución y trazabilidad de rutinas programadas periódicas en la tripulación."""
 
 _MAPA_CARPETAS_SALIDA = {
     "Subagente_Desarrollo": "Subagente_Desarrollo/proyectos",
@@ -1114,11 +1094,6 @@ def sincronizar_tareas_desde_bitacora(forzar: bool = False) -> dict:
                             t["ultimo_dia_ejecutado"] = NOMBRES_DIAS_ES[ult_dt.weekday()].lower()
                             cambios = True
 
-                    if raw_id == "REC-SCOUT-001" or "scout" in raw_id.lower():
-                        if "Computrabajo" not in t.get("instrucciones_detalladas", ""):
-                            t["instrucciones_detalladas"] = PLAYBOOK_REC_SCOUT_001.strip()
-                            t["evidencia_esperada"] = "Agente_Orquestador/informes/reporte_scouting_laboral.md"
-                            cambios = True
 
                     if es_semanal:
                         prox_dt, nom_dia, rest_str = _calcular_proxima_ejecucion_semanal(
@@ -1163,7 +1138,7 @@ def sincronizar_tareas_desde_bitacora(forzar: bool = False) -> dict:
                         "nombre": nombre,
                         "responsable_principal": _normalizar_responsable(responsable),
                         "pipeline_secundario": "",
-                        "instrucciones_detalladas": PLAYBOOK_REC_SCOUT_001.strip() if (raw_id == "REC-SCOUT-001" or "scout" in raw_id.lower()) else f"Rutina programada desde Bitacora: {nombre}",
+                        "instrucciones_detalladas": f"Rutina programada desde Bitacora: {nombre}",
                         "tipo_activacion": "reloj_programado" if "reloj" in tipo.lower() else ("gatillo_script_python" if not es_semanal else "reloj_programado"),
                         "intervalo_segundos_sensor": 60,
                         "hora_ejecucion": hora_ejec,

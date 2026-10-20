@@ -62,7 +62,7 @@ ARCHIVOS_RAIZ_OFICIALES = {
     "Cerebro.md",
     "docker-compose.yml",
     "Dockerfile",
-    "Perfil de wuil.md",
+    "Perfil_Usuario.md",
     "start.sh",
     "turno.json",
     "README.md",

@@ -121,35 +121,44 @@ from Subagente_Asistencia.skills.sentry.skill_sentry import (
 )
 HERRAMIENTAS_ASISTENCIA.extend([tool_consultar_sentry_errores, tool_registrar_solucion_error, tool_reportar_fallo_critico])
 
-# 7 & 8. Google Docs
-from Subagente_Asistencia.skills.google_docs.skill_google_docs import (
-    tool_google_docs, obtener_prompt_google_docs
-)
-HERRAMIENTAS_ASISTENCIA.append(tool_google_docs)
+# 7, 8, 9, 10, 11, 15: Habilidades Desacopladas de Usuario (Cargadas desde skills_personal si existen)
+try:
+    from skills_personal.Subagente_Asistencia.google_docs.skill_google_docs import tool_google_docs, obtener_prompt_google_docs
+    HERRAMIENTAS_ASISTENCIA.append(tool_google_docs)
+except Exception:
+    tool_google_docs, obtener_prompt_google_docs = None, None
 
-# 9. Google Calendar
-from Subagente_Asistencia.skills.google_calendar.skill_google_calendar import (
-    tool_google_calendar_listar, tool_google_calendar_agendar, obtener_prompt_google_calendar
-)
-HERRAMIENTAS_ASISTENCIA.extend([tool_google_calendar_listar, tool_google_calendar_agendar])
+try:
+    from skills_personal.Subagente_Asistencia.google_calendar.skill_google_calendar import (
+        tool_google_calendar_listar, tool_google_calendar_agendar, obtener_prompt_google_calendar
+    )
+    HERRAMIENTAS_ASISTENCIA.extend([tool_google_calendar_listar, tool_google_calendar_agendar])
+except Exception:
+    tool_google_calendar_listar = tool_google_calendar_agendar = obtener_prompt_google_calendar = None
 
-# 10. Google Drive
-from Subagente_Asistencia.skills.google_drive.skill_google_drive import (
-    tool_google_drive_buscar, tool_google_drive_recientes, obtener_prompt_google_drive
-)
-HERRAMIENTAS_ASISTENCIA.extend([tool_google_drive_buscar, tool_google_drive_recientes])
+try:
+    from skills_personal.Subagente_Asistencia.google_drive.skill_google_drive import (
+        tool_google_drive_buscar, tool_google_drive_recientes, obtener_prompt_google_drive
+    )
+    HERRAMIENTAS_ASISTENCIA.extend([tool_google_drive_buscar, tool_google_drive_recientes])
+except Exception:
+    tool_google_drive_buscar = tool_google_drive_recientes = obtener_prompt_google_drive = None
 
-# 11. Correo Electrónico (Recepción, Triaje, Alertas y Respuestas)
-from Subagente_Asistencia.skills.correo_electronico.skill_correo_electronico import (
-    tool_correo_recibir_y_analizar,
-    tool_correo_consultar_detalle,
-    tool_correo_responder,
-    tool_correo_notificar_usuario,
-    tool_correo_seguimiento_pendientes,
-    obtener_prompt_correo_electronico,
-    HERRAMIENTAS_CORREO_ELECTRONICO
-)
-HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_CORREO_ELECTRONICO)
+try:
+    from skills_personal.Subagente_Asistencia.correo_electronico.skill_correo_electronico import (
+        tool_correo_recibir_y_analizar,
+        tool_correo_consultar_detalle,
+        tool_correo_responder,
+        tool_correo_notificar_usuario,
+        tool_correo_seguimiento_pendientes,
+        obtener_prompt_correo_electronico,
+        HERRAMIENTAS_CORREO_ELECTRONICO
+    )
+    HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_CORREO_ELECTRONICO)
+except Exception:
+    tool_correo_recibir_y_analizar = tool_correo_consultar_detalle = tool_correo_responder = None
+    tool_correo_notificar_usuario = tool_correo_seguimiento_pendientes = None
+    obtener_prompt_correo_electronico = None
 
 # 12. Solicitud de Soporte, Pausa y Delegación en Pizarra
 from Subagente_Asistencia.skills.solicitar_soporte_pizarra.skill_solicitar_soporte_pizarra import (
@@ -176,12 +185,16 @@ from Subagente_Asistencia.skills.manos_y_ojos import (
 )
 HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_MANOS_Y_OJOS)
 
-# 15. Smart TV Remote Control (Android TV Remote v2 / LAN Domótica)
-from Subagente_Asistencia.skills.smart_tv import (
-    HERRAMIENTAS_SMART_TV,
-    obtener_prompt_smart_tv
-)
-HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_SMART_TV)
+# 15. Smart TV Remote Control (Cargada desde skills_personal si existe)
+try:
+    from skills_personal.Subagente_Asistencia.smart_tv import (
+        HERRAMIENTAS_SMART_TV,
+        obtener_prompt_smart_tv
+    )
+    HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_SMART_TV)
+except Exception:
+    HERRAMIENTAS_SMART_TV = []
+    obtener_prompt_smart_tv = None
 
 NOMBRE_AGENTE = "Subagente_Asistencia"
 NOMBRE_AGENTE_ALIAS = "Sanji"
@@ -244,6 +257,12 @@ MAPA_HERRAMIENTA_PROMPTS = {
     "tool_controlar_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
     "tool_silenciar_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
     "tool_obtener_estado_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
+}
+
+# Filtrar herramientas cuyos prompts no estén cargados (desacoplamiento dinámico)
+MAPA_HERRAMIENTA_PROMPTS = {
+    k: v for k, v in MAPA_HERRAMIENTA_PROMPTS.items()
+    if callable(v[1])
 }
 
 # ─── Configuración LLM ─────────────────────────────────────────────────────────

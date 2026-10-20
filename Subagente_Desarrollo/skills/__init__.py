@@ -213,6 +213,12 @@ from .manos_y_ojos import (
     obtener_prompt_manos_y_ojos,
 )
 
+# 23. Gestión Integral de Supabase y Auditoría de Seguridad RLS
+from .supabase.skill_supabase import (
+    HERRAMIENTAS_SUPABASE,
+    obtener_prompt_supabase,
+)
+
 # Catálogo completo de herramientas de desarrollo (sin duplicados)
 HERRAMIENTAS_DESARROLLO = (
     HERRAMIENTAS_BASE
@@ -237,6 +243,7 @@ HERRAMIENTAS_DESARROLLO = (
     + HERRAMIENTAS_AUTO_APRENDIZAJE
     + HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA
     + HERRAMIENTAS_MANOS_Y_OJOS
+    + HERRAMIENTAS_SUPABASE
 )
 
 # Mapa consolidado de habilidades y sus metadatos
@@ -405,6 +412,16 @@ MAPA_HABILIDADES: Dict[str, Dict[str, Any]] = {
             "visión", "playwright", "pyautogui", "tool_navegar", "tool_capturar_pantalla"
         ]
     },
+    "supabase": {
+        "nombre": "Gestión Integral de Supabase y Auditoría RLS",
+        "prompt": obtener_prompt_supabase,
+        "herramientas": HERRAMIENTAS_SUPABASE,
+        "keywords": [
+            "supabase", "rls", "row level security", "politica rls", "política rls",
+            "tabla supabase", "base de datos supabase", "postgres supabase", "consultar supabase",
+            "auditar supabase", "monarch os", "anon key", "service_role"
+        ]
+    },
 }
 
 # Mapa de herramienta -> (nombre_habilidad, prompt_específico) (Inyección Nivel 2)
@@ -458,6 +475,8 @@ __all__ = [
     "HERRAMIENTAS_AUTO_APRENDIZAJE",
     "HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA",
     "HERRAMIENTAS_MANOS_Y_OJOS",
+    "HERRAMIENTAS_SUPABASE",
+    "obtener_prompt_supabase",
     "HERRAMIENTAS_DESARROLLO",
     # Mapeos e inyección dinámica
     "MAPA_HABILIDADES",
