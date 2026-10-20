@@ -19,6 +19,9 @@
 
 set -euo pipefail
 
+# ── Configurar Zona Horaria Local (America/Caracas -04:00) ───────────────────
+export TZ="${TZ:-America/Caracas}"
+
 # ── [TKT-SEC-20261019181510] Hardening de permisos (H-01/H-02) ────────────────
 # umask 077: todo archivo/directorio creado por la flota nace restringido
 # (0600 archivos / 0700 directorios). Evita que credenciales, tokens OAuth,
@@ -33,10 +36,12 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'   # No Color
 
-log() { echo -e "${CYAN}[start.sh]${NC} $*"; }
-ok()  { echo -e "${GREEN}[start.sh ✓]${NC} $*"; }
-warn(){ echo -e "${YELLOW}[start.sh ⚠]${NC} $*"; }
-err() { echo -e "${RED}[start.sh ✗]${NC} $*" >&2; }
+ts() { date "+%Y-%m-%d %H:%M:%S"; }
+
+log()  { echo -e "${CYAN}[$(ts)] [start.sh]${NC} $*"; }
+ok()   { echo -e "${GREEN}[$(ts)] [start.sh ✓]${NC} $*"; }
+warn() { echo -e "${YELLOW}[$(ts)] [start.sh ⚠]${NC} $*"; }
+err()  { echo -e "${RED}[$(ts)] [start.sh ✗]${NC} $*" >&2; }
 
 # ── Banner ───────────────────────────────────────────────────────────────────
 echo ""
@@ -113,7 +118,7 @@ mkdir -p /app/logs
 # 🚀 Lanzar base_listener.py (Orquestador como Daemon principal) 🚀
 log "Iniciando motor principal: base_listener.py para Agente_Orquestador..."
 python -u /app/Agente_Orquestador/base_listener.py Agente_Orquestador \
-    2>&1 | while IFS= read -r line; do echo "[Agente_Orquestador] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
+    2>&1 | while IFS= read -r line; do echo "[$(ts)] [Agente_Orquestador] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
 PID_LUFFY=$!
 ok "Agente_Orquestador (Daemon) iniciado con PID $PID_LUFFY"
 
@@ -124,7 +129,7 @@ sleep 2
 if [[ "$BRIDGE_DISABLED" == "false" ]]; then
     log "Iniciando puente Telegram: telegram_bridge.py ..."
     python -u /app/Agente_Orquestador/telegram_bridge.py \
-        2>&1 | while IFS= read -r line; do echo "[telegram_bridge] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
+        2>&1 | while IFS= read -r line; do echo "[$(ts)] [telegram_bridge] $line" | tee -a /app/logs/Agente_Orquestador.log; done &
     BRIDGE_PID=$!
     ok "telegram_bridge.py iniciado con PID $BRIDGE_PID"
 else
@@ -137,7 +142,7 @@ fi
 # TKT-DEV-20261014002
 #
 # Garantiza que CADA VEZ que se encienda la flota se ejecute UNA SOLA VEZ una
-# revisión de correos de valor en el buzón Wuil3529@gmail.com:
+# revisión de correos de valor en el buzón configurado (EMAIL_REMITENTE):
 #   (1) Reanuda el vigilante REC-VIGILANTED-003 si quedó PAUSADO tras el reinicio.
 #   (2) Dispara una evaluación inmediata del sensor v2.1 (Python puro, 0 tokens).
 #       Si detecta correos importantes, inyecta el ticket en Bitacora.md para
@@ -153,7 +158,7 @@ if [[ -f "$HOOK_CORREOS" ]]; then
     log "Ejecutando hook de arranque: revisión de correos de valor (Zero-Token)..."
     # `timeout 60` protege el arranque; el `if` captura el fallo sin abortar
     # el contenedor (compatible con `set -e`).
-    if timeout 60 python3 "$HOOK_CORREOS" 2>&1 | while IFS= read -r line; do echo "[hook-correos] $line" | tee -a /app/logs/hook_arranque_correos.log; done; then
+    if timeout 60 python3 "$HOOK_CORREOS" 2>&1 | while IFS= read -r line; do echo "[$(ts)] [hook-correos] $line" | tee -a /app/logs/hook_arranque_correos.log; done; then
         ok "Hook de revisión de correos completado."
     else
         warn "El hook de revisión de correos falló o excedió el timeout. El arranque continúa."
@@ -175,7 +180,7 @@ HOOK_SEGURIDAD="/app/Subagente_Ciberseguridad/skills/auditoria/hook_arranque_aud
 
 if [[ -f "$HOOK_SEGURIDAD" ]]; then
     log "Ejecutando hook de arranque: auditoría de seguridad preventiva (Robin)..."
-    if timeout 60 python3 "$HOOK_SEGURIDAD" 2>&1 | while IFS= read -r line; do echo "[hook-seguridad] $line" | tee -a /app/logs/hook_arranque_seguridad.log; done; then
+    if timeout 60 python3 "$HOOK_SEGURIDAD" 2>&1 | while IFS= read -r line; do echo "[$(ts)] [hook-seguridad] $line" | tee -a /app/logs/hook_arranque_seguridad.log; done; then
         ok "Hook de auditoría de seguridad completado."
     else
         warn "El hook de auditoría de seguridad falló o excedió el timeout. El arranque continúa."
@@ -196,7 +201,7 @@ HOOK_OBSIDIAN="/app/Agente_Orquestador/sync_cerebro.py"
 
 if [[ -f "$HOOK_OBSIDIAN" ]]; then
     log "Ejecutando hook de arranque: limpieza y sincronización del grafo de Obsidian..."
-    if timeout 90 python3 "$HOOK_OBSIDIAN" 2>&1 | while IFS= read -r line; do echo "[hook-obsidian] $line" | tee -a /app/logs/hook_arranque_obsidian.log; done; then
+    if timeout 90 python3 "$HOOK_OBSIDIAN" 2>&1 | while IFS= read -r line; do echo "[$(ts)] [hook-obsidian] $line" | tee -a /app/logs/hook_arranque_obsidian.log; done; then
         ok "Hook de sincronización del grafo de Obsidian completado."
     else
         warn "El hook de Obsidian falló o excedió el timeout. El arranque continúa."

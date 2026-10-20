@@ -772,6 +772,24 @@ class GestorNavegadorWeb:
                 self._page = restantes[-1] if restantes else None
                 return {"status": "success", "mensaje": "Pestaña cerrada.", "total_pestañas": len(restantes)}
 
+            elif acc in ["cambiar", "seleccionar", "activar", "enfocar"]:
+                if 0 <= indice < len(pages):
+                    self._page = pages[indice]
+                    try:
+                        self._page.bring_to_front()
+                    except Exception:
+                        pass
+                    return {
+                        "status": "success",
+                        "mensaje": f"Pestaña {indice} activada y traída al frente.",
+                        "titulo": self._page.title(),
+                        "url": self._page.url,
+                        "indice_activo": indice,
+                        "total_pestañas": len(pages),
+                    }
+                else:
+                    return {"status": "error", "mensaje": f"Índice {indice} fuera de rango. Pestañas disponibles: 0 a {len(pages)-1}."}
+
             elif acc in ["cerrar_otras", "limpiar", "sanear"]:
                 cerradas = 0
                 for p in pages:

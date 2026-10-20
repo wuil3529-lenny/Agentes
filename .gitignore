@@ -3,6 +3,11 @@
 .env.*
 *.env
 *.env.*
+# Overrides locales explícitos (H-01 / TKT-SEC-20261020115617)
+.env.local
+.env.*.local
+*.env.local
+*.env.*.local
 *.key
 *.pem
 *.cert
@@ -79,4 +84,11 @@ Subagente_Asistencia/data/*.json
 */informes/*.png
 */reportes/*.png
 */proyectos/*.png
+
+# Informes de Scouting Laboral, Postulaciones y Sensores de Empleo Locales
+Agente_Orquestador/informes/informe_postulacion_*
+Agente_Orquestador/informes/informe_analisis_*
+Agente_Orquestador/informes/informe_busqueda_*
+Agente_Orquestador/informes/informe_plataformas_*
+Agente_Orquestador/data/sensores/analisis_plataformas_empleo*
 

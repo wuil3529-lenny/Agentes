@@ -307,6 +307,37 @@ def tool_enviar_telegram(mensaje: str) -> str:
         return f"Error en Telegram bridge: {e}"
 
 @tool
+def tool_enviar_foto_telegram(ruta_foto: str, caption: str = "") -> str:
+    """Envía una foto o captura de pantalla física directamente al chat de Telegram del usuario y la espejea en consola.
+    Úsalo obligatoriamente cuando el usuario te pida ver una captura de pantalla, gráfico, diagrama o evidencia visual.
+    Args:
+        ruta_foto: Ruta local o relativa de la imagen (.png, .jpg, .jpeg, .webp), ej: 'Archivos_temporales/pc_screen_123.png'.
+        caption: Texto explicativo o resumen ejecutivo que acompañará a la imagen en Telegram.
+    """
+    print(f"\n[Agente_Orquestador] Ejecutando: tool_enviar_foto_telegram(ruta='{ruta_foto}', caption='{caption[:60]}...')")
+    try:
+        from telegram_bridge import enviar_foto_telegram
+        res = enviar_foto_telegram(ruta_foto, caption=caption, remitente="Agente_Orquestador")
+        return f"Foto enviada por Telegram: {res}"
+    except Exception as e:
+        return f"Error enviando foto por Telegram: {e}"
+
+@tool
+def tool_enviar_documento_telegram(ruta_documento: str, caption: str = "") -> str:
+    """Envía un archivo o documento (PDF, Markdown, DOCX, ZIP, JSON, informe) directamente al Telegram del usuario.
+    Args:
+        ruta_documento: Ruta del archivo a enviar (ej: 'Agente_Orquestador/informes/reporte.md').
+        caption: Texto explicativo que acompaña al archivo en Telegram.
+    """
+    print(f"\n[Agente_Orquestador] Ejecutando: tool_enviar_documento_telegram(ruta='{ruta_documento}', caption='{caption[:60]}...')")
+    try:
+        from telegram_bridge import enviar_documento_telegram
+        res = enviar_documento_telegram(ruta_documento, caption=caption, remitente="Agente_Orquestador")
+        return f"Documento enviado por Telegram: {res}"
+    except Exception as e:
+        return f"Error enviando documento por Telegram: {e}"
+
+@tool
 def tool_crear_skill_tripulacion(
     agente: str,
     nombre_skill: str,
@@ -362,6 +393,8 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_limpiar_workspace,
     tool_auditar_ssot,
     tool_enviar_telegram,
+    tool_enviar_foto_telegram,
+    tool_enviar_documento_telegram,
     tool_registrar_agente,
     tool_limpiar_pizarra,
     tool_crear_skill_tripulacion,

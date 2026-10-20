@@ -46,6 +46,7 @@ _SENSORES_DIR = _DATA_DIR / "sensores"
 _TAREAS_FILE = _DATA_DIR / "tareas_programadas.json"
 _BITACORA_FILE = _APP_ROOT / "Bitacora.md"
 _DASHBOARD_TAREAS_FILE = _APP_ROOT / "dashboard" / "tareas_programadas.json"
+_ULTIMO_HASH_BITACORA: str = ""
 
 PLAYBOOK_REC_SCOUT_001 = """Rutina Semanal de Exploración y Postulación Laboral Multiplataforma Zero-Noise (Get on Board, LinkedIn Jobs y Computrabajo).
 
@@ -960,13 +961,14 @@ def tool_modificar_estado_tarea_repetitiva(id_tarea: str, accion: str) -> str:
         return json.dumps({"status": "error", "mensaje": str(e)}, ensure_ascii=False)
 
 
-def sincronizar_tareas_desde_bitacora() -> dict:
+def sincronizar_tareas_desde_bitacora(forzar: bool = False) -> dict:
     """
     Lee la sección '## 🕒 Registro de Tareas Programadas y Rutinas' en `Bitacora.md`
     y sincroniza el estado de las tareas con `tareas_programadas.json` y `dashboard/tareas_programadas.json`.
     Garantiza que la Pizarra (`Bitacora.md`) sea la SSOT visual que el Orquestador
     inspecciona al despertar sin depender exclusivamente de archivos JSON.
     """
+    global _ULTIMO_HASH_BITACORA
     if not _BITACORA_FILE.exists():
         return {}
 
@@ -974,6 +976,12 @@ def sincronizar_tareas_desde_bitacora() -> dict:
         contenido = _BITACORA_FILE.read_text(encoding="utf-8")
         if "## 🕒 Registro de Tareas Programadas y Rutinas" not in contenido:
             return {}
+
+        import hashlib
+        h_actual = hashlib.md5(contenido.encode("utf-8")).hexdigest()
+        if not forzar and h_actual == _ULTIMO_HASH_BITACORA:
+            data = _asegurar_archivo_tareas()
+            return {t.get("id_tarea"): t for t in data.get("tareas", [])}
 
         data = _asegurar_archivo_tareas()
         tareas = data.get("tareas", [])
@@ -1119,27 +1127,36 @@ def sincronizar_tareas_desde_bitacora() -> dict:
                             hora_ejecucion=hora_ejec,
                             ultima_ejecucion=ult_dt,
                         )
-                        t["proxima_ejecucion"] = prox_dt.isoformat()[:19]
-                        t["proxima_verificacion"] = prox_dt.isoformat()[:19]
-                        t["nombre_proximo_dia"] = nom_dia
-                        t["tiempo_restante"] = rest_str
+                        prox_iso = prox_dt.isoformat()[:19]
+                        if t.get("proxima_ejecucion") != prox_iso:
+                            t["proxima_ejecucion"] = prox_iso
+                            t["proxima_verificacion"] = prox_iso
+                            t["nombre_proximo_dia"] = nom_dia
+                            cambios = True
+                        if t.get("tiempo_restante") != rest_str:
+                            t["tiempo_restante"] = rest_str
+                            cambios = True
                         hoy_ejec = (ult_dt is not None and ult_dt.date() == ahora.date())
                         dia_num = ahora.weekday()
                         if dia_num in dias_semana_prog and hoy_ejec:
-                            t["estado_hoy"] = f"Ya ejecutada hoy ({NOMBRES_DIAS_ES[dia_num]}). Próxima ejecución: {nom_dia} a las {hora_ejec} (faltan {rest_str})."
+                            estado_hoy = f"Ya ejecutada hoy ({NOMBRES_DIAS_ES[dia_num]}). Próxima ejecución: {nom_dia} a las {hora_ejec} (faltan {rest_str})."
                         elif dia_num in dias_semana_prog and not hoy_ejec:
-                            t["estado_hoy"] = f"Corresponde hoy ({NOMBRES_DIAS_ES[dia_num]}) a las {hora_ejec}."
+                            estado_hoy = f"Corresponde hoy ({NOMBRES_DIAS_ES[dia_num]}) a las {hora_ejec}."
                         else:
-                            t["estado_hoy"] = f"Hoy no corresponde ({NOMBRES_DIAS_ES[dia_num]}). Próxima ejecución: {nom_dia} a las {hora_ejec} (faltan {rest_str})."
-                        cambios = True
+                            estado_hoy = f"Hoy no corresponde ({NOMBRES_DIAS_ES[dia_num]}). Próxima ejecución: {nom_dia} a las {hora_ejec} (faltan {rest_str})."
+                        if t.get("estado_hoy") != estado_hoy:
+                            t["estado_hoy"] = estado_hoy
+                            cambios = True
                     elif es_mensual:
-                        t["tiempo_restante"] = "Primer día del próximo mes"
-                        t["estado_hoy"] = "Monitoreo mensual activo"
-                        cambios = True
+                        if t.get("tiempo_restante") != "Primer día del próximo mes" or t.get("estado_hoy") != "Monitoreo mensual activo":
+                            t["tiempo_restante"] = "Primer día del próximo mes"
+                            t["estado_hoy"] = "Monitoreo mensual activo"
+                            cambios = True
                     else:
-                        t["tiempo_restante"] = "Inmediata / Continuo"
-                        t["estado_hoy"] = "Monitoreo diario continuo activo"
-                        cambios = True
+                        if t.get("tiempo_restante") != "Inmediata / Continuo" or t.get("estado_hoy") != "Monitoreo diario continuo activo":
+                            t["tiempo_restante"] = "Inmediata / Continuo"
+                            t["estado_hoy"] = "Monitoreo diario continuo activo"
+                            cambios = True
                 else:
                     nueva = {
                         "id_tarea": raw_id,
@@ -1182,6 +1199,7 @@ def sincronizar_tareas_desde_bitacora() -> dict:
                     mapa_tareas[raw_id] = nueva
                     cambios = True
 
+        _ULTIMO_HASH_BITACORA = h_actual
         if cambios:
             data["tareas"] = tareas
             _guardar_archivo_tareas(data)

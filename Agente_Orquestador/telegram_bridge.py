@@ -79,6 +79,161 @@ def enviar_mensaje_telegram(mensaje: str, remitente: str = "Agente_Orquestador",
     return res
 
 
+def _normalizar_ruta_archivo(ruta_str: str | Path) -> Path | None:
+    if not ruta_str:
+        return None
+    r_str = str(ruta_str).strip().strip('"').strip("'")
+    if not r_str:
+        return None
+
+    # 1. Probar ruta directa
+    try:
+        p = Path(r_str)
+        if p.exists() and p.is_file():
+            return p
+    except Exception:
+        pass
+
+    # 2. Manejar rutas con formato Windows en Linux/Docker o viceversa
+    r_norm = r_str.replace("\\", "/")
+
+    # Si viene con prefijo C:/Users/.../Agentes/
+    if "Agentes/" in r_norm:
+        sub = r_norm.split("Agentes/", 1)[1]
+        p_sub = _APP_ROOT / sub
+        if p_sub.exists() and p_sub.is_file():
+            return p_sub
+
+    if "Archivos_temporales/" in r_norm:
+        sub = r_norm.split("Archivos_temporales/", 1)[1]
+        p_arch = _APP_ROOT / "Archivos_temporales" / sub
+        if p_arch.exists() and p_arch.is_file():
+            return p_arch
+
+    # 3. Probar relativo a _APP_ROOT
+    p_rel = _APP_ROOT / r_norm.lstrip("/")
+    if p_rel.exists() and p_rel.is_file():
+        return p_rel
+
+    # 4. Probar en Archivos_temporales por nombre de archivo
+    try:
+        p_temp = _APP_ROOT / "Archivos_temporales" / Path(r_norm).name
+        if p_temp.exists() and p_temp.is_file():
+            return p_temp
+    except Exception:
+        pass
+
+    return None
+
+
+_ULTIMAS_FOTOS_ENVIADAS: dict[str, float] = {}
+
+def enviar_foto_telegram(
+    ruta_foto: str | Path,
+    caption: str = "",
+    remitente: str = "Agente_Orquestador",
+    espejear_en_consola: bool = True,
+) -> str:
+    """
+    Envía una foto nativa (`sendPhoto`) a Telegram con caption opcional
+    y asegura el espejo en la consola del Dashboard.
+    """
+    token, chat_id = _obtener_credenciales_telegram()
+    p_foto = _normalizar_ruta_archivo(ruta_foto)
+    if not p_foto or not p_foto.exists():
+        return f"Error: Archivo de foto no encontrado en ruta '{ruta_foto}'"
+
+    ahora = time.time()
+    nombre_archivo = p_foto.name
+    if nombre_archivo in _ULTIMAS_FOTOS_ENVIADAS and (ahora - _ULTIMAS_FOTOS_ENVIADAS[nombre_archivo]) < 15:
+        return "Foto ya fue enviada recientemente (anti-duplicados)."
+    _ULTIMAS_FOTOS_ENVIADAS[nombre_archivo] = ahora
+
+    res = "Telegram no configurado."
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendPhoto"
+        try:
+            with open(p_foto, "rb") as f_img:
+                files = {"photo": (p_foto.name, f_img)}
+                data = {"chat_id": chat_id}
+                if caption:
+                    data["caption"] = caption[:1024]
+                r = requests.post(url, data=data, files=files, timeout=30)
+                r.raise_for_status()
+                res = "Foto enviada a Telegram con éxito."
+        except Exception as e:
+            res = f"Error enviando foto por Telegram: {e}"
+
+    if espejear_en_consola:
+        try:
+            from memory import publicar_mensaje
+            img_url = f"/static/capturas/{p_foto.name}"
+            publicar_mensaje(
+                de=remitente,
+                para="usuario",
+                tipo="mensaje_dashboard",
+                contenido={
+                    "texto": caption or f"📸 Captura enviada: {p_foto.name}",
+                    "imagen_url": img_url,
+                    "archivo": str(p_foto),
+                },
+                canal_tipo="usuario",
+            )
+        except Exception as e_pub:
+            print(f"[telegram_bridge] Error espejeando foto a consola: {e_pub}")
+
+    return res
+
+
+def enviar_documento_telegram(
+    ruta_documento: str | Path,
+    caption: str = "",
+    remitente: str = "Agente_Orquestador",
+    espejear_en_consola: bool = True,
+) -> str:
+    """
+    Envía un documento o archivo nativo (`sendDocument`) a Telegram (PDF, docx, txt, zip, png, etc.)
+    y asegura el espejo en la consola del Dashboard.
+    """
+    token, chat_id = _obtener_credenciales_telegram()
+    p_doc = _normalizar_ruta_archivo(ruta_documento)
+    if not p_doc or not p_doc.exists():
+        return f"Error: Archivo de documento no encontrado en ruta '{ruta_documento}'"
+
+    res = "Telegram no configurado."
+    if token and chat_id:
+        url = f"https://api.telegram.org/bot{token}/sendDocument"
+        try:
+            with open(p_doc, "rb") as f_file:
+                files = {"document": (p_doc.name, f_file)}
+                data = {"chat_id": chat_id}
+                if caption:
+                    data["caption"] = caption[:1024]
+                r = requests.post(url, data=data, files=files, timeout=40)
+                r.raise_for_status()
+                res = "Documento enviado a Telegram con éxito."
+        except Exception as e:
+            res = f"Error enviando documento por Telegram: {e}"
+
+    if espejear_en_consola:
+        try:
+            from memory import publicar_mensaje
+            publicar_mensaje(
+                de=remitente,
+                para="usuario",
+                tipo="mensaje_dashboard",
+                contenido={
+                    "texto": caption or f"📎 Documento enviado: {p_doc.name}",
+                    "archivo": str(p_doc),
+                },
+                canal_tipo="usuario",
+            )
+        except Exception as e_pub:
+            print(f"[telegram_bridge] Error espejeando documento a consola: {e_pub}")
+
+    return res
+
+
 def _es_ruta_audio_existente(valor: str) -> Path | None:
     if not valor or "\n" in valor or "\r" in valor or len(valor) > 240:
         return None

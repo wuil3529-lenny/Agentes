@@ -983,13 +983,33 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             if texto_resp:
                                 try:
                                     sys.path.append(str(_APP_ROOT / "Agente_Orquestador"))
-                                    from telegram_bridge import enviar_mensaje_telegram, enviar_nota_voz_telegram
+                                    from telegram_bridge import (
+                                        enviar_mensaje_telegram,
+                                        enviar_nota_voz_telegram,
+                                        enviar_foto_telegram,
+                                        enviar_documento_telegram,
+                                    )
                                     from voz.skill_voz import (
                                         generar_audio_voz,
                                         reproducir_archivo_en_cornetas,
                                         hablar_por_cornetas_pc,
                                         obtener_estado_voz,
                                     )
+
+                                    # Detección inteligente de fotos/capturas físicas generadas o citadas en la respuesta
+                                    import re
+                                    rutas_img = re.findall(r'(?:[a-zA-Z]:[\\/]|/app/|Archivos_temporales[\\/])[\w\-\.\\/]+\.(?:png|jpg|jpeg|webp)', texto_resp)
+                                    foto_enviada_tg = False
+                                    if rutas_img:
+                                        for r_cand in rutas_img:
+                                            try:
+                                                res_foto = enviar_foto_telegram(r_cand, caption=texto_resp[:1024], remitente="Agente_Orquestador", espejear_en_consola=False)
+                                                if "éxito" in res_foto.lower():
+                                                    foto_enviada_tg = True
+                                                    print(f"[{agente_nombre} Listener] 📸 Foto adjunta detectada y enviada a Telegram: {r_cand}")
+                                                    break
+                                            except Exception as e_ftg:
+                                                print(f"[{agente_nombre} Listener] Advertencia enviando foto detectada: {e_ftg}")
 
                                     estado_voz = obtener_estado_voz()
                                     cornetas_on = bool(estado_voz.get("cornetas_activas")) or usar_cornetas_msg
@@ -1007,9 +1027,11 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                             espejear_en_consola=True,
                                         )
                                         print(f"[{agente_nombre} Listener] 🎙️ Nota de voz enviada a Telegram y espejeada a Consola.")
-                                    else:
+                                    elif not foto_enviada_tg:
                                         enviar_mensaje_telegram(texto_resp)
                                         print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram y espejeado a canal_usuario.")
+                                    elif foto_enviada_tg and len(texto_resp) > 1024:
+                                        enviar_mensaje_telegram(texto_resp[1024:])
 
                                     if cornetas_on:
                                         if ruta_mp3_generada and os.path.exists(str(ruta_mp3_generada)):

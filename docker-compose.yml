@@ -30,6 +30,7 @@ services:
       # Rutas internas del contenedor (reemplazan las rutas C:\Users\... de Windows)
       - AGENTES_ROOT=/app
       - SHARED_MEMORY_PATH=/app/memoria
+      - TZ=America/Caracas
 
       # URL de n8n corriendo nativo en Windows (accesible desde el contenedor vía host.docker.internal)
       - N8N_BASE_URL=http://host.docker.internal:5678

@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Set
 from langchain_core.tools import tool
 
-APP_ROOT = Path(r"C:\Users\admin\Documents\Agentes")
+APP_ROOT = Path(os.environ.get("AGENTES_ROOT", r"C:\Users\admin\Documents\Agentes"))
 OBSIDIAN_GRAPH_CONFIG = APP_ROOT / ".obsidian" / "graph.json"
 
 CARPETAS_EXCLUIDAS: Set[str] = {

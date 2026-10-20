@@ -429,6 +429,20 @@ def reproducir_archivo_en_cornetas(ruta_audio: Path, bloquear: bool = True) -> b
     def _play():
         with _SPEAKER_LOCK:
             _marcar_cornetas_hablando(True)
+            sesiones_atenuadas = []
+            if sys.platform == "win32":
+                try:
+                    from pycaw.pycaw import AudioUtilities
+                    curr_pid = os.getpid()
+                    for s in AudioUtilities.GetAllSessions():
+                        if s.Process and s.Process.pid != curr_pid:
+                            vol = s.SimpleAudioVolume
+                            orig = vol.GetMasterVolume()
+                            if orig > 0.01:
+                                sesiones_atenuadas.append((s, orig, s.Process.name()))
+                                vol.SetMasterVolume(max(0.05, orig * 0.15), None)
+                except Exception as e_duck:
+                    print(f"[Voz Orquestador] Advertencia atenuando audio de fondo: {e_duck}")
             try:
                 import pygame
                 if not pygame.mixer.get_init():
@@ -443,6 +457,12 @@ def reproducir_archivo_en_cornetas(ruta_audio: Path, bloquear: bool = True) -> b
                 print(f"[Voz Orquestador] Advertencia pygame.mixer ({e_pg}), usando fallback SAPI5...")
                 return False
             finally:
+                if sesiones_atenuadas:
+                    for s, orig, pname in sesiones_atenuadas:
+                        try:
+                            s.SimpleAudioVolume.SetMasterVolume(orig, None)
+                        except Exception:
+                            pass
                 _marcar_cornetas_hablando(False)
 
     if bloquear:

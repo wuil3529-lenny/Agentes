@@ -67,9 +67,12 @@
 
 ## 🧭 Lecciones Aprendidas y Validación del Protocolo Flota-Centinela
 
-1. **Eficiencia del Filtro Centinela:** Si la flota hubiera postulado de forma ciega sin intervención supervisora, habría desperdiciado tokens intentando enviar formularios a 8 vacantes ya cerradas y habría degradado la reputación de Wuil en Get on Board en 5 vacantes con stack incompatible (NestJS/Java Core Bancario).
+1. **Eficiencia del Filtro Centinela:** Si la flota hubiera postulado de forma ciega sin intervención supervisora, habría desperdiciado tokens intentando enviar formularios a 8 vacantes ya cerradas y habría degradado la reputación del usuario en Get on Board en 5 vacantes con stack incompatible (NestJS/Java Core Bancario).
 2. **Impacto Financiero de la Campaña:** Dos postulaciones de altísimo calibre en producción sumando un pipeline mensual de **$7,500 USD** con encaje perfecto en Python/FastAPI/AWS/Docker.
 3. **Resiliencia de Manos y Ojos:** El puente CDP interactivo de Edge resistió reconexión en caliente y el gestor singleton garantizó capturas físicas en disco para cada hito.
 
 ---
-**Conexiones Obsidian:** [[informes_orquestador]] | [[memoria]] | [[Perfil_Laboral_Wuil]] | [[Playbook_Postulacion_GetOnBrd]]
+**Conexiones Obsidian:** informes_orquestador | Perfil_Laboral | Playbook_Postulacion_GetOnBrd
+
+---
+**Conexiones:** [[informes_orquestador]]

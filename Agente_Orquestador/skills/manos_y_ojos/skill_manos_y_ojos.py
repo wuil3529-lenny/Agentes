@@ -97,17 +97,28 @@ def _hacer_peticion_puente(endpoint: str, data: Optional[Dict[str, Any]] = None)
 def obtener_prompt_manos_y_ojos() -> str:
     return """[✋👁️ MODO MANOS Y OJOS ACTIVADO — CONTROL WEB Y DE ESCRITORIO]
 Tienes acceso a ojos visuales y manos de automatización sobre la PC y el navegador:
+
+🌐 PUERTO Y ENTORNO EXCLUSIVO DE LA FLOTA:
+- Tu navegador oficial es la ventana de Microsoft Edge conectada exclusivamente al puerto TCP 9222 (perfil aislado 'browser_visible_profile').
+- La ventana personal de Edge del Capitán (donde tiene Gemini, Telegram, Dashboard) NO tiene puerto CDP y NUNCA debe ser alterada ni cerrada.
+- En tu ventana de Edge (puerto 9222), tienes TOTAL LIBERTAD MULTI-PESTAÑA: puedes abrir cuantas pestañas necesites para explorar ofertas, comparar vacantes o seguir flujos en paralelo.
+- PROTOCOLO DE VISIBILIDAD Y ORDEN:
+  1. Cada vez que abras o trabajes en una pestaña, usa `tool_gestionar_pestanas_web(accion="cambiar", indice=X)` para traerla al frente (bring_to_front). Esto garantiza que el Capitán siempre vea con total claridad en pantalla lo que estás haciendo en tiempo real.
+  2. Puedes usar `tool_gestionar_pestanas_web(accion="listar")` para supervisar tus pestañas activas.
+  3. Higiene ordenada: cuando termines la postulación o tarea de una vacante concreta, CIERRA esa pestaña (`tool_gestionar_pestanas_web(accion="cerrar", indice=X)`) para mantener la barra ordenada y no saturar el navegador.
+
 1. CONTROL DE VIDEOS Y REPRODUCTORES EN LA WEB (YouTube, etc.):
    - Para reproducir o dar play a un video: usa `tool_controlar_media_web(accion="reproducir")`.
    - Para pausar un video: usa `tool_controlar_media_web(accion="pausar")`.
    - Para poner el video en PANTALLA COMPLETA: usa `tool_controlar_media_web(accion="pantalla_completa")`.
    - Para alternar play/pausa: usa `tool_controlar_media_web(accion="alternar")`.
    - Para silenciar/desmutear: usa `tool_controlar_media_web(accion="silenciar")`.
-2. CONTROL DE PESTAÑAS DEL NAVEGADOR:
+2. CONTROL DE PESTAÑAS DEL NAVEGADOR (PUERTO 9222):
    - Para ver qué pestañas tienes abiertas: usa `tool_gestionar_pestanas_web(accion="listar")`.
    - Para abrir una pestaña nueva: usa `tool_gestionar_pestanas_web(accion="nueva", url="https://...")`.
-   - Para cambiar entre pestañas: usa `tool_gestionar_pestanas_web(accion="cambiar", indice=0)`.
-   - Para cerrar una pestaña: usa `tool_gestionar_pestanas_web(accion="cerrar", indice=0)`.
+   - Para cambiar entre pestañas y traer al frente: usa `tool_gestionar_pestanas_web(accion="cambiar", indice=0)`.
+   - Para cerrar una pestaña concluida: usa `tool_gestionar_pestanas_web(accion="cerrar", indice=0)`.
+   - Para cerrar pestañas redundantes dejando la actual: usa `tool_gestionar_pestanas_web(accion="cerrar_otras")`.
 3. CONTROL DE VENTANAS Y APLICACIONES DE LA PC (Los 3 botones de control y cambio de apps):
    - Para maximizar una ventana: usa `tool_gestionar_ventanas_pc(accion="maximizar", titulo_o_proceso="Edge")`.
    - Para minimizar una ventana: usa `tool_gestionar_ventanas_pc(accion="minimizar", titulo_o_proceso="Edge")`.

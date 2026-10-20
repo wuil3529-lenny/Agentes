@@ -8,7 +8,7 @@ Hook de arranque de flota (TKT-DEV-20261014002).
 Objetivo:
   Garantizar que CADA VEZ que se encienda el ecosistema (contenedor Docker),
   se ejecute UNA SOLA VEZ una revision de correos de valor en el buzon
-  Wuil3529@gmail.com, de forma ZERO-TOKEN (sin polling LLM).
+  configurado por entorno (EMAIL_REMITENTE), de forma ZERO-TOKEN (sin polling LLM).
 
 Acciones (idempotentes y tolerantes a fallos):
   1. REANUDAR la tarea REC-VIGILANTED-003 si quedo PAUSADA tras el reinicio.
@@ -47,6 +47,7 @@ LOG_FILE = APP_ROOT / "logs" / "hook_arranque_correos.log"
 TAREA_ID = "REC-VIGILANTED-003"
 RESPONSABLE = "Subagente_Asistencia"
 TIMEOUT_SENSOR = 45  # segundos: no bloquear el arranque si IMAP cuelga
+EMAIL_OBJETIVO = os.getenv("EMAIL_REMITENTE", os.getenv("EMAIL_IMAP_USER", "usuario_flota@dominio.com"))
 
 
 def _log(msg: str) -> None:
@@ -182,7 +183,7 @@ def inyectar_ticket_bitacora(payload: dict) -> str:
         f"\n\n## {ticket_id}\n"
         f"- **Tarea:** [REVISION DE CORREOS AL ARRANQUE DE FLOTA] Se detectaron "
         f"{total_importantes} correo(s) NUEVO(S) de VALOR (prioridad ALTA) en el buzon "
-        f"Wuil3529@gmail.com durante el arranque del ecosistema. El sensor v2.1 ya filtro "
+        f"{EMAIL_OBJETIVO} durante el arranque del ecosistema. El sensor v2.1 ya filtro "
         f"el ruido ({total_silenciados} silenciados).\n"
         f"  - **Correos_Detectados:**\n{bloque_correos}\n"
         f"  - **Datos_Evento_Capturado_Por_Gatillo:** `{json.dumps(datos, ensure_ascii=False)[:1800]}`\n"
@@ -231,7 +232,10 @@ def main() -> int:
 
     disparar = bool(payload.get("disparar", False))
     if not disparar:
-        _log("Sensor v2.1: sin correos nuevos de valor. Nada que notificar.")
+        if payload.get("error"):
+            _log(f"ALERTA: Sensor v2.1 reportó error de conexión/autenticación: {payload.get('error')}")
+        else:
+            _log("Sensor v2.1: sin correos nuevos de valor. Nada que notificar.")
         return 0
 
     # Paso 3: hay correos de valor -> inyectar ticket para Asistencia.
