@@ -292,6 +292,10 @@ from scout_laboral.skill_scout_laboral import (
     tool_evaluar_compatibilidad_vacante,
     obtener_prompt_scout_laboral,
 )
+from git.skill_git import (
+    HERRAMIENTAS_GIT,
+    obtener_prompt_git,
+)
 
 @tool
 def tool_enviar_telegram(mensaje: str) -> str:
@@ -409,7 +413,7 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_escuchar_microfono,
     tool_scout_laboral_multiplataforma,
     tool_evaluar_compatibilidad_vacante,
-] + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN
+] + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN + HERRAMIENTAS_GIT
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -605,6 +609,19 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
             prompt_inyectado += "\n\n" + obtener_prompt_scout_laboral()
         except Exception as e:
             print(f"[Agente_Orquestador] Error al cargar prompt scout_laboral: {e}")
+
+    # 12. Modo Gestión de Versiones y Despliegue Git (con Pre-Commit Gate de Robin)
+    gatillos_git = [
+        "git", "commit", "push", "pull", "repositorio", "rama", "versión", "version",
+        "subir a git", "desplegar", "staged", "historial de commits", "tool_git"
+    ]
+    es_modo_git = any(g in ultimo_texto for g in gatillos_git)
+    if es_modo_git:
+        print("[Agente_Orquestador] 🐙 Inyectando System Prompt especializado: Gestión y Despliegue Git (Pre-Commit Gate).")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_git()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt git: {e}")
 
     # Aplicar la inyección dinámica al último mensaje
     if prompt_inyectado and mensajes_langgraph:
