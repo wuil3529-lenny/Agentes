@@ -77,6 +77,7 @@ Sanji/documentos_sanji/
 dashboard/static/capturas/
 dashboard/static/notas_voz/
 dashboard/estado_voz.json
+dashboard/tareas_programadas.json
 *BACKUP*
 */data/*.json
 Agente_Orquestador/data/sensores/*.json
