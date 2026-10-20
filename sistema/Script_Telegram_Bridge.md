@@ -51,4 +51,4 @@ python Agente_Orquestador/telegram_bridge.py
 - Registra en consola cada orden capturada y maneja reconexiones automáticas con esperas progresivas ante contingencias o pérdidas momentáneas de conectividad a internet.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

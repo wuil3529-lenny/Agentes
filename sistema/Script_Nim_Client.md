@@ -51,4 +51,4 @@ Tanto en la ejecución del modelo principal como en la del modelo de respaldo:
 - **Manejo de Errores:** En caso de falla catastrófica de ambos modelos o credenciales no configuradas, emite advertencias detalladas en consola y retorna de manera segura `None`, permitiendo que las capas superiores gestionen la contingencia sin interrupción abrupta del proceso.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

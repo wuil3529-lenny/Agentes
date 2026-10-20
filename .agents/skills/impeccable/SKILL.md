@@ -23,3 +23,6 @@ When designing, auditing, or polishing frontend interfaces, apply Impeccable des
 3. **audit**: Check color contrast (WCAG AA min 4.5:1), keyboard focus-visible, and responsiveness.
 4. **distill**: Remove unnecessary container borders ("boxes inside boxes"), divider lines, and redundant badges.
 5. **harden**: Handle empty states, loading skeletons, and text truncation (`truncate`).
+
+---
+**Conexiones:** [[sistema]]

@@ -72,4 +72,4 @@ tool_limpiar_workspace()
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

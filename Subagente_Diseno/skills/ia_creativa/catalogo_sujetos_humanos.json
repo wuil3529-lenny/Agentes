@@ -1,0 +1,26 @@
+{
+  "version": "2.0.0",
+  "coleccion": "Guía Maestra de Construcción de Sujetos y Anatomía Humana/Animal",
+  "descripcion": "Protocolo generativo universal para Subagente de Diseño. En lugar de listas cerradas, define la fórmula en 4 dimensiones, las reglas anatómicas anti-deformidad y un único arquetipo maestro que sirve de patrón para generar cualquier persona, profesional o animal con máxima fidelidad.",
+  "formula_universal_4_dimensiones": {
+    "1_entidad_y_atuendo": "Identificar el rol o entidad exacta, su vestimenta técnica, uniforme o ropa cotidiana con texturas táctiles reales (algodón, cuero, nylon, telas médicas o trajes presurizados), insignias o herramientas de trabajo.",
+    "2_accion_y_postura": "Describir el gesto físico real: peso corporal, postura natural creíble, manipulación precisa con las manos, contacto físico o interacción con objetos/animales.",
+    "3_fisiologia_y_expresion": "Expresión facial auténtica, mirada conectada, piel con poros visibles y tonos reales (o visor/gafas con reflejos coherentes del entorno).",
+    "4_entorno_contextual": "Espacio físico envolvente con iluminación coherente, profundidad de campo natural y atmósfera profesional o cotidiana."
+  },
+  "reglas_anatomicas_universales": {
+    "piel_y_rostro": "authentic human skin texture with visible natural pores and micro-details, realistic skin tones, sharp natural eyes with realistic light reflections (catchlights), genuine facial expressions, zero waxy plastic smoothing",
+    "manos_y_extremidades": "anatomically correct hands with exactly 5 fingers on each hand, realistic knuckles and fingernails, proportional limbs, natural ergonomic grip, no extra digits, no fused fingers",
+    "mascotas_y_animales": "fine individual soft fur strands, glossy coat texture, wet shiny nose, clear intelligent eyes with corneal reflections, realistic biological proportions",
+    "interaccion_fisica": "believable physical touch and weight distribution between human and object/animal, natural tactile contact without fused meshes",
+    "negative_prompts_obligatorios": "extra fingers, deformed hands, missing fingers, bad anatomy, deformed eyes, crossed eyes, waxy plastic skin, doll skin, extra arms, unnatural poses, fused body parts, uncanny valley, mutated limbs, double head"
+  },
+  "arquetipo_patron_maestro": {
+    "id": "profesional_humano_en_accion",
+    "nombre": "Patrón Maestro de Profesional / Persona en Acción",
+    "descripcion": "Modelo de referencia universal que demuestra cómo articular la fórmula de 4 dimensiones para cualquier oficio, rol o interacción (astronauta, veterinario, médico, chef, artesano, etc.).",
+    "formula_blueprint": "[ROL Y VESTIMENTA]: {profesional} wearing authentic detailed {atuendo_tecnico}. [ACCIÓN Y POSTURA]: {accion_fisica_realista} with natural posture and ergonomic hand gesture. [ENTORNO]: In a realistic {entorno_contextual} with balanced ambient lighting. [ANATOMÍA]: Authentic skin texture with pores, sharp eyes with catchlights, anatomically correct hands with exactly 5 fingers.",
+    "ejemplo_1_astronauta": "experienced astronaut in an authentic NASA EMU space suit, floating weightlessly while gripping an exterior handrail with pressurized 5-finger gloves, golden reflective visor reflecting the curved blue Earth, in deep black vacuum of space",
+    "ejemplo_2_veterinario_con_perro": "compassionate veterinarian in clean medical scrub and stethoscope, gently examining and petting a healthy Golden Retriever dog, warm empathic smile, hands resting naturally on dog's back, in bright sunlit modern clinic"
+  }
+}

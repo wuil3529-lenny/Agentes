@@ -39,10 +39,10 @@ flowchart TD
     TipoOp{¿Tipo de Operación?}
 
     TipoOp -->|Escritura: crear_archivo| ValidaRuta["1. Validación de Rutas Permitidas\n(informes, documentos, temporal)"]
-    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n([[Perfil_Subagente_Asistencia]])"]
+    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n(Perfil_Subagente_Asistencia)"]
     AutoObsidian --> EscrituraDisco["3. Persistencia en Disco"]
 
-    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar [[Conexiones]] anti-alucinación)"]
+    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar Conexiones anti-alucinación)"]
     CensuraGrafo --> PaginaContexto["2. Paginación de Seguridad\n(Máximo 8.000 caracteres)"]
 
     TipoOp -->|Terminal: ejecutar_comando| CheckFirewall["1. Verificación de Lista Negra y Lista Blanca"]
@@ -54,7 +54,7 @@ flowchart TD
 
 ### Herramienta 1: `crear_archivo(ruta_absoluta, contenido)`
 - Escribe o sobreescribe archivos garantizando que existan sus carpetas contenedoras (`mkdir(parents=True)`).
-- Asocia automáticamente los archivos `.md` al perfil canónico en Obsidian (`**Pertenece a:** [[Perfil_Subagente_Asistencia]]`).
+- Asocia automáticamente los archivos `.md` al perfil canónico en Obsidian (`**Pertenece a:** Perfil_Subagente_Asistencia`).
 - Rutas autorizadas: `/app/Subagente_Asistencia/informes/`, `/app/Subagente_Asistencia/documentos_sanji/`, `/app/Archivos_temporales/` y `/app/Bitacora.md`.
 
 ### Herramienta 2: `leer_archivo(ruta_absoluta)`
@@ -163,4 +163,4 @@ listar_directorio(ruta_absoluta="/app/Subagente_Asistencia/informes")
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

@@ -227,4 +227,4 @@ tool_limpiar_workspace()
 ```
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

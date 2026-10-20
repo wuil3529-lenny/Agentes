@@ -138,4 +138,4 @@ Opción C: Correo electrónico SMTP.
 > En cuanto elijas la opción que mejor se adapte a tu flujo, estructuraré el plan técnico para la tripulación.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

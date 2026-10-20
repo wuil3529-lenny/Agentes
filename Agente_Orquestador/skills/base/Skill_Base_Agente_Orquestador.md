@@ -39,10 +39,10 @@ flowchart TD
     TipoOp{¿Tipo de Operación?}
 
     TipoOp -->|Escritura: crear_archivo| ValidaRuta["1. Validación de Rutas Permitidas\n(Zonas Seguras del Repositorio)"]
-    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n([[proyectos]], [[informes]], etc.)"]
+    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n(proyectos, informes, etc.)"]
     AutoObsidian --> EscrituraDisco["3. Persistencia en Disco"]
 
-    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar [[Conexiones]] para evitar alucinaciones)"]
+    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar Conexiones para evitar alucinaciones)"]
     CensuraGrafo --> PaginaContexto["2. Paginación de Seguridad\n(Máximo 8.000 caracteres)"]
 
     TipoOp -->|Terminal: ejecutar_comando| CheckFirewall["1. Verificación de Lista Negra y Lista Blanca"]
@@ -158,4 +158,4 @@ ejecutar_comando(
 ```
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

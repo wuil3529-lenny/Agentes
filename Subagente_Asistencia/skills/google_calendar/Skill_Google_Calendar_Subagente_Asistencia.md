@@ -162,4 +162,4 @@ Para garantizar que el usuario reciba la información de sus compromisos de form
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

@@ -146,4 +146,4 @@ El objetivo de este proyecto es establecer una arquitectura de microservicios re
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

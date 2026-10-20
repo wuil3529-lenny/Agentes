@@ -126,7 +126,7 @@ DIRECTIVAS OPERATIVAS FUNDAMENTALES:
 1. **Existencia del Buzón de Evidencias:** La carpeta `{Nombre}/informes/` existe con su README explicativo.
 2. **Sub-skill Base Operativa:** La carpeta `{Nombre}/skills/base/` contiene `skill_base.py` con tipado estricto y su nota `Skill_Base_{Nombre}.md` con las 5 secciones normativas.
 3. **Script Ejecutable Autocontenido:** El archivo `{nombre_slug}_agent.py` compila sin errores sintácticos con `py_compile`.
-4. **Perfil Integrado al Cerebro:** `Perfil_{Nombre}.md` contiene los enlaces canónicos a `[[Reglas de la Tripulacion]]`, `[[Bitacora]]` y `[[Cerebro]]`.
+4. **Perfil Integrado al Cerebro:** `Perfil_{Nombre}.md` contiene los enlaces canónicos a `Reglas de la Tripulacion`, `Bitacora` y `Cerebro`.
 5. **Configuración en `.env` Sin Colisiones:** Las variables de entorno son inyectadas sin corromper ni duplicar claves ya existentes.
 
 ### Hard-Stops Inquebrantables
@@ -174,4 +174,4 @@ tool_registrar_agente(
 3. El nuevo agente puede procesar tareas y depositar sus reportes en `Subagente_DevOps/informes/` para su posterior auditoría por el Supervisor.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

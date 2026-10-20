@@ -31,3 +31,8 @@ langchain-nvidia-ai-endpoints>=1.4.3
 # Base de datos vectorial
 chromadb>=0.5.0
 sentence-transformers>=3.0.0
+
+# Síntesis y transcripción de voz (Agente_Orquestador)
+edge-tts>=6.1.0
+gTTS>=2.5.0
+SpeechRecognition>=3.10.0

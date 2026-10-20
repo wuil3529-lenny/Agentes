@@ -130,13 +130,4 @@ tool_sql_procesar_grandes_datos.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Conectores y APIs:** [[Skill_Conectores_Mcp_Api_Subagente_Desarrollo]]
-- **Automatización de Flujos:** [[Skill_N8N_Subagente_Desarrollo]]
-- **Memoria Procedural:** [[Skill_Auto_Aprendizaje_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

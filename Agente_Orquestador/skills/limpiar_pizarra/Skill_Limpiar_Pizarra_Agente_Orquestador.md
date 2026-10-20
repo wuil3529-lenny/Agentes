@@ -55,7 +55,7 @@ flowchart TD
 - Localiza el bloque correspondiente en la `Bitacora.md`.
 - Valida que el estado del ticket pertenezca estrictamente al conjunto terminal (`COMPLETADO`, `CERRADO`, `ABORTADO`).
 - Actualiza la `Bitacora.md` eliminando el bloque y normalizando los saltos de línea.
-- Transfiere el ticket a `memoria/Tickets_Archivados.md` eliminando la sintaxis `[[...]]` para mantener limpio el grafo de Obsidian.
+- Transfiere el ticket a `memoria/Tickets_Archivados.md` eliminando la sintaxis `...` para mantener limpio el grafo de Obsidian.
 - Extrae el objetivo y la evidencia física para invocar `tool_guardar_solucion` de la memoria vectorial.
 
 ---
@@ -106,7 +106,7 @@ RECHAZADO: El ticket TKT-DES-001 se encuentra en estado 'EN_PROGRESO'. Solo est�
 ### Criterios de Aceptación (DoD)
 1. **Desaparición del Tablero Activo:** El ticket ya no aparece en ninguna línea de `Bitacora.md`.
 2. **Preservación Íntegra en Histórico:** El texto completo del ticket se encuentra añadido al final de `memoria/Tickets_Archivados.md`.
-3. **Grafos Limpios de Obsidian:** Enlaces de corchetes dobles (`[[...]]`) convertidos a texto simple para evitar referencias a notas fantasma en la bóveda.
+3. **Grafos Limpios de Obsidian:** Enlaces de corchetes dobles (`...`) convertidos a texto simple para evitar referencias a notas fantasma en la bóveda.
 4. **Indexación RAG Confirmada:** Los metadatos del ticket y la ruta física de la evidencia han sido enviados a ChromaDB.
 5. **Cero Corrupción de la Pizarra:** Los demás tickets presentes en la pizarra permanecen intactos y sin alteraciones de formato.
 
@@ -138,4 +138,4 @@ Ticket TKT-DES-015 [Estado: COMPLETADO] eliminado de la pizarra, archivado en me
 3. El próximo agente que enfrente un problema similar podrá consultar `tool_buscar_soluciones("TKT-DES-015")` y recuperar la solución aplicada.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

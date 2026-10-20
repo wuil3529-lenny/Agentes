@@ -44,6 +44,12 @@ El script expone y vincula al LLM las herramientas operativas de su dominio:
 - **Notificaciones Externas:** Envío de mensajes ejecutivos hacia la interfaz de usuario y Telegram.
 - **Auto-Aprendizaje y Playbooks:** Consulta (`tool_consultar_playbook_memoria`) y registro (`tool_registrar_playbook_memoria`) de recetas procedurales en `memoria/` y ChromaDB.
 
+### 2.5. Interceptor de Herramientas y Filtro Anti-Bucle
+En `_procesar_tool_calls`, cada llamada a herramienta es evaluada por `interceptar_tool_call` de `bucle_autocorreccion.py`:
+- **Filtro Anti-Bucle:** Evita invocaciones repetidas con los mismos argumentos congelando la herramienta redundante.
+- **Validación QA Gherkin:** Evalúa la salida en Capa 1 (red/infraestructura) y Capa 2 (contenido).
+- **Auto-Diagnóstico:** Inyecta diagnósticos de causa raíz con directivas obligatorias de remediación si una herramienta falla.
+
 ---
 
 ## 3. Modos de Ejecución
@@ -59,4 +65,4 @@ El script expone y vincula al LLM las herramientas operativas de su dominio:
 - **Salidas:** Ejecución de herramientas locales, formulación de planes de implementación, tickets de delegación estructurados en la Bitácora o respuestas directas al usuario.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

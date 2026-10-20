@@ -136,4 +136,4 @@ tool_registrar_solucion_error(
 En el siguiente turno o en cualquier otro agente, si se produce un `SyntaxError: f-string`, la invocación de `tool_consultar_sentry_errores` devolverá este registro inmediatamente, evitando perder tiempo redescubriendo el problema.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

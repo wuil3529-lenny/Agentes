@@ -109,13 +109,4 @@ aplicar_ui_ux_pro_max(
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Desarrollo Web:** [[Skill_Web_Subagente_Desarrollo]]
-- **Habilidad Base:** [[Skill_Base_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

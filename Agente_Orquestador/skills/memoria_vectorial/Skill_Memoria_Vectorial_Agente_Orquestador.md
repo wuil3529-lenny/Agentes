@@ -151,4 +151,4 @@ consultar_estado_ticket(ticket_id="TKT-003")
 ```
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

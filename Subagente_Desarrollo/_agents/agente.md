@@ -277,4 +277,4 @@ Para certificar todo entregable frontend, web o dashboard, el Subagente de Desar
    - Cada prueba debe generar un archivo físico persistente en disco en `Subagente_Desarrollo/proyectos/` o `Subagente_Desarrollo/documentos_desarrollo/`.
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

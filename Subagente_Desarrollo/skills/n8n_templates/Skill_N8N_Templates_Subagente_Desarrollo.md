@@ -77,12 +77,4 @@ n8n_obtener_plantilla(template_id=1452)
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Automatización n8n:** [[Skill_N8N_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

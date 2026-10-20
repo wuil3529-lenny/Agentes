@@ -1,0 +1,137 @@
+{
+  "version": "1.0.0",
+  "coleccion": "10 Prompts Maestros de Campaña y Contenido Visual",
+  "fuente_referencia": "Camilo Barbosa TV (@camilobarbosatv) — ChatGPT 2.0 Advertising Prompts",
+  "descripcion": "Catálogo de referencia publicitaria de alta conversión para Subagente_Diseno. Cada arquetipo define el objetivo comercial, casos ideales, estructura fotográfica en 5 bloques y formato óptimo para redes y e-commerce.",
+  "arquetipos": [
+    {
+      "id": "01_anuncio_producto_ecommerce",
+      "numero": 1,
+      "nombre": "Crear un anuncio profesional desde una foto de producto",
+      "objetivo": "Transformar la foto de un producto físico o empaque en un anuncio publicitario premium hiperrealista para e-commerce.",
+      "ideal_para": ["E-commerce", "Shopify", "Productos físicos", "Amazon", "Emprendedores"],
+      "prompt_maestro": "Utiliza la foto del producto que adjunté y conviértela en un anuncio publicitario premium hiperrealista. NO cambies el diseño original del producto. Mejora la escena agregando: iluminación cinematográfica, sombras realistas, reflejos premium, composición moderna, fondo elegante relacionado con el producto, profundidad de campo, estética comercial tipo Meta Ads. Haz que parezca una campaña profesional de una marca reconocida. Formato vertical 4:5 ideal para Instagram y Facebook Ads. Estilo: ultra realistic, commercial photography, cinematic lighting, premium advertising aesthetic, DSLR quality.",
+      "prompt_5_bloques_en": "[SUBJECT]: Authentic commercial product {producto}, preserving exact packaging design and logo. [STYLE]: High-end commercial product photography, luxury Meta Ads campaign, 8k resolution. [LIGHTING]: Studio softbox at 45 degrees, subtle warm rim lighting, specular highlights, realistic ambient occlusion contact shadows. [CAMERA]: Hasselblad medium format, f/8 crisp aperture, focus stacked, edge-to-edge sharpness from cap to base. [COMPOSITION]: Grounded solidly on luxurious contextual surface ({superficie_contextual}), lower 60% framing, upper 40% clean dark negative space for typography.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "editorial",
+      "consejos_tecnicos": "Nunca permitas bokeh extremo f/1.8 que desenfoque la tapa o el logo. Mantén apertura cerrada f/8 para nitidez de empaque y sombras de contacto reales en la superficie de apoyo."
+    },
+    {
+      "id": "02_lifestyle_marca_personal",
+      "numero": 2,
+      "nombre": "Crear una imagen donde el usuario sale usando el producto",
+      "objetivo": "Transmitir autoridad, confianza y prueba de uso mediante lifestyle de marca personal.",
+      "ideal_para": ["Coaches", "Creadores", "Influencers", "Infoproductores", "Speakers"],
+      "prompt_maestro": "Usa mi foto y crea una imagen hiperrealista donde aparezco utilizando este producto de manera natural y profesional. La escena debe parecer una sesión fotográfica publicitaria real. Agregar: iluminación cinematográfica, expresión natural, estética premium, fondo moderno relacionado con emprendimiento y marketing, profundidad de campo, estilo lifestyle, composición tipo campaña de Instagram Ads. La imagen debe transmitir: autoridad, confianza y marca personal. Estilo: commercial photography, realistic skin texture, DSLR camera, cinematic shadows, premium social media ad.",
+      "prompt_5_bloques_en": "[SUBJECT]: A confident professional entrepreneur using {producto} naturally and effortlessly. [STYLE]: Premium lifestyle commercial photography, authentic advertising campaign. [LIGHTING]: Warm cinematic natural lighting through high studio windows, balanced fill light, soft natural skin tones. [CAMERA]: 85mm portrait lens at f/4, crisp facial focus with natural pores and realistic skin texture, gentle background separation. [COMPOSITION]: Modern minimalist entrepreneurial environment ({entorno}), balanced rule of thirds, clean negative space for headline copy.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "modern",
+      "consejos_tecnicos": "La piel debe verse humana y real, sin suavizado plástico de IA. La interacción con el producto debe ser ergonómica y creíble."
+    },
+    {
+      "id": "03_ugc_testimonio_influencer",
+      "numero": 3,
+      "nombre": "Crear un UGC tipo testimonio espontáneo",
+      "objetivo": "Generar contenido con estética de creador nativo (User Generated Content) para alta conversión en TikTok y Reels Ads.",
+      "ideal_para": ["TikTok Ads", "Reels Ads", "Productos virales", "Beauty & Skincare", "Fitness"],
+      "prompt_maestro": "Crea una imagen estilo UGC hiperrealista donde una creadora de contenido sostiene el producto y sonríe a cámara como si estuviera grabando un TikTok testimonial. La escena debe parecer real y espontánea, NO demasiado producida. Agregar: apartamento moderno, luz natural, celular grabando, estética TikTok, expresiones reales, ropa casual moderna, composición vertical tipo Reel, estilo influencer. Incluir texto integrado tipo: 'Literalmente AMÉ este producto'. Estilo: UGC advertising, authentic content creator aesthetic, realistic lighting, social media realism.",
+      "prompt_5_bloques_en": "[SUBJECT]: An authentic charismatic content creator holding {producto} near camera with genuine enthusiastic expression. [STYLE]: Authentic UGC (User Generated Content) aesthetic, viral TikTok Reel ad, unpolished realism. [LIGHTING]: Soft daylight from window mixed with subtle smartphone ring-light glow on face. [CAMERA]: Smartphone front camera perspective, slight high-angle selfie framing, crisp realistic focus on face and product. [COMPOSITION]: Modern aesthetic apartment background ({habitacion_apartamento}), vertical 9:16 framing, native social media typography space.",
+      "aspect_ratio_sugerido": "9:16",
+      "estilo_pillow_sugerido": "bento",
+      "consejos_tecnicos": "El UGC debe sentirse 100% orgánico. Evita fondos excesivamente estériles de estudio; prefiere encuadres cotidianos de apartamentos luminosos o sets de grabación caseros."
+    },
+    {
+      "id": "04_infografia_moderna_educativa",
+      "numero": 4,
+      "nombre": "Crear una infografía moderna minimalista",
+      "objetivo": "Crear contenido educativo viral de alto guardado y compartición para redes de negocios, marketing y finanzas.",
+      "ideal_para": ["Marketing Digital", "Finanzas", "Inteligencia Artificial", "Negocios B2B", "Educación Online"],
+      "prompt_maestro": "Crea una infografía moderna minimalista sobre: '{tema_infografia}'. Estilo visual: fondo blanco clean (o dark slate), detalles azul eléctrico, diseño moderno tipo startup, iconos minimalistas, tipografía bold, secciones organizadas, apariencia premium, estética tecnológica. La información debe verse fácil de leer y visualmente atractiva para Instagram. Formato vertical 4:5.",
+      "prompt_5_bloques_en": "[SUBJECT]: Ultra-clean modern infographic layout explaining {tema_infografia}. [STYLE]: Swiss graphic design, modern Linear/Vercel startup aesthetic, high readability. [LIGHTING]: Flat crisp digital lighting, high-contrast dark slate (#0F172A) or pristine clean white backdrop. [CAMERA]: Orthographic 2D graphic layout, precise geometric grid, crisp vector iconography. [COMPOSITION]: Vertical 4:5 hierarchy, numbered bento cards, electric blue and indigo accents, balanced padding.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "bento",
+      "consejos_tecnicos": "En infografías, la legibilidad es la reina. Utiliza nuestras tarjetas Bento con bordes redondeados de 16px y acentos en azul eléctrico (#38BDF8) o índigo (#6366F1)."
+    },
+    {
+      "id": "05_anuncio_texto_integrado",
+      "numero": 5,
+      "nombre": "Crear un anuncio con titular, subtexto y botón integrado",
+      "objetivo": "Entregar una pieza publicitaria terminada y lista para pauta en Meta Ads y lanzamientos digitales.",
+      "ideal_para": ["Meta Ads", "TikTok Ads", "Promociones flash", "Lanzamientos de cursos", "Captación de leads"],
+      "prompt_maestro": "Crea un anuncio hiperrealista para vender {oferta_servicio}. La escena debe mostrar: laptop moderna, gráficos de ventas, ambiente premium, estética emprendedor moderno, iluminación cinematográfica. Agregar textos integrados modernos y profesionales: HEADLINE: '{titular}', SUBTEXTO: '{subtexto}', BOTÓN: '{cta}'. Diseño estilo anuncio ganador de Meta Ads.",
+      "prompt_5_bloques_en": "[SUBJECT]: High-end commercial workspace scene with modern laptop displaying upward sales charts for {oferta_servicio}. [STYLE]: Winning Meta Ads creative, luxury digital entrepreneur aesthetic. [LIGHTING]: Cinematic moody room with soft directional golden rim light and screen glow. [CAMERA]: 35mm commercial lens, eye-level dynamic angle, sharp focus on laptop display. [COMPOSITION]: Workspace placed in lower half, upper 40% reserved for bold high-impact headline, subtext, and call-to-action button.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "modern",
+      "consejos_tecnicos": "La IA debe generar el fondo cinematográfico con espacio negativo superior libre, y el motor local Pillow superpone la tipografía nítida para evitar textos deformados o borrosos."
+    },
+    {
+      "id": "06_mockup_digital_apple_keynote",
+      "numero": 6,
+      "nombre": "Crear un mockup premium multidispositivo (Apple Keynote Style)",
+      "objetivo": "Tangibilizar productos digitales, software, SaaS y formaciones con apariencia de hardware de lujo.",
+      "ideal_para": ["Cursos online", "Plataformas SaaS", "Ebooks", "Mentorías", "Librerías de código"],
+      "prompt_maestro": "Crea un mockup premium hiperrealista de {producto_digital}. Mostrar: laptop MacBook, tablet iPad, celular iPhone, dashboard moderno con gráficos e interfaz futurista. La escena debe verse elegante y extremadamente premium. Estilo: Apple keynote aesthetic, clean lighting, modern startup branding, ultra realistic mockup.",
+      "prompt_5_bloques_en": "[SUBJECT]: Multi-device floating mockup including modern MacBook Pro, iPad Pro, and iPhone displaying sleek UI dashboard for {producto_digital}. [STYLE]: Apple Keynote presentation render, luxury tech product mockup, crisp glassmorphism. [LIGHTING]: Ultra-clean diffused studio lighting, subtle soft drop shadows, soft ambient reflections on aluminum and glass. [CAMERA]: 50mm clean isometric or straight architectural angle, f/8 pin-sharp edge-to-edge focus across all screens. [COMPOSITION]: Centered balanced arrangement of devices, spacious minimalist dark slate or clean titanium background.",
+      "aspect_ratio_sugerido": "16:9",
+      "estilo_pillow_sugerido": "bento",
+      "consejos_tecnicos": "Los marcos de los dispositivos deben ser estilizados y mínimos. Las pantallas deben mostrar interfaces coherentes con gráficos vectoriales y métricas claras."
+    },
+    {
+      "id": "07_miniatura_youtube_viral",
+      "numero": 7,
+      "nombre": "Crear una miniatura de YouTube de alto CTR (Viral Style)",
+      "objetivo": "Maximizar el Click-Through Rate (CTR) en YouTube mediante alto contraste, emoción visual y foco focal directo.",
+      "ideal_para": ["YouTube Thumbnails", "Portadas de Reels", "Portadas de Shorts", "Podcasts"],
+      "prompt_maestro": "Crea una miniatura de YouTube hiperrealista sobre: '{tema_video}'. Mostrar: expresión intrigada/exagerada, pantalla con gráficos o IA, colores llamativos, composición viral, contraste alto. Agregar texto grande: '{texto_gancho}'. Estilo: viral YouTube thumbnail, MrBeast style composition, high CTR design.",
+      "prompt_5_bloques_en": "[SUBJECT]: Dynamic expressive face of a creator on the right side, looking towards an intriguing visual element ({elemento_intrigante}) on the left. [STYLE]: High-CTR viral YouTube thumbnail, bold saturated visual storytelling. [LIGHTING]: Dual-tone high-contrast rim lighting (electric yellow and cyan), vibrant backlight separation. [CAMERA]: Wide-angle dynamic focal length, crisp foreground focus, bold exaggerated facial expression. [COMPOSITION]: 16:9 horizontal rule of thirds, large empty quadrant reserved for massive bold typography.",
+      "aspect_ratio_sugerido": "16:9",
+      "estilo_pillow_sugerido": "modern",
+      "consejos_tecnicos": "El texto en miniatura no debe tener más de 3 a 4 palabras con tipografía ultra gruesa (Impact o Segoe UI Black) y trazo de contorno exterior para leerse en pantallas móviles pequeñas."
+    },
+    {
+      "id": "08_testimonio_social_proof",
+      "numero": 8,
+      "nombre": "Crear un testimonio visual / Social Proof",
+      "objetivo": "Derribar objeciones de venta mostrando éxito real y transformación mediante prueba social creíble.",
+      "ideal_para": ["Cursos", "Servicios de agencia", "Coaching", "Consultorías B2B", "Casos de éxito"],
+      "prompt_maestro": "Crea una imagen hiperrealista estilo testimonio premium. Mostrar: estudiante feliz trabajando desde laptop, gráfico de crecimiento, ambiente moderno, estética emprendedor digital. Agregar mensaje visual tipo: '{cita_testimonio}'. Estilo: realistic lifestyle photography, cinematic lighting, premium coaching advertisement.",
+      "prompt_5_bloques_en": "[SUBJECT]: A genuine, smiling professional client/student working comfortably at a modern wood desk with laptop displaying revenue growth metrics. [STYLE]: High-end editorial lifestyle photography, authentic social proof case study. [LIGHTING]: Warm natural afternoon ambient light with soft cinematic bounce, relaxed comfortable atmosphere. [CAMERA]: 50mm f/2.8 lens, sharp focus on subject's authentic smile, subtle soft focus on modern coworking background. [COMPOSITION]: Balanced framing with dedicated clean zone for floating quote bubble or rating card.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "modern",
+      "consejos_tecnicos": "La expresión no debe parecer forzada de stock falso. Integra tarjetas flotantes con badge de estrellas (★★★★★) y la cita textual destacada en tipografía itálica."
+    },
+    {
+      "id": "09_campana_visual_multicanal",
+      "numero": 9,
+      "nombre": "Crear una campaña visual completa y multiformato",
+      "objetivo": "Garantizar coherencia estética, cromática y de marca en todas las piezas de un embudo o lanzamiento publicitario.",
+      "ideal_para": ["Lanzamientos de marcas", "Campañas omnicanal", "Funnels de conversión", "Rebranding"],
+      "prompt_maestro": "Crea una campaña visual completa para {nicho_marca}. Generar: anuncio principal (4:5), historia para Instagram (9:16), banner horizontal (16:9), post cuadrado (1:1), con diseño coherente entre todas las piezas. Usar: colores {paleta_marca}, iluminación cinematográfica, estética premium, fotografía comercial de agencia.",
+      "prompt_5_bloques_en": "[SUBJECT]: Master creative asset for {nicho_marca} featuring unified hero subject and brand elements. [STYLE]: Integrated omni-channel advertising campaign, luxury commercial aesthetic. [LIGHTING]: Signature brand lighting scheme ({esquema_luz}) maintained identically across all ratios. [CAMERA]: Hasselblad medium format at f/8, crisp edge-to-edge focal sharpness. [COMPOSITION]: Adaptable modular framing capable of seamless reframing into 4:5, 9:16, 1:1, and 16:9 without cropping essential subjects.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "editorial",
+      "consejos_tecnicos": "El secreto de una campaña multicanal es fijar el color HEX base, la tipografía y la iluminación en el Brand Book antes de renderizar cada variación de aspect ratio."
+    },
+    {
+      "id": "10_escena_cinematografica_netflix",
+      "numero": 10,
+      "nombre": "Crear una escena cinematográfica de marca personal (Documental)",
+      "objetivo": "Posicionar al fundador o líder como una autoridad global con estética de documental de Netflix o Silicon Valley.",
+      "ideal_para": ["Fundadores", "CEOs", "Coaches de élite", "Speakers internacionales", "Marcas personales"],
+      "prompt_maestro": "Usa mi foto para crear una escena cinematográfica donde aparezco trabajando en una oficina moderna creando {actividad_estrategica}. Agregar: pantallas con datos, iluminación cinematográfica, ciudad de noche al fondo, estética startup, composición estilo documental de Netflix, ropa elegante casual. La imagen debe transmitir: autoridad, innovación y éxito. Estilo: cinematic portrait, Netflix documentary aesthetic, premium entrepreneur branding.",
+      "prompt_5_bloques_en": "[SUBJECT]: Charismatic founder/leader working thoughtfully in a state-of-the-art modern corner office at night, overlooking a glowing city skyline. [STYLE]: Netflix high-budget documentary cinematography, prestige corporate storytelling, 8k resolution. [LIGHTING]: Cinematic moody chiaroscuro lighting, subtle cool blue monitor glow on profile, warm amber city bokeh lights outside floor-to-ceiling glass. [CAMERA]: Anamorphic cinema lens, shallow depth of field, dramatic cinematic horizontal or vertical ratio, pin-sharp eyes and expression. [COMPOSITION]: Executive placed in dynamic thirds, powerful reflective mood, authority and innovation.",
+      "aspect_ratio_sugerido": "4:5",
+      "estilo_pillow_sugerido": "modern",
+      "consejos_tecnicos": "La iluminación de claroscuro (chiaroscuro) con la ciudad nocturna de fondo crea una sensación inmediata de estatus y visión de futuro inigualable."
+    },
+    {
+      "id": "bonus_modificador_universal",
+      "numero": "BONUS",
+      "nombre": "Modificador Universal de Mejora Visual (Agency Upscaler)",
+      "objetivo": "Elevar cualquier idea, boceto o prompt genérico a calidad fotográfica de agencia publicitaria internacional.",
+      "ideal_para": ["Cualquier tipo de imagen", "Refinamiento de prompts mediocres", "Elevación de calidad"],
+      "prompt_maestro": "Haz la imagen más cinematográfica, hiperrealista y premium. Mejora: iluminación, composición, sombras, reflejos, profundidad de campo, textura de piel, detalles del producto, estética publicitaria, calidad DSLR. Haz que parezca una campaña creada por una agencia internacional.",
+      "modificador_sufijo_en": ", high-end commercial advertising photography, international ad agency quality, Hasselblad medium format, crisp f/8 aperture, focus stacked, physically based contact shadows and ambient occlusion, realistic specular reflections, natural tactile textures, color graded by award-winning colorist, 8k resolution, zero plastic blur, zero artificial artifacts."
+    }
+  ]
+}

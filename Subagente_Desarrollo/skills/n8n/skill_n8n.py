@@ -16,6 +16,7 @@ import sys
 import json
 import time
 import requests
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional
@@ -269,16 +270,24 @@ def n8n_iniciar() -> str:
 
         # 2. Intento de inicio según el sistema operativo
         if sys.platform == "win32":
+            # H-04: lista de argumentos, sin interprete de shell
             subprocess.Popen(
-                "npx n8n start",
-                shell=True,
+                ["npx", "n8n", "start"],
+                shell=False,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)
             )
         else:
-            comando = "nohup npx n8n start > /dev/null 2>&1 &"
-            subprocess.run(comando, shell=True, executable="/bin/bash")
+            # H-04: proceso desacoplado sin shell (equivalente a nohup ... &)
+            subprocess.Popen(
+                ["npx", "n8n", "start"],
+                shell=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True
+            )
 
         for _ in range(12):
             time.sleep(1)

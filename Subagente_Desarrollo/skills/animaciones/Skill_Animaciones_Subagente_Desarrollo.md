@@ -136,14 +136,4 @@ tool_auditar_animaciones.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Criterio Estético:** [[Skill_Taste_Subagente_Desarrollo]]
-- **Arquitectura de Superficies:** [[Skill_Impeccable_Subagente_Desarrollo]]
-- **Desarrollo Web:** [[Skill_Web_Subagente_Desarrollo]]
-- **Verificación en Navegador:** [[Skill_Playwright_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

@@ -28,6 +28,9 @@ from email.mime.text import MIMEText
 from datetime import datetime
 from typing import Dict, List, Tuple, Any, Optional
 from langchain_core.tools import tool
+import imaplib
+import email
+from email.header import decode_header
 
 # Resolver APP_ROOT y rutas del subagente
 _CURRENT = Path(__file__).resolve()
@@ -300,6 +303,129 @@ def _clasificar_correo(sender: str, subject: str, snippet: str, body: str, heade
     }
 
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MIGRACIÓN A IMAP PURO (TKT-DEV-20261014002)
+# Lectura de correos SIN Gmail API / SIN OAuth / SIN token.json.
+# Reutiliza la lógica probada de Agente_Orquestador/data/sensores/sensor_correo_imap.py
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _cargar_env(override: bool = True):
+    """Carga el .env manualmente (sin dependencias externas).
+
+    Con override=True (por defecto) el valor del .env SIEMPRE sobreescribe
+    cualquier variable preexistente en os.environ, garantizando credenciales
+    frescas y evitando heredar una contraseña de aplicación obsoleta.
+    """
+    env_path = Path("/app/.env")
+    if not env_path.exists():
+        env_path = _APP_ROOT / ".env"
+    if env_path.exists():
+        for linea in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            linea = linea.strip()
+            if not linea or linea.startswith("#") or "=" not in linea:
+                continue
+            clave, _, valor = linea.partition("=")
+            clave = clave.strip()
+            valor = valor.strip().strip('"').strip("'")
+            if override:
+                os.environ[clave] = valor
+            else:
+                os.environ.setdefault(clave, valor)
+
+
+def _decodificar_header(valor: str) -> str:
+    """Decodifica cabeceras MIME a texto legible."""
+    if not valor:
+        return ""
+    partes = decode_header(valor)
+    resultado = ""
+    for texto, encoding in partes:
+        if isinstance(texto, bytes):
+            try:
+                resultado += texto.decode(encoding or "utf-8", errors="ignore")
+            except Exception:
+                resultado += texto.decode("utf-8", errors="ignore")
+        else:
+            resultado += texto
+    return resultado
+
+
+def _cuerpo_texto_imap(msg) -> str:
+    """Extrae el cuerpo en texto plano del mensaje IMAP."""
+    if msg.is_multipart():
+        for parte in msg.walk():
+            ctype = parte.get_content_type()
+            disp = str(parte.get("Content-Disposition") or "")
+            if ctype == "text/plain" and "attachment" not in disp:
+                try:
+                    payload = parte.get_payload(decode=True)
+                    charset = parte.get_content_charset() or "utf-8"
+                    return payload.decode(charset, errors="ignore")[:2000]
+                except Exception:
+                    continue
+        return ""
+    try:
+        payload = msg.get_payload(decode=True)
+        charset = msg.get_content_charset() or "utf-8"
+        return payload.decode(charset, errors="ignore")[:2000]
+    except Exception:
+        return ""
+
+
+def _leer_correos_imap(max_correos: int, solo_no_leidos: bool) -> List[Dict[str, Any]]:
+    """Conecta a imap.gmail.com:993 y devuelve los últimos N correos.
+
+    Lee credenciales frescas del .env con override forzado. NO requiere token.json.
+    Lanza excepción si falla la conexión/autenticación (el llamador aplica fallback).
+    """
+    _cargar_env(override=True)
+    imap_host = os.getenv("IMAP_HOST", "imap.gmail.com").strip()
+    imap_port = int(os.getenv("IMAP_PORT", "993"))
+    email_user = os.getenv("KEEP_EMAIL", "").strip().strip('"')
+    email_pass = os.getenv("KEEP_APP_PASSWORD", "").strip().strip('"')
+
+    if not email_user or not email_pass:
+        raise RuntimeError("Credenciales IMAP no configuradas en .env (KEEP_EMAIL / KEEP_APP_PASSWORD).")
+
+    mail = imaplib.IMAP4_SSL(imap_host, imap_port)
+    try:
+        mail.login(email_user, email_pass)
+        mail.select("INBOX")
+
+        criterio = "UNSEEN" if solo_no_leidos else "ALL"
+        status, data = mail.search(None, criterio)
+        if status != "OK":
+            return []
+
+        uids = data[0].split()
+        if not uids:
+            return []
+
+        correos: List[Dict[str, Any]] = []
+        for uid in uids[-max_correos:]:
+            status, msg_data = mail.fetch(uid, "(RFC822)")
+            if status != "OK" or not msg_data or not msg_data[0]:
+                continue
+            msg = email.message_from_bytes(msg_data[0][1])
+            correos.append({
+                "id": uid.decode(),
+                "uid": uid.decode(),
+                "de": _decodificar_header(msg.get("From")),
+                "asunto": _decodificar_header(msg.get("Subject")) or "(Sin asunto)",
+                "fecha": msg.get("Date", ""),
+                "cuerpo": _cuerpo_texto_imap(msg),
+                "message_id": msg.get("Message-ID", ""),
+                "in_reply_to": msg.get("In-Reply-To", ""),
+            })
+        return correos
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # HERRAMIENTAS EXPORTADAS (CATÁLOGO DE LA SKILL)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -311,90 +437,149 @@ def tool_correo_recibir_y_analizar(
     notificar_prioritarios: bool = True
 ) -> str:
     """
-    Recibe, analiza y cataloga correos entrantes de Gmail por orden de prioridad.
-    Filtra automáticamente spam y publicidad. Ante correos de prioridad ALTA o CRÍTICA,
-    envía una notificación estructurada a la mensajería del usuario (Telegram) y los
-    registra para seguimiento de respuesta.
+    Recibe, analiza y cataloga correos entrantes por orden de prioridad usando
+    IMAP puro (imap.gmail.com:993). NO requiere Gmail API ni OAuth ni token.json.
+    Filtra automáticamente spam y publicidad. Ante correos de prioridad ALTA o
+    CRÍTICA, envía una notificación estructurada a la mensajería del usuario
+    (Telegram) y los registra para seguimiento de respuesta.
     """
-    if obtener_servicio is None:
-        return json.dumps({"status": "error", "mensaje": "Cliente de Google Workspace no disponible."})
-
     try:
-        service = obtener_servicio('gmail', 'v1')
-        query = 'is:unread in:inbox' if solo_no_leidos else 'in:inbox'
-        results = service.users().messages().list(userId='me', q=query, maxResults=max_correos).execute()
-        messages = results.get('messages', [])
-
-        if not messages:
-            return json.dumps({
-                "status": "success",
-                "mensaje": "Bandeja limpia: no se encontraron correos nuevos para procesar.",
-                "total_analizados": 0,
-                "notificaciones_enviadas": 0
-            })
-
-        procesados_hist = _cargar_procesados().get("procesados", {})
-        analizados = []
-        notificados = 0
-
-        for m in messages:
-            msg_id = m['id']
-            # Omitir si ya fue procesado recientemente
-            if msg_id in procesados_hist:
-                continue
-
-            detalle = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
-            headers = detalle.get('payload', {}).get('headers', [])
-            headers_dict = {h['name'].lower(): h['value'] for h in headers}
-
-            subject = headers_dict.get('subject', '(Sin asunto)')
-            sender = headers_dict.get('from', '(Desconocido)')
-            date = headers_dict.get('date', '')
-            snippet = detalle.get('snippet', '')
-            body = _extraer_cuerpo_texto(detalle.get('payload', {}))
-
-            clasif = _clasificar_correo(sender, subject, snippet, body, headers_dict)
-            prioridad = clasif["prioridad"]
-            categoria = clasif["categoria"]
-
-            info_msg = {
-                "id": msg_id,
-                "thread_id": detalle.get("threadId"),
-                "de": sender,
-                "asunto": subject,
-                "fecha": date,
-                "categoria": categoria,
-                "prioridad": prioridad,
-                "motivo": clasif["motivo"],
-                "resumen": snippet
-            }
-            _registrar_correo_procesado(msg_id, info_msg)
-            analizados.append(info_msg)
-
-            # Notificación proactiva al usuario si es ALTA o CRÍTICA
-            if notificar_prioritarios and prioridad in ["ALTA", "CRÍTICA"]:
-                notificados += 1
-                _agregar_seguimiento(msg_id, sender, subject, snippet, prioridad)
-                
-                icono = "🚨" if prioridad == "CRÍTICA" else "📬"
-                mensaje_alerta = (
-                    f"{icono} **Correo Prioritario ({prioridad})**\n"
-                    f"**De:** {sender}\n"
-                    f"**Asunto:** {subject}\n"
-                    f"**Resumen:** {snippet}\n\n"
-                    f"❓ *¿Deseas que prepare y envíe una respuesta o prefieres responder tú directamente?*"
-                )
-                _notificar_mensajeria(mensaje_alerta)
-
+        correos = _leer_correos_imap(max_correos=max_correos, solo_no_leidos=solo_no_leidos)
+    except Exception as e:
+        # Fallback seguro: si IMAP falla, intentar Gmail API si estuviera disponible.
+        if obtener_servicio is not None:
+            try:
+                return _recibir_via_gmail_api(max_correos, solo_no_leidos, notificar_prioritarios)
+            except Exception:
+                pass
         return json.dumps({
-            "status": "success",
-            "total_analizados": len(analizados),
-            "notificaciones_enviadas": notificados,
-            "resumen_analizados": analizados
+            "status": "error",
+            "mensaje": f"Fallo al recibir correos por IMAP: {str(e)}",
+            "fallback": "Gmail API no disponible o también falló."
         }, ensure_ascii=False)
 
-    except Exception as e:
-        return json.dumps({"status": "error", "mensaje": f"Fallo al recibir y analizar correos: {str(e)}"})
+    if not correos:
+        return json.dumps({
+            "status": "success",
+            "mensaje": "Bandeja limpia: no se encontraron correos nuevos para procesar.",
+            "total_analizados": 0,
+            "notificaciones_enviadas": 0
+        }, ensure_ascii=False)
+
+    procesados_hist = _cargar_procesados().get("procesados", {})
+    analizados = []
+    notificados = 0
+
+    for correo in correos:
+        msg_id = correo["id"]
+        if msg_id in procesados_hist:
+            continue
+
+        sender = correo["de"]
+        subject = correo["asunto"]
+        date = correo["fecha"]
+        body = correo["cuerpo"]
+        snippet = body[:200]
+        headers_dict = {
+            "in-reply-to": correo.get("in_reply_to", ""),
+            "message-id": correo.get("message_id", ""),
+        }
+
+        clasif = _clasificar_correo(sender, subject, snippet, body, headers_dict)
+        prioridad = clasif["prioridad"]
+        categoria = clasif["categoria"]
+
+        info_msg = {
+            "id": msg_id,
+            "thread_id": None,
+            "de": sender,
+            "asunto": subject,
+            "fecha": date,
+            "categoria": categoria,
+            "prioridad": prioridad,
+            "motivo": clasif["motivo"],
+            "resumen": snippet
+        }
+        _registrar_correo_procesado(msg_id, info_msg)
+        analizados.append(info_msg)
+
+        if notificar_prioritarios and prioridad in ["ALTA", "CRÍTICA"]:
+            notificados += 1
+            _agregar_seguimiento(msg_id, sender, subject, snippet, prioridad)
+
+            icono = "🚨" if prioridad == "CRÍTICA" else "📬"
+            mensaje_alerta = (
+                f"{icono} **Correo Prioritario ({prioridad})**\n"
+                f"**De:** {sender}\n"
+                f"**Asunto:** {subject}\n"
+                f"**Resumen:** {snippet}\n\n"
+                f"❓ *¿Deseas que prepare y envíe una respuesta o prefieres responder tú directamente?*"
+            )
+            _notificar_mensajeria(mensaje_alerta)
+
+    return json.dumps({
+        "status": "success",
+        "origen": "imap",
+        "total_analizados": len(analizados),
+        "notificaciones_enviadas": notificados,
+        "resumen_analizados": analizados
+    }, ensure_ascii=False)
+
+
+def _recibir_via_gmail_api(max_correos: int, solo_no_leidos: bool, notificar_prioritarios: bool) -> str:
+    """Fallback legacy: lectura vía Gmail API (solo si IMAP falla y OAuth disponible)."""
+    service = obtener_servicio('gmail', 'v1')
+    query = 'is:unread in:inbox' if solo_no_leidos else 'in:inbox'
+    results = service.users().messages().list(userId='me', q=query, maxResults=max_correos).execute()
+    messages = results.get('messages', [])
+    if not messages:
+        return json.dumps({
+            "status": "success",
+            "mensaje": "Bandeja limpia: no se encontraron correos nuevos para procesar.",
+            "total_analizados": 0,
+            "notificaciones_enviadas": 0
+        }, ensure_ascii=False)
+
+    procesados_hist = _cargar_procesados().get("procesados", {})
+    analizados = []
+    notificados = 0
+    for m in messages:
+        msg_id = m['id']
+        if msg_id in procesados_hist:
+            continue
+        detalle = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
+        headers = detalle.get('payload', {}).get('headers', [])
+        headers_dict = {h['name'].lower(): h['value'] for h in headers}
+        subject = headers_dict.get('subject', '(Sin asunto)')
+        sender = headers_dict.get('from', '(Desconocido)')
+        date = headers_dict.get('date', '')
+        snippet = detalle.get('snippet', '')
+        body = _extraer_cuerpo_texto(detalle.get('payload', {}))
+        clasif = _clasificar_correo(sender, subject, snippet, body, headers_dict)
+        prioridad = clasif["prioridad"]
+        categoria = clasif["categoria"]
+        info_msg = {
+            "id": msg_id, "thread_id": detalle.get("threadId"), "de": sender,
+            "asunto": subject, "fecha": date, "categoria": categoria,
+            "prioridad": prioridad, "motivo": clasif["motivo"], "resumen": snippet
+        }
+        _registrar_correo_procesado(msg_id, info_msg)
+        analizados.append(info_msg)
+        if notificar_prioritarios and prioridad in ["ALTA", "CRÍTICA"]:
+            notificados += 1
+            _agregar_seguimiento(msg_id, sender, subject, snippet, prioridad)
+            icono = "🚨" if prioridad == "CRÍTICA" else "📬"
+            _notificar_mensajeria(
+                f"{icono} **Correo Prioritario ({prioridad})**\n**De:** {sender}\n"
+                f"**Asunto:** {subject}\n**Resumen:** {snippet}\n\n"
+                f"❓ *¿Deseas que prepare y envíe una respuesta o prefieres responder tú directamente?*"
+            )
+    return json.dumps({
+        "status": "success", "origen": "gmail_api_fallback",
+        "total_analizados": len(analizados),
+        "notificaciones_enviadas": notificados,
+        "resumen_analizados": analizados
+    }, ensure_ascii=False)
 
 
 @tool

@@ -41,11 +41,40 @@ TARIFAS_POR_1K = {
     "default": (0.00020, 0.00040)
 }
 
-def calcular_costo_llamada(tokens_prompt: int, tokens_completion: int, modelo: str = "") -> float:
-    """Calcula el costo estimado en USD de una llamada según el modelo."""
+def calcular_costo_llamada(
+    tokens_prompt: int, 
+    tokens_completion: int, 
+    modelo: str = "",
+    tokens_cache_hit: int = 0,
+    tokens_cache_miss: int = 0
+) -> float:
+    """Calcula el costo real en USD de una llamada según el modelo y context caching."""
     m_lower = (modelo or "").lower()
-    tarifa_in, tarifa_out = TARIFAS_POR_1K["default"]
     
+    # 1. DeepSeek (con soporte nativo de Context Caching de DeepSeek V3 / Chat)
+    if "deepseek" in m_lower:
+        # Tarifas oficiales DeepSeek (USD por 1K tokens):
+        # Cache hit: $0.014 / 1M = $0.000014 / 1k
+        # Cache miss: $0.14 / 1M = $0.00014 / 1k
+        # Output: $0.28 / 1M = $0.00028 / 1k
+        tarifa_hit = 0.000014
+        tarifa_miss = 0.00014
+        tarifa_out = 0.00028
+        
+        if tokens_cache_hit > 0 or tokens_cache_miss > 0:
+            c_in = (tokens_cache_hit / 1000.0) * tarifa_hit + (tokens_cache_miss / 1000.0) * tarifa_miss
+        else:
+            # En agentes recurrentes (LangGraph / herramientas), los prompts del sistema y memoria
+            # obtienen entre 85% y 95% de acierto de caché en DeepSeek.
+            hit_est = max(0, tokens_prompt) * 0.88
+            miss_est = max(0, tokens_prompt) * 0.12
+            c_in = (hit_est / 1000.0) * tarifa_hit + (miss_est / 1000.0) * tarifa_miss
+            
+        c_out = (max(0, tokens_completion) / 1000.0) * tarifa_out
+        return round(c_in + c_out, 6)
+
+    # 2. Otros proveedores
+    tarifa_in, tarifa_out = TARIFAS_POR_1K.get("default", (0.00020, 0.00040))
     for k, v in TARIFAS_POR_1K.items():
         if k in m_lower:
             tarifa_in, tarifa_out = v
@@ -82,14 +111,24 @@ AGENTES_CANONICOS = [
     "subagente_asistencia"
 ]
 
-def registrar_consumo_tokens(agente: str = "agente_orquestador", tokens_prompt: int = 0, tokens_completion: int = 0, modelo: str = "") -> dict:
+def registrar_consumo_tokens(
+    agente: str = "agente_orquestador", 
+    tokens_prompt: int = 0, 
+    tokens_completion: int = 0, 
+    modelo: str = "",
+    tokens_cache_hit: int = 0,
+    tokens_cache_miss: int = 0
+) -> dict:
     """
     Registra de forma segura y acumulativa el consumo de tokens y costo en dashboard/costos.json.
     """
     ag_raw = (agente or "agente_orquestador").strip().lower()
     ag_key = MAPA_CANONICO_AGENTES.get(ag_raw, ag_raw)
     total_llamada = max(0, tokens_prompt) + max(0, tokens_completion)
-    costo_llamada = calcular_costo_llamada(tokens_prompt, tokens_completion, modelo)
+    costo_llamada = calcular_costo_llamada(
+        tokens_prompt, tokens_completion, modelo, 
+        tokens_cache_hit=tokens_cache_hit, tokens_cache_miss=tokens_cache_miss
+    )
     
     if total_llamada <= 0 and costo_llamada <= 0:
         return {}
@@ -191,7 +230,8 @@ try:
 
     class TokenTrackerCallbackHandler(BaseCallbackHandler):
         """
-        Callback handler que captura los tokens de uso en llamadas de LangChain / ChatOpenAI.
+        Callback handler que captura los tokens de uso en llamadas de LangChain / ChatOpenAI,
+        incluyendo tokens cacheados de DeepSeek (Prompt Caching).
         """
         def __init__(self, agente: str = "agente_orquestador"):
             super().__init__()
@@ -201,6 +241,8 @@ try:
             try:
                 tokens_in = 0
                 tokens_out = 0
+                tokens_cache_hit = 0
+                tokens_cache_miss = 0
                 model_name = ""
                 
                 # A. Buscar en llm_output
@@ -210,6 +252,8 @@ try:
                     if usage:
                         tokens_in = usage.get("prompt_tokens", 0) or 0
                         tokens_out = usage.get("completion_tokens", 0) or 0
+                        tokens_cache_hit = usage.get("prompt_cache_hit_tokens", 0) or 0
+                        tokens_cache_miss = usage.get("prompt_cache_miss_tokens", 0) or 0
                     elif "estimated_tokens" in response.llm_output:
                         tokens_in = response.llm_output.get("estimated_tokens", 0) or 0
                         
@@ -224,12 +268,20 @@ try:
                                 if usage:
                                     tokens_in = usage.get("prompt_tokens", 0) or 0
                                     tokens_out = usage.get("completion_tokens", 0) or 0
+                                    tokens_cache_hit = usage.get("prompt_cache_hit_tokens", 0) or 0
+                                    tokens_cache_miss = usage.get("prompt_cache_miss_tokens", 0) or 0
+                                    if tokens_cache_hit == 0 and "prompt_tokens_details" in usage:
+                                        p_det = usage.get("prompt_tokens_details") or {}
+                                        tokens_cache_hit = p_det.get("cached_tokens", 0) or 0
                                     if not model_name:
                                         model_name = meta.get("model_name", "")
 
                 total = tokens_in + tokens_out
                 if total > 0:
-                    registrar_consumo_tokens(self.agente, tokens_in, tokens_out, model_name)
+                    registrar_consumo_tokens(
+                        self.agente, tokens_in, tokens_out, model_name, 
+                        tokens_cache_hit=tokens_cache_hit, tokens_cache_miss=tokens_cache_miss
+                    )
             except Exception as e:
                 print(f"[{self.agente.title()}] [TokenTracker] Error procesando tokens del LLM: {e}")
 
@@ -237,3 +289,29 @@ except ImportError:
     class TokenTrackerCallbackHandler:
         def __init__(self, agente: str = "agente_orquestador"):
             self.agente = agente
+
+
+def consultar_saldo_real_deepseek() -> Optional[dict]:
+    """Consulta el saldo real disponible en la API oficial de DeepSeek."""
+    import urllib.request
+    api_key = os.getenv("DEEPSEEK_API_KEY")
+    if not api_key:
+        return None
+    try:
+        req = urllib.request.Request("https://api.deepseek.com/user/balance", headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json"
+        })
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            if data.get("is_available") and data.get("balance_infos"):
+                b_info = data["balance_infos"][0]
+                return {
+                    "moneda": b_info.get("currency", "USD"),
+                    "saldo_total": float(b_info.get("total_balance", 0.0)),
+                    "saldo_recargado": float(b_info.get("topped_up_balance", 0.0)),
+                    "saldo_bonificado": float(b_info.get("granted_balance", 0.0))
+                }
+    except Exception:
+        pass
+    return None

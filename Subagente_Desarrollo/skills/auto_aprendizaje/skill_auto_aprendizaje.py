@@ -212,7 +212,7 @@ Este playbook almacena la metodología exacta, arquitectura y código probado pa
 - **Ciberseguridad:** SAST aprobado, sanitización de entradas, cero secretos expuestos.
 
 ---
-**Pertenece a:** [[memoria]] · [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[memoria]]
 """
 
         ruta_archivo.write_text(contenido_md, encoding="utf-8")

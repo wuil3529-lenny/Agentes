@@ -117,4 +117,4 @@ tool_buscar_internet("open meteo api forecast parameters", max_results=3)
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

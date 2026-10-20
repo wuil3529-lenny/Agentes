@@ -1,13 +1,13 @@
 {
   "mes_activo": "2026-10",
-  "tokens": 18700727,
-  "costo": 2.671923,
+  "tokens": 33116783,
+  "costo": 0.600647,
   "bloqueado_por_presupuesto": false,
   "presupuesto_maximo": 5.0,
   "agentes": {
     "luffy": {
-      "tokens": 438175,
-      "costo": 0.062132
+      "tokens": 0,
+      "costo": 0.0
     },
     "zoro": {
       "tokens": 0,
@@ -26,12 +26,12 @@
       "costo": 0.0
     },
     "agente_orquestador": {
-      "tokens": 3332631,
-      "costo": 0.488724
+      "tokens": 15250442,
+      "costo": 0.330647
     },
     "subagente_desarrollo": {
-      "tokens": 15156675,
-      "costo": 2.152519
+      "tokens": 8045033,
+      "costo": 0.12
     },
     "subagente_diseno": {
       "tokens": 0,
@@ -42,14 +42,9 @@
       "costo": 0.0
     },
     "subagente_asistencia": {
-      "tokens": 211421,
-      "costo": 0.03068
+      "tokens": 9821308,
+      "costo": 0.15
     }
   },
-  "historial_meses": {
-    "2026-09": {
-      "costo": 0.321716,
-      "tokens": 2219241
-    }
-  }
+  "historial_meses": {}
 }

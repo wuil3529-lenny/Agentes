@@ -182,4 +182,15 @@ Si el Capitán detecta alguna irregularidad o término de contrato:
 3. **Monitoreo de Rotaciones:** En el panel de flotas registradas, verificar periódicamente el contador de rotaciones realizadas para confirmar que los nodos clientes renuevan sus tokens con normalidad.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+
+## 6. Monitoreo Autónomo y SOC del Dashboard (Integración con Robin)
+
+A partir de la modernización arquitectónica, el **Subagente de Ciberseguridad (Robin)** actúa como el analista de SOC (Security Operations Center) autónomo de la consola web:
+
+- **Inspección Forense Continua:** Robin tiene acceso directo al registro `dashboard/incidentes_seguridad.json` mediante `tool_consultar_incidentes_dashboard`, identificando picos de intentos fallidos, IPs atacantes y rutas rastreadas por atacantes.
+- **Gestión de Alarmas Perimetrales:** Cuando el cortafuegos bloquea una IP no autorizada y dispara la alarma del Dashboard (`ULTIMA_ALERTA_INTRUSION`), Robin verifica el estado con `tool_verificar_estado_alarma_dashboard` y, tras analizar la amenaza, puede silenciarla o purgar el historial justificadamente con `tool_gestionar_alarma_dashboard`.
+- **Auditoría de Postura Defensiva:** Con `tool_auditar_postura_dashboard`, Robin evalúa en tiempo real si `CONSOLE_AUTH_ACTIVE=true`, si la lista de `ALLOWED_IPS` está activa y si las credenciales en `usuarios.json` cumplen con hashes Bcrypt, asignando una puntuación defensiva de 0 a 100.
+- **Contención y Aislamiento de Amenazas:** Mediante `tool_bloquear_ip_dashboard`, Robin puede aislar inmediatamente cualquier IP agresora en el perímetro de la consola.
+
+---
+**Conexiones:** [[sistema]]

@@ -151,4 +151,4 @@ Tickets completados / en revisión: 1
 El Orquestador rechaza el ticket, devuelve el estado a `EN_PROGRESO` y le exige al subagente la entrega del archivo físico antes de autorizar el cierre.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

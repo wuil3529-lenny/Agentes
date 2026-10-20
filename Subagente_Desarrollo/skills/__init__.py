@@ -207,6 +207,12 @@ from .solicitar_soporte_pizarra.skill_solicitar_soporte_pizarra import (
     HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA,
 )
 
+# 22. Manos y Ojos (Navegación Web con Playwright y Control de PC con PyAutoGUI + Visión IA)
+from .manos_y_ojos import (
+    HERRAMIENTAS_MANOS_Y_OJOS,
+    obtener_prompt_manos_y_ojos,
+)
+
 # Catálogo completo de herramientas de desarrollo (sin duplicados)
 HERRAMIENTAS_DESARROLLO = (
     HERRAMIENTAS_BASE
@@ -230,6 +236,7 @@ HERRAMIENTAS_DESARROLLO = (
     + HERRAMIENTAS_BASES_DE_DATOS_SQL
     + HERRAMIENTAS_AUTO_APRENDIZAJE
     + HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA
+    + HERRAMIENTAS_MANOS_Y_OJOS
 )
 
 # Mapa consolidado de habilidades y sus metadatos
@@ -387,6 +394,17 @@ MAPA_HABILIDADES: Dict[str, Dict[str, Any]] = {
             "ayuda usuario", "necesito ayuda", "otro subagente"
         ]
     },
+    "manos_y_ojos": {
+        "nombre": "Manos y Ojos (Navegación Web con Playwright y Control PC)",
+        "prompt": obtener_prompt_manos_y_ojos,
+        "herramientas": HERRAMIENTAS_MANOS_Y_OJOS,
+        "keywords": [
+            "navegar", "navegador", "formulario", "rellenar", "web", "pagina", "página",
+            "pantalla", "captura", "screenshot", "clic", "click", "mouse", "teclado",
+            "abrir app", "abrir aplicacion", "abrir aplicación", "manos", "ojos", "vision",
+            "visión", "playwright", "pyautogui", "tool_navegar", "tool_capturar_pantalla"
+        ]
+    },
 }
 
 # Mapa de herramienta -> (nombre_habilidad, prompt_específico) (Inyección Nivel 2)
@@ -439,6 +457,7 @@ __all__ = [
     "HERRAMIENTAS_BASES_DE_DATOS_SQL",
     "HERRAMIENTAS_AUTO_APRENDIZAJE",
     "HERRAMIENTAS_SOLICITAR_SOPORTE_PIZARRA",
+    "HERRAMIENTAS_MANOS_Y_OJOS",
     "HERRAMIENTAS_DESARROLLO",
     # Mapeos e inyección dinámica
     "MAPA_HABILIDADES",

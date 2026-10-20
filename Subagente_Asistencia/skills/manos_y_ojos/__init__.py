@@ -1,0 +1,33 @@
+from Agente_Orquestador.skills.manos_y_ojos.skill_manos_y_ojos import (
+    HERRAMIENTAS_MANOS_Y_OJOS,
+    obtener_prompt_manos_y_ojos,
+    tool_navegar_web,
+    tool_rellenar_formulario_web,
+    tool_hacer_clic_web,
+    tool_extraer_informacion_web,
+    tool_capturar_pantalla_web,
+    tool_cerrar_navegador_web,
+    tool_capturar_pantalla_pc,
+    tool_analizar_pantalla_pc,
+    tool_hacer_clic_pc,
+    tool_escribir_teclado_pc,
+    tool_presionar_teclas_pc,
+    tool_abrir_aplicacion_pc,
+)
+
+__all__ = [
+    "HERRAMIENTAS_MANOS_Y_OJOS",
+    "obtener_prompt_manos_y_ojos",
+    "tool_navegar_web",
+    "tool_rellenar_formulario_web",
+    "tool_hacer_clic_web",
+    "tool_extraer_informacion_web",
+    "tool_capturar_pantalla_web",
+    "tool_cerrar_navegador_web",
+    "tool_capturar_pantalla_pc",
+    "tool_analizar_pantalla_pc",
+    "tool_hacer_clic_pc",
+    "tool_escribir_teclado_pc",
+    "tool_presionar_teclas_pc",
+    "tool_abrir_aplicacion_pc",
+]

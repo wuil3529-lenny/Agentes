@@ -123,4 +123,4 @@ tool_correo_consultar_detalle(
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

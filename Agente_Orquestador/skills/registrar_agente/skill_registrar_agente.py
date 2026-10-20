@@ -146,9 +146,46 @@ def escribir_archivo(ruta_relativa: str, contenido: str) -> str:
 
 @tool
 def ejecutar_comando(comando: str) -> str:
-    """Ejecuta un comando en la terminal local con timeout de 120s."""
+    """
+    Ejecuta un comando en la terminal local con timeout de 120s.
+
+    SEC-H04: ejecución SIN shell intermedio (`shell=False`) sobre una lista de
+    argumentos tokenizada con `shlex.split()`. Los operadores de shell
+    (`&&`, `||`, `;`, `|`, `>`, `$()`, backticks) son rechazados para impedir
+    inyección de comandos (RCE).
+    """
+    import shlex
+
+    _OPERADORES_PROHIBIDOS = ("&&", "||", ";", "|", "`", "$(", "${{", ">", "<", "&>", ">>")
+    _BINARIOS_PERMITIDOS = {{
+        "python", "python3", "pip", "pip3", "node", "npm", "npx",
+        "git", "docker", "ls", "dir", "cat", "type", "mkdir", "echo",
+        "grep", "find", "rg", "findstr"
+    }}
+
     try:
-        res = subprocess.run(comando, shell=True, capture_output=True, text=True, timeout=120)
+        if not isinstance(comando, str) or not comando.strip():
+            return "Error: comando vacío o inválido."
+
+        for op in _OPERADORES_PROHIBIDOS:
+            if op in comando:
+                return f"Error de Seguridad [SEC-H04]: operador de shell '{{op}}' no permitido."
+
+        try:
+            argv = shlex.split(comando, posix=True)
+        except ValueError as e:
+            return f"Error de Seguridad [SEC-H04]: comando no tokenizable: {{e}}"
+
+        if not argv:
+            return "Error: comando vacío tras tokenizar."
+
+        binario = Path(argv[0]).name.lower()
+        if binario.endswith(".exe"):
+            binario = binario[:-4]
+        if binario not in _BINARIOS_PERMITIDOS:
+            return f"Error de Seguridad [SEC-H04]: binario '{{binario}}' no autorizado."
+
+        res = subprocess.run(argv, shell=False, capture_output=True, text=True, timeout=120)
         return f"Exit: {{res.returncode}}\\nStdout: {{res.stdout}}\\nStderr: {{res.stderr}}"
     except Exception as e:
         return f"Error ejecutando comando: {{e}}"

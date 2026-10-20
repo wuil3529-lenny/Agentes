@@ -32,6 +32,24 @@ AGENTES_DIR = BASE_DIR.parent
 LUFFY_DIR = AGENTES_DIR / "Agente_Orquestador"
 AGENTE_ORQUESTADOR_DIR = LUFFY_DIR
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(AGENTES_DIR / ".env")
+except Exception:
+    pass
+
+import sys
+if str(LUFFY_DIR) not in sys.path:
+    sys.path.insert(0, str(LUFFY_DIR))
+if str(LUFFY_DIR / "skills") not in sys.path:
+    sys.path.insert(0, str(LUFFY_DIR / "skills"))
+from identidad_agentes import (
+    obtener_identidades_agentes,
+    mapear_responsable_a_canonico,
+    obtener_nombre_display,
+    actualizar_nombre_asignado_en_md
+)
+
 # Montar archivos estáticos
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
@@ -123,8 +141,12 @@ async def ip_whitelist_middleware(request: Request, call_next):
         if forwarded:
             client_ip = forwarded.split(",")[0].strip()
 
-        # Siempre permitir localhost y loopback
-        is_allowed = client_ip in ["127.0.0.1", "::1", "localhost", "testclient"]
+        # Siempre permitir localhost, loopback y contenedor Docker local
+        is_allowed = (
+            client_ip in ["127.0.0.1", "::1", "localhost", "testclient"]
+            or client_ip.startswith("172.")
+            or client_ip.startswith("192.168.65.")
+        )
 
         if not is_allowed:
             rules = [r.strip() for r in allowed_ips_raw.split(",") if r.strip()]
@@ -185,6 +207,7 @@ async def ip_whitelist_middleware(request: Request, call_next):
     return await call_next(request)
 
 from pydantic import BaseModel
+import shlex
 import subprocess
 import os
 
@@ -572,6 +595,9 @@ async def auth_status():
 class ChatMessage(BaseModel):
     texto: str
     modo: str = "auto"
+    es_nota_voz: bool = False
+    usar_cornetas: bool = False
+    audio_url: str = ""
 
 class ModeConfig(BaseModel):
     modo: str
@@ -596,7 +622,7 @@ async def set_modo(cfg: ModeConfig):
 # -----------------------------------------------------------------------------
 # GESTIÓN DE SESIONES Y CANALES AISLADOS DE CONVERSACIÓN
 # -----------------------------------------------------------------------------
-CANALES_DIR = AGENTES_DIR / "memoria" / "canales"
+CANALES_DIR = BASE_DIR / "canales"
 CANALES_DIR.mkdir(parents=True, exist_ok=True)
 SESIONES_INDEX_PATH = CANALES_DIR / "sesiones_index.json"
 
@@ -802,6 +828,130 @@ async def api_eliminar_sesion_chat(sesion_id: str):
     guardar_sesiones_index(nuevas_sesiones)
     return {"status": "ok", "sesiones": nuevas_sesiones}
 
+
+@app.post("/api/chat/limpiar")
+async def api_limpiar_chat_activo():
+    """Limpia físicamente el canal de usuario y la sesión activa para arrancar una tarea desde cero."""
+    canal_path = BASE_DIR / "canal_usuario.json"
+    canal_path.write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+    try:
+        sesiones = cargar_sesiones_index()
+        for s in sesiones:
+            if s.get("activo"):
+                s["total_mensajes"] = 0
+                s["titulo"] = "Nueva Asignación"
+                s["actualizado"] = datetime.now().isoformat()
+                (CANALES_DIR / f"{s['id']}.json").write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+        guardar_sesiones_index(sesiones)
+    except Exception as e_c:
+        print(f"Error limpiando sesiones en api_limpiar_chat_activo: {e_c}")
+    return {"status": "ok", "message": "Historial purgado con éxito. Iniciando nueva tarea.", "mensajes": []}
+
+def _normalizar_para_anti_eco(txt: str) -> str:
+    import unicodedata
+    import re
+    s = unicodedata.normalize("NFD", str(txt or "").lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    s = re.sub(r"[^a-z0-9\s]", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _es_eco_acustico_cornetas(msg: ChatMessage, mensajes_existentes: list) -> bool:
+    """
+    Detecta si un mensaje entrante de voz (`es_nota_voz` sin `audio_url` grabado, es decir,
+    proveniente de `SpeechRecognition` en vivo) es en realidad el micrófono captando la voz
+    del Agente Orquestador saliendo por las cornetas físicas de la PC.
+    """
+    # Solo filtrar transcripciones automáticas del micrófono en vivo (no texto tipeado ni audio grabado explícitamente con botón)
+    if not (msg.es_nota_voz or msg.usar_cornetas):
+        return False
+
+    # 1. Verificar si el agente está procesando o si las cornetas físicas están hablando (Walkie-Talkie Lock)
+    estado_voz_path = BASE_DIR / "estado_voz.json"
+    if estado_voz_path.exists():
+        try:
+            est_voz = json.loads(estado_voz_path.read_text(encoding="utf-8"))
+            ahora = time.time()
+            procesando = bool(est_voz.get("agente_procesando", False))
+            inicio_proc = float(est_voz.get("inicio_proceso_ts", 0))
+            if procesando and (ahora - inicio_proc) < 120:
+                print(f"[Walkie-Talkie Lock] Ignorando audio entrante mientras el agente está procesando: '{msg.texto[:60]}'")
+                return True
+
+            hablando = bool(est_voz.get("hablando_en_cornetas", False))
+            try:
+                import pygame
+                if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+                    hablando = True
+            except Exception:
+                pass
+
+            inicio_ts = float(est_voz.get("inicio_cornetas_ts", 0))
+            fin_ts = float(est_voz.get("fin_cornetas_ts", 0))
+            # Respetar duración real del audio (hasta 180s en lugar del tope artificial de 45s)
+            if hablando and (ahora - inicio_ts) < 180:
+                print(f"[Anti-Eco] Ignorando transcripción mientras las cornetas están activas: '{msg.texto[:60]}'")
+                return True
+            if fin_ts > 0 and (ahora - fin_ts) < 2.5:
+                print(f"[Anti-Eco] Ignorando transcripción en cola acústica post-cornetas ({ahora - fin_ts:.1f}s): '{msg.texto[:60]}'")
+                return True
+        except Exception:
+            pass
+
+    # 2. Solo verificar coincidencia textual si estamos en la ventana inmediata post-audio (< 5s post-cornetas)
+    fin_ts = float(est_voz.get("fin_cornetas_ts", 0)) if estado_voz_path.exists() else 0
+    en_ventana_post_audio = (fin_ts > 0) and ((time.time() - fin_ts) < 5.0)
+
+    if en_ventana_post_audio:
+        cand = _normalizar_para_anti_eco(msg.texto)
+        if not cand:
+            return True
+
+        frases_propias_orquestador = [
+            "hola capitan",
+            "aqui luffy",
+            "pizarra limpia",
+            "tickets a ciegas",
+            "alcanzo a leer",
+            "opciones mas probables",
+            "llegaron fragmentados",
+            "llegaron cortados",
+            "dime en una frase clara",
+            "estructuramos de inmediato",
+            "problema de envio o conexion",
+            "parece que querias pedirme",
+            "necesito que me aclares",
+        ]
+        for fp in frases_propias_orquestador:
+            if fp in cand:
+                print(f"[Anti-Eco] Ignorando eco acústico por frase propia del Orquestador ('{fp}'): '{msg.texto[:60]}'")
+                return True
+
+        # Comparar contra los últimos 3 mensajes del Agente_Orquestador
+        ultimos_agente = [
+            m for m in reversed(mensajes_existentes)
+            if m.get("de") in ("Agente_Orquestador", "Luffy")
+        ][:3]
+        palabras_cand = [w for w in cand.split() if len(w) > 2]
+        for m_ag in ultimos_agente:
+            cont = m_ag.get("contenido", {})
+            txt_ag = cont.get("texto", "") if isinstance(cont, dict) else str(cont)
+            norm_ag = _normalizar_para_anti_eco(txt_ag)
+            if not norm_ag:
+                continue
+            if len(cand) >= 12 and cand in norm_ag:
+                print(f"[Anti-Eco] Ignorando substring exacto de respuesta del Orquestador: '{msg.texto[:60]}'")
+                return True
+            if len(palabras_cand) >= 4:
+                set_ag = set(norm_ag.split())
+                coincidencias = sum(1 for w in palabras_cand if w in set_ag)
+                if (coincidencias / len(palabras_cand)) >= 0.72:
+                    print(f"[Anti-Eco] Ignorando alta superposición léxica ({coincidencias}/{len(palabras_cand)}) con respuesta del Orquestador: '{msg.texto[:60]}'")
+                    return True
+
+    return False
+
+
 @app.post("/api/chat")
 async def send_chat(msg: ChatMessage):
     import datetime
@@ -822,6 +972,10 @@ async def send_chat(msg: ChatMessage):
     else:
         mensajes = []
 
+    # Filtro Anti-Eco Acústico (Half-Duplex): evita que las cornetas se retroalimenten por el micrófono
+    if _es_eco_acustico_cornetas(msg, mensajes):
+        return {"status": "ignored_echo", "mensajes": mensajes}
+
     # Guardar modo activo seleccionado
     if msg.modo:
         modo_path = BASE_DIR / "modo_agente.json"
@@ -830,17 +984,26 @@ async def send_chat(msg: ChatMessage):
         except Exception:
             pass
 
-    msg_id = f"msg-{len(mensajes) + 1:03d}"
+    msg_id = f"msg-{int(time.time() * 1000)}"
+    nombre_lider = obtener_nombre_display("Agente_Orquestador")
+    contenido_payload = {"texto": msg.texto}
+    if msg.es_nota_voz:
+        contenido_payload["es_nota_voz"] = True
+    if msg.usar_cornetas:
+        contenido_payload["usar_cornetas"] = True
+    if msg.audio_url:
+        contenido_payload["audio_url"] = msg.audio_url
+
     nuevo_msg = {
         "id": msg_id,
         "timestamp": datetime.datetime.now().isoformat(),
         "de": "usuario",
-        "para": "Luffy",
-        "tipo": "mensaje_dashboard",
+        "para": nombre_lider,
+        "tipo": "nota_voz_dashboard" if msg.es_nota_voz else "mensaje_dashboard",
         "modo": msg.modo,
         "estado": "enviado",
         "leido_por": ["usuario"],
-        "contenido": {"texto": msg.texto}
+        "contenido": contenido_payload
     }
     mensajes.append(nuevo_msg)
     
@@ -866,9 +1029,481 @@ async def send_chat(msg: ChatMessage):
     except Exception as e_s:
         print(f"Error sincronizando sesion activa en send_chat: {e_s}")
         
-    return {"status": "ok", "mensaje": nuevo_msg}
+    return {"status": "ok", "mensaje": nuevo_msg, "mensajes": mensajes}
+
+
+# -----------------------------------------------------------------------------
+# SISTEMA DE VOZ, MICRÓFONO, CORNETAS Y NOTAS DE VOZ EN CONSOLA
+# -----------------------------------------------------------------------------
+_VOZ_SKILLS_PATH = AGENTE_ORQUESTADOR_DIR / "skills"
+if str(_VOZ_SKILLS_PATH) not in sys.path:
+    sys.path.insert(0, str(_VOZ_SKILLS_PATH))
+
+
+class EstadoVozPayload(BaseModel):
+    cornetas_activas: Optional[bool] = None
+    auto_nota_voz: Optional[bool] = None
+
+
+class NotaVozConsolaPayload(BaseModel):
+    audio_base64: Optional[str] = ""
+    ext: str = "webm"
+    usar_microfono_pc: bool = False
+    usar_cornetas: bool = True
+    enviar_a_telegram: bool = False
+    modo: str = "auto"
+
+
+class HablarCornetasPayload(BaseModel):
+    texto: str
+    reproducir_cornetas_pc: bool = True
+    enviar_a_telegram: bool = False
+
+
+@app.get("/api/voz/estado")
+async def api_get_estado_voz():
+    try:
+        from voz.skill_voz import obtener_estado_voz
+        return {"status": "ok", "estado": obtener_estado_voz()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/voz/estado")
+async def api_set_estado_voz(payload: EstadoVozPayload):
+    try:
+        from voz.skill_voz import guardar_estado_voz, detener_cornetas_pc
+        if payload.cornetas_activas is False or payload.auto_nota_voz is False:
+            detener_cornetas_pc()
+        nuevo = guardar_estado_voz(
+            cornetas_activas=payload.cornetas_activas,
+            auto_nota_voz=payload.auto_nota_voz,
+        )
+        return {"status": "ok", "estado": nuevo}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/voz/nota-voz")
+async def api_recibir_nota_voz_consola(payload: NotaVozConsolaPayload):
+    """
+    Recibe una nota de voz desde la consola (grabada en el navegador como base64 o capturada
+    directamente por el micrófono físico de la PC), la transcribe a texto, la publica en el chat
+    con su reproductor de audio y despierta al Agente_Orquestador para que responda por voz.
+    """
+    import base64
+    from voz.skill_voz import transcribir_archivo_audio, escuchar_microfono_pc
+
+    notas_dir = BASE_DIR / "static" / "notas_voz"
+    notas_dir.mkdir(parents=True, exist_ok=True)
+
+    texto_transcrito = ""
+    audio_url_usuario = ""
+
+    if payload.usar_microfono_pc or not payload.audio_base64:
+        loop = asyncio.get_running_loop()
+        res_mic = await loop.run_in_executor(None, escuchar_microfono_pc, 12)
+        if res_mic.get("status") != "success":
+            return JSONResponse(status_code=400, content={"status": "error", "message": res_mic.get("mensaje", "No se detectó voz en el micrófono.")})
+        texto_transcrito = res_mic.get("texto", "").strip()
+        audio_url_usuario = res_mic.get("audio_url_usuario", "")
+    else:
+        raw_b64 = payload.audio_base64.strip()
+        if "," in raw_b64:
+            raw_b64 = raw_b64.split(",", 1)[1]
+        audio_bytes = base64.b64decode(raw_b64)
+        ext_clean = re.sub(r"[^a-z0-9]", "", payload.ext.lower()) or "webm"
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:19]
+        archivo_usr = notas_dir / f"usr_consola_{ts}.{ext_clean}"
+        archivo_usr.write_bytes(audio_bytes)
+        audio_url_usuario = f"/static/notas_voz/{archivo_usr.name}"
+
+        loop = asyncio.get_running_loop()
+        res_stt = await loop.run_in_executor(None, transcribir_archivo_audio, archivo_usr)
+        texto_transcrito = res_stt.get("texto", "").strip()
+        if not texto_transcrito:
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": res_stt.get("mensaje", "No se pudo transcribir la nota de voz."), "audio_url": audio_url_usuario},
+            )
+
+    chat_msg = ChatMessage(
+        texto=texto_transcrito,
+        modo=payload.modo,
+        es_nota_voz=True,
+        usar_cornetas=payload.usar_cornetas,
+        audio_url=audio_url_usuario,
+    )
+    res_chat = await send_chat(chat_msg)
+    return {
+        "status": "ok",
+        "texto_transcrito": texto_transcrito,
+        "audio_url": audio_url_usuario,
+        "mensaje": res_chat.get("mensaje"),
+        "mensajes": res_chat.get("mensajes", []),
+    }
+
+
+@app.post("/api/voz/hablar")
+async def api_hablar_cornetas_o_nota(payload: HablarCornetasPayload):
+    """
+    Sintetiza el texto en voz del Agente Orquestador, devuelve el audio_url para la Consola,
+    lo reproduce por las cornetas de la computadora si `reproducir_cornetas_pc=True`,
+    y opcionalmente lo envía como nota de voz a Telegram.
+    """
+    from voz.skill_voz import generar_audio_voz, reproducir_archivo_en_cornetas
+
+    loop = asyncio.get_running_loop()
+    ruta_mp3 = await loop.run_in_executor(None, generar_audio_voz, payload.texto, "mp3")
+    if not ruta_mp3 or not Path(ruta_mp3).exists():
+        return JSONResponse(status_code=500, content={"status": "error", "message": "No se pudo sintetizar la voz."})
+
+    audio_url = f"/static/notas_voz/{Path(ruta_mp3).name}"
+
+    if payload.reproducir_cornetas_pc:
+        reproducir_archivo_en_cornetas(Path(ruta_mp3), bloquear=False)
+
+    if payload.enviar_a_telegram:
+        from telegram_bridge import enviar_nota_voz_telegram
+        await loop.run_in_executor(
+            None,
+            enviar_nota_voz_telegram,
+            str(ruta_mp3),
+            payload.texto[:900],
+            "Agente_Orquestador",
+            False,
+        )
+
+    return {"status": "ok", "audio_url": audio_url}
+
+
+class HostSintetizarPayload(BaseModel):
+    texto: str
+    formato: str = "mp3"
+    nombre_archivo: Optional[str] = None
+    voz: Optional[str] = None
+
+
+class HostReproducirPayload(BaseModel):
+    archivo: str
+    bloquear: bool = False
+
+
+class HostTranscribirPayload(BaseModel):
+    archivo: str
+    idioma: str = "es-ES"
+
+
+class HostMicrofonoPayload(BaseModel):
+    duracion_max_segundos: int = 12
+    umbral_silencio_segundos: float = 1.8
+    idioma: str = "es-ES"
+
+
+@app.post("/api/voz/sintetizar-host")
+async def api_voz_sintetizar_host(payload: HostSintetizarPayload):
+    from voz.skill_voz import generar_audio_voz
+    loop = asyncio.get_running_loop()
+    ruta = await loop.run_in_executor(
+        None,
+        generar_audio_voz,
+        payload.texto,
+        payload.formato,
+        payload.nombre_archivo,
+        payload.voz,
+    )
+    if not ruta or not Path(ruta).exists():
+        return JSONResponse(status_code=500, content={"status": "error", "message": "No se pudo sintetizar audio en host."})
+    return {
+        "status": "ok",
+        "filename": Path(ruta).name,
+        "audio_url": f"/static/notas_voz/{Path(ruta).name}",
+    }
+
+
+@app.post("/api/voz/reproducir-host")
+async def api_voz_reproducir_host(payload: HostReproducirPayload):
+    from voz.skill_voz import reproducir_archivo_en_cornetas
+    notas_dir = BASE_DIR / "static" / "notas_voz"
+    ruta = notas_dir / Path(payload.archivo).name
+    if not ruta.exists():
+        return JSONResponse(status_code=404, content={"status": "error", "message": f"Archivo {payload.archivo} no encontrado en host."})
+    loop = asyncio.get_running_loop()
+    ok = await loop.run_in_executor(None, reproducir_archivo_en_cornetas, ruta, payload.bloquear)
+    return {"status": "ok" if ok else "error", "reproducido": ok}
+
+
+@app.post("/api/voz/transcribir-host")
+async def api_voz_transcribir_host(payload: HostTranscribirPayload):
+    from voz.skill_voz import transcribir_archivo_audio
+    notas_dir = BASE_DIR / "static" / "notas_voz"
+    ruta = notas_dir / Path(payload.archivo).name
+    if not ruta.exists():
+        return JSONResponse(status_code=404, content={"status": "error", "texto": "", "mensaje": f"Archivo {payload.archivo} no encontrado en host."})
+    loop = asyncio.get_running_loop()
+    res = await loop.run_in_executor(None, transcribir_archivo_audio, ruta, payload.idioma)
+    return res
+
+
+@app.post("/api/voz/microfono-host")
+async def api_voz_microfono_host(payload: HostMicrofonoPayload):
+    from voz.skill_voz import escuchar_microfono_pc
+    loop = asyncio.get_running_loop()
+    res = await loop.run_in_executor(
+        None,
+        escuchar_microfono_pc,
+        payload.duracion_max_segundos,
+        payload.umbral_silencio_segundos,
+        payload.idioma,
+    )
+    return res
+
+
+# ==============================================================================
+# PUENTE MANOS Y OJOS (AUTOMATIZACIÓN WEB Y CONTROL DE PC)
+# ==============================================================================
+
+class HostNavegarWebPayload(BaseModel):
+    url: str
+    visible: bool = True
+
+class HostRellenarFormularioPayload(BaseModel):
+    campos: Dict[str, Any]
+    selector_envio: Optional[str] = None
+
+class HostClicWebPayload(BaseModel):
+    selector_o_texto: str
+
+class HostExtraerWebPayload(BaseModel):
+    selector: Optional[str] = None
+
+class HostClicPCPayload(BaseModel):
+    x: int
+    y: int
+    tipo: str = "izquierdo"
+    doble: bool = False
+
+class HostEscribirPCPayload(BaseModel):
+    texto: str
+    enter: bool = False
+
+class HostTeclaPCPayload(BaseModel):
+    combinacion: str
+
+class HostAppPCPayload(BaseModel):
+    comando: str
+
+class HostAnalizarPCPayload(BaseModel):
+    instruccion: str = "¿Qué elementos o ventanas se ven en la pantalla?"
+    ruta_imagen: Optional[str] = None
+
+class HostControlarMediaPayload(BaseModel):
+    accion: str = "reproducir"
+
+class HostGestionarPestanasPayload(BaseModel):
+    accion: str = "listar"
+    url: Optional[str] = ""
+    indice: Optional[int] = 0
+
+class HostGestionarVentanasPayload(BaseModel):
+    accion: str = "listar"
+    titulo_o_proceso: Optional[str] = ""
+
+
+@app.get("/health")
+@app.get("/api/health")
+@app.get("/api/estado")
+@app.get("/api/manos_ojos/estado")
+async def api_manos_ojos_estado():
+    return {
+        "status": "ok",
+        "servicio": "Puente Manos y Ojos",
+        "activo": True,
+        "sistema": sys.platform,
+        "puerto": 8000
+    }
+
+
+@app.get("/api/costos/deepseek-balance")
+async def api_deepseek_balance():
+    try:
+        from costos_tracker import consultar_saldo_real_deepseek
+        saldo = consultar_saldo_real_deepseek()
+        if saldo:
+            return {"status": "ok", "balance": saldo}
+        return {"status": "error", "mensaje": "No se pudo obtener el saldo de DeepSeek."}
+    except Exception as e:
+        return {"status": "error", "mensaje": str(e)}
+
+
+@app.post("/api/manos_ojos/web/navegar")
+async def api_manos_ojos_web_navegar(payload: HostNavegarWebPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.navegar, payload.url, payload.visible)
+
+@app.post("/api/manos_ojos/web/rellenar")
+async def api_manos_ojos_web_rellenar(payload: HostRellenarFormularioPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(None, gestor.rellenar_formulario, payload.campos, payload.selector_envio)
+    except Exception as e:
+        return {"status": "error", "mensaje": f"Error en puente al rellenar formulario: {str(e)}"}
+
+@app.post("/api/manos_ojos/web/clic")
+async def api_manos_ojos_web_clic(payload: HostClicWebPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.hacer_clic, payload.selector_o_texto)
+
+@app.post("/api/manos_ojos/web/extraer")
+async def api_manos_ojos_web_extraer(payload: HostExtraerWebPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.extraer_contenido, payload.selector)
+
+@app.post("/api/manos_ojos/web/capturar")
+async def api_manos_ojos_web_capturar():
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.capturar_pantalla)
+
+@app.post("/api/manos_ojos/web/cerrar")
+async def api_manos_ojos_web_cerrar():
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.cerrar)
+
+@app.post("/api/manos_ojos/pc/capturar")
+async def api_manos_ojos_pc_capturar():
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.capturar_pantalla_pc)
+
+@app.post("/api/manos_ojos/pc/analizar")
+async def api_manos_ojos_pc_analizar(payload: HostAnalizarPCPayload):
+    from puente_manos_ojos import GestorVisionIA
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorVisionIA.analizar_pantalla, payload.instruccion, payload.ruta_imagen)
+
+@app.post("/api/manos_ojos/pc/clic")
+async def api_manos_ojos_pc_clic(payload: HostClicPCPayload):
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.clic_pantalla, payload.x, payload.y, payload.tipo, payload.doble)
+
+@app.post("/api/manos_ojos/pc/escribir")
+async def api_manos_ojos_pc_escribir(payload: HostEscribirPCPayload):
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.escribir_texto, payload.texto, payload.enter)
+
+@app.post("/api/manos_ojos/pc/tecla")
+async def api_manos_ojos_pc_tecla(payload: HostTeclaPCPayload):
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.presionar_tecla, payload.combinacion)
+
+@app.post("/api/manos_ojos/pc/app")
+async def api_manos_ojos_pc_app(payload: HostAppPCPayload):
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.abrir_aplicacion, payload.comando)
+
+@app.post("/api/manos_ojos/web/media")
+async def api_manos_ojos_web_media(payload: HostControlarMediaPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.controlar_media, payload.accion)
+
+@app.post("/api/manos_ojos/web/pestanas")
+async def api_manos_ojos_web_pestanas(payload: HostGestionarPestanasPayload):
+    from puente_manos_ojos import GestorNavegadorWeb
+    gestor = GestorNavegadorWeb.obtener_instancia()
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, gestor.gestionar_pestanas, payload.accion, payload.url or "", payload.indice or 0)
+
+@app.post("/api/manos_ojos/pc/ventanas")
+async def api_manos_ojos_pc_ventanas(payload: HostGestionarVentanasPayload):
+    from puente_manos_ojos import GestorControlEscritorio
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, GestorControlEscritorio.gestionar_ventanas, payload.accion, payload.titulo_o_proceso or "")
+
+
+class HostEjecutarProcedimientoPayload(BaseModel):
+    parametros: Optional[Dict[str, Any]] = None
+
+
+@app.get("/api/procedimientos")
+async def api_listar_procedimientos():
+    """Lista todos los procedimientos y recetas aprendidas por la flota."""
+    try:
+        sys_path_agente = str(AGENTES_DIR / "Agente_Orquestador")
+        if sys_path_agente not in sys.path:
+            sys.path.insert(0, sys_path_agente)
+        from skills.auto_aprendizaje.gestor_procedimientos import _cargar_catalogo_procedimientos
+        catalogo = _cargar_catalogo_procedimientos()
+        procs = list(catalogo.get("procedimientos", {}).values())
+        return {"status": "ok", "total": len(procs), "procedimientos": procs}
+    except Exception as e:
+        return {"status": "error", "mensaje": str(e)}
+
+
+@app.get("/api/procedimientos/sesion_activa")
+async def api_sesion_aprendizaje_activa():
+    """Verifica si hay una sesión interactiva de grabación/aprendizaje en progreso."""
+    try:
+        ses_file = AGENTES_DIR / "memoria" / "sesion_aprendizaje_activa.json"
+        if ses_file.exists():
+            return {"status": "ok", "activa": True, "sesion": json.loads(ses_file.read_text(encoding="utf-8"))}
+        return {"status": "ok", "activa": False, "sesion": None}
+    except Exception as e:
+        return {"status": "error", "mensaje": str(e)}
+
+
+@app.post("/api/procedimientos/{proc_id}/ejecutar")
+async def api_ejecutar_procedimiento(proc_id: str, payload: Optional[HostEjecutarProcedimientoPayload] = None):
+    """Ejecuta autónomamente una tarea o procedimiento aprendido en la PC/navegador."""
+    try:
+        sys_path_agente = str(AGENTES_DIR / "Agente_Orquestador")
+        if sys_path_agente not in sys.path:
+            sys.path.insert(0, sys_path_agente)
+        from skills.auto_aprendizaje.gestor_procedimientos import buscar_procedimiento_en_catalogo, ejecutar_procedimiento_en_sistema
+        proc = buscar_procedimiento_en_catalogo(proc_id)
+        if not proc:
+            return JSONResponse(status_code=404, content={"status": "error", "mensaje": f"Procedimiento '{proc_id}' no encontrado"})
+        vars_usr = payload.parametros if payload and payload.parametros else {}
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(None, ejecutar_procedimiento_en_sistema, proc, vars_usr)
+        return res
+    except Exception as e:
+        return {"status": "error", "mensaje": str(e)}
+
+
+@app.delete("/api/procedimientos/{proc_id}")
+async def api_eliminar_procedimiento(proc_id: str):
+    """Elimina una tarea aprendida de la memoria."""
+    try:
+        sys_path_agente = str(AGENTES_DIR / "Agente_Orquestador")
+        if sys_path_agente not in sys.path:
+            sys.path.insert(0, sys_path_agente)
+        from skills.auto_aprendizaje.gestor_procedimientos import eliminar_procedimiento_de_catalogo
+        res = eliminar_procedimiento_de_catalogo(proc_id)
+        return res
+    except Exception as e:
+        return {"status": "error", "mensaje": str(e)}
+
 
 class EnvConfig(BaseModel):
+
     provider: str
     api_key: str
     model: str
@@ -898,6 +1533,26 @@ def obtener_modelos_agentes():
     agentes = ["luffy", "zoro", "sanji", "robin", "nami"]
     return {ag: agent_models.get(ag, default_model) for ag in agentes}
 
+class RenombrarAgentePayload(BaseModel):
+    slot_o_canonico: str
+    nuevo_nombre: str
+
+@app.get("/api/agentes/flota")
+async def obtener_flota_agentes():
+    identidades = obtener_identidades_agentes(AGENTES_DIR)
+    modelos = obtener_modelos_agentes()
+    for slot, data in identidades.items():
+        data["modelo"] = modelos.get(slot, "deepseek-chat")
+    return {"status": "ok", "agentes": identidades}
+
+@app.post("/api/agentes/renombrar")
+async def renombrar_agente(payload: RenombrarAgentePayload):
+    exito = actualizar_nombre_asignado_en_md(payload.slot_o_canonico, payload.nuevo_nombre, AGENTES_DIR)
+    if exito:
+        return {"status": "ok", "message": f"Agente actualizado a '{payload.nuevo_nombre}' en su archivo Markdown"}
+    else:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "No se pudo actualizar el nombre del agente en Markdown"})
+
 class FullConfigPayload(BaseModel):
     keys: Optional[Dict[str, str]] = None
     base_urls: Optional[Dict[str, str]] = None
@@ -918,6 +1573,7 @@ async def read_env():
         "default_model": "deepseek-chat",
         "default_provider": "deepseek",
         "modelos": obtener_modelos_agentes(),
+        "identidades": obtener_identidades_agentes(AGENTES_DIR),
         "presupuesto_maximo": 10.0,
         "telegram": {"token": "", "chat_id": ""},
         "ollama": {"base_url": "http://localhost:11434", "model": "llama3"},
@@ -1387,7 +2043,12 @@ async def reset_costos():
             "zoro": {"tokens": 0, "costo": 0.0},
             "sanji": {"tokens": 0, "costo": 0.0},
             "robin": {"tokens": 0, "costo": 0.0},
-            "nami": {"tokens": 0, "costo": 0.0}
+            "nami": {"tokens": 0, "costo": 0.0},
+            "agente_orquestador": {"tokens": 0, "costo": 0.0},
+            "subagente_desarrollo": {"tokens": 0, "costo": 0.0},
+            "subagente_diseno": {"tokens": 0, "costo": 0.0},
+            "subagente_ciberseguridad": {"tokens": 0, "costo": 0.0},
+            "subagente_asistencia": {"tokens": 0, "costo": 0.0}
         },
         "historial_meses": {}
     }
@@ -1448,9 +2109,12 @@ async def restart_system():
     try:
         bat_path = AGENTES_DIR / "reiniciar_tripulacion.bat"
         if bat_path.exists():
-            subprocess.Popen([str(bat_path)], shell=True, cwd=str(AGENTES_DIR))
+            # H-04: ejecucion directa del script sin interprete de shell
+            subprocess.Popen([str(bat_path)], shell=False, cwd=str(AGENTES_DIR))
         else:
-            subprocess.Popen("docker compose down && docker compose up -d", shell=True, cwd=str(AGENTES_DIR))
+            # H-04: cadena de comandos docker sin shell (lista de argumentos)
+            subprocess.Popen(["docker", "compose", "down"], shell=False, cwd=str(AGENTES_DIR))
+            subprocess.Popen(["docker", "compose", "up", "-d"], shell=False, cwd=str(AGENTES_DIR))
         return {"status": "success", "message": "Ejecutando script de reinicio de contenedor Docker..."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -2043,14 +2707,9 @@ def check_procesos_tripulacion():
     return False
 
 def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> dict:
+    identidades = obtener_identidades_agentes(AGENTES_DIR)
     agentes = ["luffy", "zoro", "sanji", "robin", "nami"]
-    alias_map = {
-        "luffy": ["luffy", "agente_orquestador", "orquestador"],
-        "zoro": ["zoro", "subagente_desarrollo", "desarrollo"],
-        "sanji": ["sanji", "subagente_asistencia", "asistencia"],
-        "robin": ["robin", "subagente_ciberseguridad", "ciberseguridad"],
-        "nami": ["nami", "subagente_diseno", "diseno", "diseño"]
-    }
+    alias_map = {slot: identidades.get(slot, {}).get("aliases", [slot]) for slot in agentes}
     
     if not is_activo:
         return {ag: "off" for ag in agentes}
@@ -2336,142 +2995,214 @@ def limpiar_formato_md(txt: str) -> str:
 def extraer_id_y_titulo(titulo_raw: str):
     import re
     t_clean = limpiar_formato_md(titulo_raw)
-    m = re.match(r'^(TKT-[A-Z0-9\-]+)[:\s\-]+(.*)$', t_clean, re.IGNORECASE)
+    # Caso 1: TKT-XYZ: Titulo o TKT-XYZ — Titulo
+    m = re.match(r'^(TKT-[A-Z0-9_\-]+)\s*[:—–]\s*(.+)$', t_clean, re.IGNORECASE)
     if m:
         return m.group(1).upper().strip(), m.group(2).strip()
+    # Caso 2: TKT-XYZ Titulo (separado por espacio)
+    m = re.match(r'^(TKT-[A-Z0-9_\-]+)\s+(.+)$', t_clean, re.IGNORECASE)
+    if m:
+        return m.group(1).upper().strip(), m.group(2).strip()
+    # Caso 3: Toda la línea es el ID (ej: TKT-REC-VIGILANTED-001-C002)
+    m = re.match(r'^(TKT-[A-Z0-9_\-]+)$', t_clean, re.IGNORECASE)
+    if m:
+        return m.group(1).upper().strip(), ""
     return None, t_clean
+
+def parse_markdown_tickets(content: str, default_estado: str = "Pendiente"):
+    import re
+    blocks = re.split(r'\n##\s+', '\n' + content)
+    tickets = []
+    for block in blocks[1:]:
+        lines = block.split('\n')
+        t_id, titulo = extraer_id_y_titulo(lines[0])
+        responsable = "Luffy"
+        estado = default_estado
+        desc = ""
+        tarea_especifica = ""
+        criterios = ""
+        evidencia = ""
+        contexto = ""
+        fecha = ""
+        diagnostico = ""
+        pruebas = ""
+        historial_items = []
+        current_field = None
+        
+        for line in lines[1:]:
+            l_str = line.strip()
+            if not l_str:
+                continue
+            
+            # Reconocer campos de encabezado - **Campo:** Valor
+            m_field = re.match(r'^\s*[-*•]?\s*\*{0,2}([\w\s_áéíóúÁÉÍÓÚ]+?)\*{0,2}\s*:\s*(.*)$', l_str)
+            if m_field:
+                raw_fname = m_field.group(1).lower().replace(' ', '_').replace('ó', 'o').replace('í', 'i')
+                field_val = m_field.group(2).strip()
+                
+                if 'responsable' in raw_fname:
+                    responsable = limpiar_formato_md(field_val)
+                    current_field = 'responsable'
+                elif 'estado' in raw_fname:
+                    estado = limpiar_formato_md(field_val)
+                    current_field = 'estado'
+                elif 'fecha' in raw_fname:
+                    fecha = limpiar_formato_md(field_val)
+                    current_field = 'fecha'
+                elif any(k in raw_fname for k in ['descripcion', 'resumen', 'detalle']):
+                    desc = limpiar_formato_md(field_val)
+                    current_field = 'descripcion'
+                elif 'tarea' in raw_fname:
+                    tarea_especifica = limpiar_formato_md(field_val)
+                    current_field = 'tarea'
+                elif 'criterio' in raw_fname:
+                    criterios = limpiar_formato_md(field_val)
+                    current_field = 'criterios'
+                elif 'evidencia' in raw_fname:
+                    evidencia = limpiar_formato_md(field_val)
+                    current_field = 'evidencia'
+                elif 'contexto' in raw_fname:
+                    contexto = limpiar_formato_md(field_val)
+                    current_field = 'contexto'
+                elif 'diagnostico' in raw_fname:
+                    diagnostico = limpiar_formato_md(field_val)
+                    current_field = 'diagnostico'
+                elif 'prueba' in raw_fname:
+                    pruebas = limpiar_formato_md(field_val)
+                    current_field = 'pruebas'
+                elif 'historial' in raw_fname:
+                    if field_val:
+                        historial_items.append(limpiar_formato_md(field_val))
+                    current_field = 'historial'
+                elif 'datos_evento' in raw_fname:
+                    current_field = 'datos_evento'
+                else:
+                    current_field = 'otro'
+            else:
+                # Líneas de continuación
+                if current_field == 'historial':
+                    historial_items.append(limpiar_formato_md(l_str))
+                elif current_field == 'descripcion':
+                    if not desc:
+                        desc = limpiar_formato_md(l_str)
+                    elif len(desc) < 400:
+                        desc += " " + limpiar_formato_md(l_str)
+                elif current_field == 'tarea':
+                    if not tarea_especifica:
+                        tarea_especifica = limpiar_formato_md(l_str)
+                    elif len(tarea_especifica) < 400:
+                        tarea_especifica += " " + limpiar_formato_md(l_str)
+
+        # Filtrar secciones que no sean tickets
+        if not t_id and not desc and not tarea_especifica:
+            continue
+        if not t_id and "pizarra" in (titulo or "").lower():
+            continue
+        if not t_id and "historial" in (titulo or "").lower():
+            continue
+
+        # Mapeo de responsables por ID de ticket
+        if t_id and responsable.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI|DESARROLLO|ASISTENCIA|CIBERSEGURIDAD|DISENO)\b', t_id, re.IGNORECASE)
+            if m_ag:
+                ag_map = {
+                    "DESARROLLO": "Subagente_Desarrollo",
+                    "ZORO": "Subagente_Desarrollo",
+                    "ASISTENCIA": "Subagente_Asistencia",
+                    "SANJI": "Subagente_Asistencia",
+                    "CIBERSEGURIDAD": "Subagente_Ciberseguridad",
+                    "ROBIN": "Subagente_Ciberseguridad",
+                    "DISENO": "Subagente_Diseno",
+                    "NAMI": "Subagente_Diseno"
+                }
+                responsable = ag_map.get(m_ag.group(1).upper(), m_ag.group(1).capitalize())
+
+        # Título limpio y legible si no vino explícito
+        if not titulo or titulo == t_id:
+            source_text = tarea_especifica or desc
+            if source_text:
+                m_bracket = re.match(r'^(\[[^\]]+\])', source_text)
+                if m_bracket:
+                    titulo = m_bracket.group(1).strip()
+                else:
+                    first_sent = source_text.split('.')[0].strip()
+                    titulo = first_sent[:80] if first_sent else (t_id or "Tarea")
+            else:
+                titulo = t_id or "Tarea"
+
+        # Descripción concisa para la tarjeta (evitar volcados de código o JSON largo)
+        card_desc = desc or tarea_especifica or ("Ticket archivado en memoria." if default_estado == "Completado" else "Tarea en progreso...")
+        if "{" in card_desc and "}" in card_desc and ("correos" in card_desc or "uid" in card_desc or "total_nuevos" in card_desc):
+            card_desc = re.sub(r'\{.*\}', '[Datos de evento capturados]', card_desc)
+        if len(card_desc) > 220:
+            card_desc = card_desc[:217] + "..."
+
+        tickets.append({
+            "id": t_id or "TKT-GEN",
+            "titulo": titulo or t_id or "Tarea",
+            "descripcion": card_desc,
+            "descripcion_completa": desc or tarea_especifica or "",
+            "tarea": tarea_especifica,
+            "criterios": criterios,
+            "responsable": responsable,
+            "estado": estado,
+            "fecha": fecha,
+            "evidencia": evidencia,
+            "contexto": contexto,
+            "diagnostico": diagnostico,
+            "pruebas": pruebas,
+            "historial": historial_items,
+            "raw_block": block.strip()
+        })
+    return tickets
 
 def parse_bitacora(ruta):
     if not ruta.exists(): return []
-    content = ruta.read_text(encoding="utf-8")
-    import re
-    blocks = re.split(r'\n##\s+', '\n' + content)
-    tareas = []
-    for block in blocks[1:]:
-        lines = block.split('\n')
-        t_id, titulo = extraer_id_y_titulo(lines[0])
-        responsable = "Luffy"
-        estado = "Pendiente"
-        desc = ""
-        tarea_especifica = ""
-        criterios = ""
-        
-        for line in lines[1:]:
-            l_str = line.strip()
-            if not l_str:
-                continue
-            if re.search(r'\*{0,2}Responsable:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Responsable:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                responsable = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Estado:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Estado:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                estado = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Descripci[óo]n:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Descripci[óo]n:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                desc = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Tarea:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Tarea:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                tarea_especifica = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                criterios = limpiar_formato_md(val)
-        
-        # Si el responsable dice Luffy/Orquestador pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
-        if t_id and responsable.lower() in ["luffy", "agente_orquestador", "orquestador"]:
-            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI|DESARROLLO|ASISTENCIA|CIBERSEGURIDAD|DISENO)\b', t_id, re.IGNORECASE)
-            if m_ag:
-                ag_map = {
-                    "DESARROLLO": "Subagente_Desarrollo",
-                    "ZORO": "Subagente_Desarrollo",
-                    "ASISTENCIA": "Subagente_Asistencia",
-                    "SANJI": "Subagente_Asistencia",
-                    "CIBERSEGURIDAD": "Subagente_Ciberseguridad",
-                    "ROBIN": "Subagente_Ciberseguridad",
-                    "DISENO": "Subagente_Diseno",
-                    "NAMI": "Subagente_Diseno"
-                }
-                responsable = ag_map.get(m_ag.group(1).upper(), m_ag.group(1).capitalize())
-
-        tareas.append({
-            "id": t_id,
-            "titulo": titulo,
-            "descripcion": desc or tarea_especifica or "Tarea en progreso...",
-            "tarea": tarea_especifica,
-            "criterios": criterios,
-            "responsable": responsable,
-            "estado": estado
-        })
-    return tareas
+    return parse_markdown_tickets(ruta.read_text(encoding="utf-8"), default_estado="Pendiente")
 
 def parse_tickets_md(ruta):
     if not ruta.exists(): return []
-    content = ruta.read_text(encoding="utf-8")
-    tickets = []
-    import re
-    blocks = re.split(r'\n##\s+', '\n' + content)
-    for block in blocks[1:]:
-        lines = block.split('\n')
-        t_id, titulo = extraer_id_y_titulo(lines[0])
-        responsable = "Luffy"
-        estado = "Completado"
-        desc = ""
-        tarea_especifica = ""
-        criterios = ""
-        
-        for line in lines[1:]:
-            l_str = line.strip()
-            if not l_str:
-                continue
-            if re.search(r'\*{0,2}Responsable:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Responsable:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                responsable = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Estado:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Estado:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                estado = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Descripci[óo]n:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Descripci[óo]n:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                desc = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Tarea:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Tarea:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                tarea_especifica = limpiar_formato_md(val)
-            elif re.search(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, re.IGNORECASE):
-                val = re.split(r'\*{0,2}Criterios(?:\s+de\s+aceptaci[óo]n)?:\*{0,2}', l_str, flags=re.IGNORECASE)[-1]
-                criterios = limpiar_formato_md(val)
-        
-        # Ignorar encabezados que no sean tickets (ej: enlaces a memoria u Obsidian)
-        if not t_id and not desc and not tarea_especifica:
-            continue
-
-        # Si el responsable dice Luffy/Orquestador pero el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-...)
-        if t_id and responsable.lower() in ["luffy", "agente_orquestador", "orquestador"]:
-            m_ag = re.match(r'^TKT-(ZORO|SANJI|ROBIN|NAMI|DESARROLLO|ASISTENCIA|CIBERSEGURIDAD|DISENO)\b', t_id, re.IGNORECASE)
-            if m_ag:
-                ag_map = {
-                    "DESARROLLO": "Subagente_Desarrollo",
-                    "ZORO": "Subagente_Desarrollo",
-                    "ASISTENCIA": "Subagente_Asistencia",
-                    "SANJI": "Subagente_Asistencia",
-                    "CIBERSEGURIDAD": "Subagente_Ciberseguridad",
-                    "ROBIN": "Subagente_Ciberseguridad",
-                    "DISENO": "Subagente_Diseno",
-                    "NAMI": "Subagente_Diseno"
-                }
-                responsable = ag_map.get(m_ag.group(1).upper(), m_ag.group(1).capitalize())
-
-        tickets.append({
-            "id": t_id,
-            "titulo": titulo,
-            "descripcion": desc or tarea_especifica or "Ticket archivado en memoria.",
-            "tarea": tarea_especifica,
-            "criterios": criterios,
-            "responsable": responsable,
-            "estado": estado or "Completado"
-        })
-    return tickets
+    return parse_markdown_tickets(ruta.read_text(encoding="utf-8"), default_estado="Completado")
 
 TIEMPO_INICIO_CREW = None
 tiempo_acumulado_trabajo = 0.0
 ultimo_check_activo = time.time()
+_ULTIMO_PLAY_CORNETAS_ID = None
+
+
+def procesar_cola_voz_host():
+    """
+    Monitorea `dashboard/estado_voz.json` en el host Windows para reproducir inmediatamente
+    cualquier audio encolado por el Agente Orquestador desde el contenedor Docker en las
+    cornetas físicas de la PC.
+    """
+    global _ULTIMO_PLAY_CORNETAS_ID
+    estado_voz_path = BASE_DIR / "estado_voz.json"
+    if not estado_voz_path.exists():
+        return
+    try:
+        est = json.loads(estado_voz_path.read_text(encoding="utf-8"))
+        cola = est.get("cola_cornetas")
+        if isinstance(cola, dict):
+            play_id = cola.get("id")
+            archivo = cola.get("archivo")
+            ts = float(cola.get("timestamp", 0))
+            if play_id and play_id != _ULTIMO_PLAY_CORNETAS_ID and (time.time() - ts) < 180:
+                _ULTIMO_PLAY_CORNETAS_ID = play_id
+                ruta_audio = BASE_DIR / "static" / "notas_voz" / Path(archivo).name
+                if ruta_audio.exists():
+                    try:
+                        p_skills = str(AGENTES_DIR / "Agente_Orquestador" / "skills")
+                        if p_skills not in sys.path:
+                            sys.path.insert(0, p_skills)
+                        from voz.skill_voz import reproducir_archivo_en_cornetas
+                        print(f"[Puente Cornetas Host] 🔊 Reproduciendo en altavoces físicos: {ruta_audio.name}")
+                        reproducir_archivo_en_cornetas(ruta_audio, bloquear=False)
+                    except Exception as err_repro:
+                        print(f"[Puente Cornetas Host] Error en reproducción de audio: {err_repro}")
+    except Exception as e_proc:
+        print(f"[Puente Cornetas Host] Error leyendo cola de voz: {e_proc}")
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -2481,6 +3212,7 @@ async def websocket_endpoint(websocket: WebSocket):
         last_net = psutil.net_io_counters()
         
         while True:
+            procesar_cola_voz_host()
             # 1. Hardware metrics
             metrics = await obtener_metricas_sistema()
             
@@ -2569,6 +3301,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 "is_activo": is_activo
             }
             
+            estado_voz_path = BASE_DIR / "estado_voz.json"
+            estado_voz_actual = leer_archivo_json(estado_voz_path) if estado_voz_path.exists() else {}
+            if isinstance(estado_voz_actual, dict):
+                try:
+                    import pygame
+                    if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+                        estado_voz_actual["hablando_en_cornetas"] = True
+                except Exception:
+                    pass
+
             data = {
                 "type": "update",
                 "system": metrics,
@@ -2582,7 +3324,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 "estado_tripulacion": estado_tripulacion,
                 "tripulacion_activa": is_activo,
                 "modelos": obtener_modelos_agentes(),
+                "identidades": obtener_identidades_agentes(AGENTES_DIR),
                 "tiempo_trabajo": tiempo_trabajo,
+                "estado_voz": estado_voz_actual if isinstance(estado_voz_actual, dict) else {},
                 "flota_remota": obtener_estado_flota(is_activo, estado_tripulacion, pizarra, metrics, costos, logs),
                 "alerta_intrusion": ULTIMA_ALERTA_INTRUSION if (ULTIMA_ALERTA_INTRUSION and (time.time() - ULTIMA_ALERTA_INTRUSION.get("timestamp", 0) < 180)) else None,
                 "incidentes_seguridad": HISTORIAL_INTRUSIONES[:20],

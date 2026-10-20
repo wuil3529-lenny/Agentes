@@ -23,6 +23,11 @@ from dotenv import load_dotenv
 
 # ─── RAÍZ Y ENTORNO ──────────────────────────────────────────────────────────
 _APP_ROOT = Path(__file__).resolve().parents[1]
+_ORQUESTADOR_PATH = Path(__file__).resolve().parent
+for p in [str(_APP_ROOT), str(_ORQUESTADOR_PATH)]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 ROOT_ENV_PATH = _APP_ROOT / ".env"
 load_dotenv(dotenv_path=ROOT_ENV_PATH)
 
@@ -32,7 +37,7 @@ ARCHIVOS_TEMPORALES_DOCKER = "/app/Archivos_temporales"
 
 # Memoria compartida y perfiles
 MEMORIA_PATH = Path(
-    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / ".memoria_compartida"))
+    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / "memoria"))
 )
 _DIR_AGENTS = (Path(__file__).parent / "_agents") if (Path(__file__).parent / "_agents").exists() else (Path(__file__).parent / ".agents")
 AGENTE_MD_FILE = _DIR_AGENTS / "agente.md"
@@ -80,6 +85,14 @@ from memory import (
     registrar_bitacora,
     guardar_cerebro,
 )
+
+try:
+    from bucle_autocorreccion import interceptar_tool_call
+except Exception:
+    try:
+        from Agente_Orquestador.bucle_autocorreccion import interceptar_tool_call
+    except Exception:
+        interceptar_tool_call = None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # LLM FACTORY
@@ -184,15 +197,17 @@ def construir_prompt_supervisor(
         instruccion_modo = (
             "\n\n[MODO COMUNICACIÓN DIRECTA CON USUARIO]:\n"
             "1. Responde de forma clara, ejecutiva y natural. Si el usuario te llama por tu nombre asignado (ej. Luffy), responde bajo esa identidad.\n"
-            "2. Si es una orden de trabajo que requiere abrir tareas, genera el bloque de ticket en Markdown para la Bitácora (`## TKT-...`) con Estado: PENDIENTE y Responsable correspondiente.\n"
-            "3. Si la tarea entra dentro de tus propias herramientas, ejecútala directamente antes de responder."
+            "2. Si es una orden de trabajo puntual que requiere abrir tareas, genera el bloque de ticket en Markdown para la Bitácora (`## TKT-...`) con Estado: PENDIENTE y Responsable correspondiente.\n"
+            "3. Si el usuario solicita CUALQUIER TAREA REPETITIVA, REACTIVA POR EVENTO O DE MONITOREO (ej. cuando entre un correo nuevo catalogarlo, monitorear base de datos/API/archivos, o generar contenido periódico), PROHIBIDO programar despertares periódicos del LLM para consultar si hay cambios (desperdicio de tokens). Usa un GATILLO ZERO-TOKEN (`gatillo_correo`, `gatillo_sql`, `gatillo_archivo`, o crea un sensor a medida en Python puro con `tool_crear_gatillo_sensor_python` + `gatillo_script_python`) que vigile con 0 tokens y SOLO despierte al subagente cuando el evento real ocurra, o `reloj_programado` si es creación por horario fijo.\n"
+            "4. Si la tarea entra dentro de tus propias herramientas, ejecútala directamente antes de responder."
         )
     else:
         instruccion_modo = (
             "\n\n[MODO OPERACIÓN POR PIZARRA (BITACORA.MD)]:\n"
             "1. La Bitácora es la única fuente de verdad (SSOT). Toda delegación a subagentes se realiza modificando Bitacora.md.\n"
             "2. Toda finalización de tarea requiere evidencia física verificable en disco (Zero-Trust).\n"
-            "3. Al terminar tu turno, cede el control con el formato estructurado correspondiente."
+            "3. Para tickets disparados por gatillo o reloj (`TKT-REC-...`): si contiene un `[PIPELINE MULTI-AGENTE]` cuya etapa secundaria aún no se ha ejecutado, delega la siguiente etapa al subagente secundario con `Estado: PENDIENTE`. Al concluir, notifica por `tool_enviar_telegram` según la regla de notificación y cierra el ticket (`CERRADO`).\n"
+            "4. Al terminar tu turno, cede el control con el formato estructurado correspondiente."
         )
 
     system_prompt = "\n".join([prompt_base, bloque_agentes, instruccion_modo]).strip()
@@ -234,7 +249,48 @@ from crear_herramienta.skill_crear_herramienta import iniciar_creacion_skill, ob
 from auto_aprendizaje.skill_auto_aprendizaje import (
     tool_consultar_playbook_memoria,
     tool_registrar_playbook_memoria,
-    obtener_prompt_auto_aprendizaje
+    tool_iniciar_aprendizaje_tarea,
+    tool_registrar_paso_aprendizaje,
+    tool_finalizar_aprendizaje_tarea,
+    tool_guardar_procedimiento_aprendido,
+    tool_ejecutar_tarea_aprendida,
+    tool_listar_tareas_aprendidas,
+    tool_eliminar_tarea_aprendida,
+    obtener_prompt_auto_aprendizaje,
+    HERRAMIENTAS_PROCEDIMIENTOS
+)
+from tareas_programadas.skill_tareas_programadas import (
+    tool_crear_gatillo_sensor_python,
+    tool_programar_tarea_repetitiva,
+    tool_listar_tareas_repetitivas,
+    tool_modificar_estado_tarea_repetitiva,
+    obtener_prompt_tareas_programadas
+)
+from voz.skill_voz import (
+    tool_enviar_nota_voz,
+    tool_hablar_por_cornetas,
+    tool_escuchar_microfono,
+    obtener_prompt_voz,
+    escuchar_microfono_pc,
+    hablar_por_cornetas_pc,
+    obtener_estado_voz,
+    guardar_estado_voz,
+)
+from manos_y_ojos.skill_manos_y_ojos import (
+    HERRAMIENTAS_MANOS_Y_OJOS,
+    obtener_prompt_manos_y_ojos,
+)
+from grafo_obsidian.skill_grafo_obsidian import (
+    HERRAMIENTAS_GRAFO_OBSIDIAN,
+    obtener_prompt_grafo_obsidian,
+    tool_auditar_grafo_obsidian,
+    tool_sincronizar_grafo_canonico,
+    tool_capturar_verificar_grafo_obsidian,
+)
+from scout_laboral.skill_scout_laboral import (
+    tool_scout_laboral_multiplataforma,
+    tool_evaluar_compatibilidad_vacante,
+    obtener_prompt_scout_laboral,
 )
 
 @tool
@@ -311,7 +367,17 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_crear_skill_tripulacion,
     tool_consultar_playbook_memoria,
     tool_registrar_playbook_memoria,
-]
+    tool_crear_gatillo_sensor_python,
+    tool_programar_tarea_repetitiva,
+    tool_listar_tareas_repetitivas,
+    tool_modificar_estado_tarea_repetitiva,
+    tool_enviar_nota_voz,
+    tool_hablar_por_cornetas,
+    tool_escuchar_microfono,
+    tool_scout_laboral_multiplataforma,
+    tool_evaluar_compatibilidad_vacante,
+] + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # NODO DE EJECUCIÓN DEL AGENTE ORQUESTADOR (CON INYECCIÓN DINÁMICA DE PROMPTS)
@@ -412,15 +478,100 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
         except Exception as e:
             print(f"[Agente_Orquestador] Error al cargar prompt sentry: {e}")
 
-    # 6. Modo Auto-Aprendizaje y Playbooks
-    gatillos_auto_aprendizaje = ["playbook", "blueprint", "memoria procedural", "auto-aprendizaje", "autoaprendizaje", "one-shot", "receta", "aprender"]
+    # 6. Modo Auto-Aprendizaje, Playbooks y Repetición de Procedimientos Guiados
+    gatillos_auto_aprendizaje = [
+        "playbook", "blueprint", "memoria procedural", "auto-aprendizaje", "autoaprendizaje",
+        "one-shot", "receta", "aprender", "aprenda", "aprende", "te voy a enseñar", "enseñar",
+        "enseña", "paso a paso", "repite", "repetir", "repetirlo", "grabar tarea", "modo maestro",
+        "tarea aprendida", "procedimiento", "hacer como te enseñé", "reproducir tarea", "como te enseñé",
+        "como te ensene", "primera vez", "hacer cosas", "procedimientos", "tarea_aprendida"
+    ]
     es_modo_auto_aprendizaje = any(g in ultimo_texto for g in gatillos_auto_aprendizaje)
     if es_modo_auto_aprendizaje:
-        print("[Agente_Orquestador] 🧬 Inyectando System Prompt especializado: Auto-Aprendizaje y Playbooks.")
+        print("[Agente_Orquestador] 🧬 Inyectando System Prompt especializado: Auto-Aprendizaje y Procedimientos Guiados.")
         try:
             prompt_inyectado += "\n\n" + obtener_prompt_auto_aprendizaje()
         except Exception as e:
             print(f"[Agente_Orquestador] Error al cargar prompt auto_aprendizaje: {e}")
+
+
+    # 7. Modo Tareas Programadas, Repetitivas y Monitoreo Continuo
+    gatillos_tareas_programadas = [
+        "repetitiva", "repetitivas", "diariamente", "diario", "cada correo",
+        "cada nuevo correo", "bandeja de entrada", "catalogar", "monitorear",
+        "monitorea", "monitoreo", "cada hora", "cada minuto", "todos los días",
+        "todos los dias", "programar tarea", "tarea programada", "tareas programadas",
+        "cada vez que", "avísame si", "avisame si", "avisarme", "cae por debajo",
+        "stock", "cron", "recurrente", "periódica", "periodica", "tkt-rec-", "rec-"
+    ]
+    es_modo_tareas_programadas = any(g in ultimo_texto for g in gatillos_tareas_programadas)
+    if es_modo_tareas_programadas:
+        print("[Agente_Orquestador] ⏱️ Inyectando System Prompt especializado: Tareas Programadas y Monitoreo Continuo.")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_tareas_programadas()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt tareas_programadas: {e}")
+
+    # 8. Modo Voz, Micrófono, Cornetas y Notas de Voz
+    gatillos_voz = [
+        "nota de voz", "notas de voz", "audio", "mándame un audio", "mandame un audio",
+        "envíame un audio", "enviame un audio", "háblame", "hablame", "cornetas",
+        "altavoces", "micrófono", "microfono", "por voz", "con tu voz"
+    ]
+    es_modo_voz = any(g in ultimo_texto for g in gatillos_voz)
+    if es_modo_voz:
+        print("[Agente_Orquestador] 🎙️ Inyectando System Prompt especializado: Sistema de Voz y Notas de Voz.")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_voz()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt voz: {e}")
+
+    # 9. Modo Manos y Ojos (Navegación Web con Playwright y Control de PC con PyAutoGUI + Visión IA)
+    gatillos_manos_ojos = [
+        "navegar", "navegador", "formulario", "rellenar", "web", "pagina", "página",
+        "pantalla", "captura", "screenshot", "clic", "click", "mouse", "teclado",
+        "abrir app", "abrir aplicacion", "abrir aplicación", "manos", "ojos", "vision",
+        "visión", "playwright", "pyautogui", "tool_navegar", "tool_capturar_pantalla",
+        "video", "reproducir", "reproduce", "play", "pausar", "pausa", "pantalla completa",
+        "fullscreen", "maximizar", "minimizar", "restaurar", "ventana", "ventanas",
+        "pestaña", "pestañas", "youtube", "media"
+    ]
+    es_modo_manos_ojos = any(g in ultimo_texto for g in gatillos_manos_ojos)
+    if es_modo_manos_ojos:
+        print("[Agente_Orquestador] 👁️🖐️ Inyectando System Prompt especializado: Manos y Ojos (Navegación Web y Control PC).")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_manos_y_ojos()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt manos_y_ojos: {e}")
+
+    # 10. Modo Gestión y Auditoría del Grafo de Obsidian
+    gatillos_grafo_obsidian = [
+        "grafo", "gráfico", "grafico", "obsidian", "rec-obs-001", "sync_cerebro",
+        "vista gráfica", "vista grafica", "madeja", "erizo", "nodos huérfanos",
+        "nodos huerfanos", "arreglar gráfico", "arreglar grafico", "limpiar gráfico",
+        "limpiar grafico", "saneamiento del grafo", "topología", "topologia"
+    ]
+    es_modo_grafo_obsidian = any(g in ultimo_texto for g in gatillos_grafo_obsidian)
+    if es_modo_grafo_obsidian:
+        print("[Agente_Orquestador] 🗺️ Inyectando System Prompt especializado: Arquitecto y Auditor del Grafo de Obsidian.")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_grafo_obsidian()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt grafo_obsidian: {e}")
+
+    # 11. Modo Scouting Laboral Multiplataforma
+    gatillos_scout = [
+        "scout", "scouting", "buscar empleo", "ofertas de empleo", "vacantes",
+        "get on board", "getonbrd", "linkedin jobs", "postulación laboral",
+        "postulacion laboral", "rec-scout-001"
+    ]
+    es_modo_scout = any(g in ultimo_texto for g in gatillos_scout)
+    if es_modo_scout:
+        print("[Agente_Orquestador] 🎯 Inyectando System Prompt especializado: Scout Laboral Multiplataforma.")
+        try:
+            prompt_inyectado += "\n\n" + obtener_prompt_scout_laboral()
+        except Exception as e:
+            print(f"[Agente_Orquestador] Error al cargar prompt scout_laboral: {e}")
 
     # Aplicar la inyección dinámica al último mensaje
     if prompt_inyectado and mensajes_langgraph:
@@ -445,6 +596,14 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
     MAX_ROUNDS = 50
     ronda = 0
     historial_tools = []
+    historial_tools_firmas = []
+    conteo_fallos = {}
+
+    def _ejecutar_tool_orquestador(n_tool, a_tool):
+        h = next((h for h in HERRAMIENTAS_ORQUESTADOR if h.name == n_tool), None)
+        if h:
+            return h.invoke(a_tool)
+        return json.dumps({"status": "error", "mensaje": f"Herramienta '{n_tool}' no encontrada."})
 
     while hasattr(respuesta, "tool_calls") and respuesta.tool_calls and ronda < MAX_ROUNDS:
         ronda += 1
@@ -468,14 +627,18 @@ def funcion_nodo_agente_orquestador(estado: dict) -> dict:
             args_tool   = tool_call["args"]
             tool_id     = tool_call.get("id", f"tool_{ronda}")
 
-            print(f"[Agente_Orquestador] → Ejecutando: {nombre_tool}({list(args_tool.keys())})")
-
-            herramienta_encontrada = next((h for h in HERRAMIENTAS_ORQUESTADOR if h.name == nombre_tool), None)
-            if herramienta_encontrada:
-                resultado_tool = herramienta_encontrada.invoke(args_tool)
-                print(f"[Agente_Orquestador] ← Resultado: {str(resultado_tool)[:120]}...")
+            if interceptar_tool_call:
+                resultado_tool, exito, _ = interceptar_tool_call(
+                    nombre_tool=nombre_tool,
+                    args_tool=args_tool,
+                    func_ejecutar=_ejecutar_tool_orquestador,
+                    objetivo_ticket=str(mensajes_langgraph[0].content) if mensajes_langgraph else "",
+                    nombre_agente="Agente_Orquestador",
+                    historial_firmas=historial_tools_firmas,
+                    conteo_fallos=conteo_fallos
+                )
             else:
-                resultado_tool = json.dumps({"status": "error", "mensaje": f"Herramienta '{nombre_tool}' no encontrada."})
+                resultado_tool = _ejecutar_tool_orquestador(nombre_tool, args_tool)
 
             mensajes_langgraph.append(
                 ToolMessage(
@@ -645,25 +808,29 @@ BANNER = """[bold cyan]
 """
 
 AYUDA = """[bold cyan]Comandos disponibles:[/bold cyan]
-  [bold green]mision[/bold green]      Lanzar una nueva misión al sistema
+  [bold green]voz[/bold green]         Modo conversación continua en vivo (Micrófono PC -> Cornetas PC)
+  [bold green]mic[/bold green]         Hablar una orden por el micrófono de la PC y escuchar respuesta por cornetas
+  [bold green]nota[/bold green]        Grabar o enviar nota de voz (Consola + Telegram)
+  [bold green]cornetas[/bold green]    Activar/desactivar lectura automática por las cornetas de la PC
   [bold green]historial[/bold green]   Ver el registro de misiones anteriores
-  [bold green]estado[/bold green]      Ver agentes activos y estado del sistema
   [bold green]ayuda[/bold green]       Mostrar esta ayuda
   [bold green]salir[/bold green]       Cerrar el sistema
 """
 
 def main() -> None:
-    """Bucle principal de interacción de consola."""
+    """Bucle principal de interacción de consola (Texto + Micrófono + Cornetas + Notas de Voz)."""
     console.clear()
     console.print(BANNER)
     console.print(AYUDA)
 
     orquestador = OrquestadorAgentes()
     thread_id = f"sesion_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    cornetas_activas = obtener_estado_voz().get("cornetas_activas", False)
 
     while True:
         try:
-            entrada = Prompt.ask("\n[bold cyan]Usuario[/bold cyan]").strip()
+            etiqueta = "[bold cyan]Usuario (🔊 Cornetas ON)[/bold cyan]" if cornetas_activas else "[bold cyan]Usuario[/bold cyan]"
+            entrada = Prompt.ask(f"\n{etiqueta}").strip()
         except (KeyboardInterrupt, EOFError):
             console.print("\n[dim]Sesión finalizada.[/dim]")
             break
@@ -682,11 +849,72 @@ def main() -> None:
             console.print(f"[bold]Historial ({len(hist)} entradas):[/bold]")
             for h in hist[-5:]:
                 console.print(f" - {h.get('timestamp')}: {h.get('objetivo')[:50]}")
+        elif comando in ("cornetas", "altavoces"):
+            cornetas_activas = not cornetas_activas
+            guardar_estado_voz(cornetas_activas=cornetas_activas)
+            estado_str = "ACTIVADAS 🔊" if cornetas_activas else "DESACTIVADAS 🔇"
+            console.print(f"[bold magenta]Cornetas de la computadora:[/bold magenta] {estado_str}")
+        elif comando in ("mic", "microfono", "hablar"):
+            res_mic = escuchar_microfono_pc(duracion_max_segundos=15)
+            texto_usuario = res_mic.get("texto", "").strip()
+            if not texto_usuario:
+                console.print(f"[bold red]Micrófono:[/bold red] {res_mic.get('mensaje', 'No se detectó voz.')}")
+                continue
+            console.print(f"[bold cyan]🎙️ Tú dijiste:[/bold cyan] {texto_usuario}")
+            console.print("\n[bold yellow]Agente Orquestador[/bold yellow] procesando...\n")
+            try:
+                res = orquestador.chat(texto_usuario, thread_id=thread_id)
+                console.print(Panel(res, title="[bold green]Respuesta (Reproduciendo en Cornetas 🔊)[/bold green]", border_style="green"))
+                hablar_por_cornetas_pc(res, bloquear=True)
+            except Exception as e:
+                console.print(f"[bold red]Error:[/bold red] {e}")
+        elif comando in ("voz", "conversacion"):
+            console.print("[bold magenta]🎙️ MODO CONVERSACIÓN EN VIVO ACTIVADO (Micrófono PC <-> Cornetas PC)[/bold magenta]")
+            console.print("[dim]Di 'salir de voz' o 'detener voz' (o presiona Ctrl+C) para volver al teclado.[/dim]")
+            while True:
+                try:
+                    res_mic = escuchar_microfono_pc(duracion_max_segundos=15)
+                    texto_usuario = res_mic.get("texto", "").strip()
+                    if not texto_usuario:
+                        continue
+                    console.print(f"[bold cyan]🎙️ Tú:[/bold cyan] {texto_usuario}")
+                    if any(k in texto_usuario.lower() for k in ["salir de voz", "detener voz", "apagar voz", "terminar conversación"]):
+                        console.print("[bold yellow]Saliendo del modo conversación en vivo...[/bold yellow]")
+                        hablar_por_cornetas_pc("Entendido, saliendo del canal de voz.", bloquear=True)
+                        break
+                    res = orquestador.chat(texto_usuario, thread_id=thread_id)
+                    console.print(Panel(res, title="[bold green]Agente Orquestador 🔊[/bold green]", border_style="green"))
+                    hablar_por_cornetas_pc(res, bloquear=True)
+                except KeyboardInterrupt:
+                    console.print("\n[bold yellow]Modo conversación en vivo detenido.[/bold yellow]")
+                    break
+        elif comando.startswith("nota"):
+            partes = entrada.split(" ", 1)
+            if len(partes) > 1 and partes[1].strip():
+                texto_orden = partes[1].strip()
+            else:
+                res_mic = escuchar_microfono_pc(duracion_max_segundos=15)
+                texto_orden = res_mic.get("texto", "").strip()
+            if not texto_orden:
+                console.print("[bold red]No se capturó texto para la nota de voz.[/bold red]")
+                continue
+            console.print(f"\n[bold yellow]Agente Orquestador[/bold yellow] procesando y generando nota de voz...\n")
+            try:
+                res = orquestador.chat(f"{texto_orden}\n[Responde y envía también nota de voz]", thread_id=thread_id)
+                console.print(Panel(res, title="[bold green]Respuesta + Nota de Voz 🎙️[/bold green]", border_style="green"))
+                from telegram_bridge import enviar_nota_voz_telegram
+                enviar_nota_voz_telegram(res, caption=res[:800], remitente="Agente_Orquestador", espejear_en_consola=True)
+                if cornetas_activas:
+                    hablar_por_cornetas_pc(res, bloquear=True)
+            except Exception as e:
+                console.print(f"[bold red]Error:[/bold red] {e}")
         else:
             console.print("\n[bold yellow]Agente Orquestador[/bold yellow] procesando...\n")
             try:
                 res = orquestador.chat(entrada, thread_id=thread_id)
                 console.print(Panel(res, title="[bold green]Respuesta[/bold green]", border_style="green"))
+                if cornetas_activas:
+                    hablar_por_cornetas_pc(res, bloquear=False)
             except Exception as e:
                 console.print(f"[bold red]Error:[/bold red] {e}")
 

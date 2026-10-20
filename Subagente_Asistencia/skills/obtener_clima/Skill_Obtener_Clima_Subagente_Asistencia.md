@@ -125,4 +125,4 @@ tool_obtener_clima("Buenos Aires")
 > "He programado la reunión en tu Google Calendar para mañana a las 15:00 en Buenos Aires. Como dato adicional, el pronóstico indica 18.0 °C con cielo parcialmente nublado y vientos suaves (12 km/h), ideal para traslados sin contingencias climáticas."
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

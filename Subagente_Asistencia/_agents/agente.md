@@ -190,4 +190,4 @@ Para garantizar la integración segura con el motor del Orquestador y los demoni
 3. **`evidencia_hallazgo` Obligatorio:** **DEBE SER UNA RUTA ABSOLUTA VÁLIDA Y COMPROBABLE EN DISCO** (ej. `/app/Subagente_Asistencia/documentos_asistencia/...` o `/app/Archivos_temporales/...`). Si no se creó un archivo nuevo, debe apuntar al archivo de registro o memoria consultado. Prohibido poner textos descriptivos en este campo.
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

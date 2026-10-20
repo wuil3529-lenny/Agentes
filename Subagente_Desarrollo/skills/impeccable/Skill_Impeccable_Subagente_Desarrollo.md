@@ -124,14 +124,4 @@ tool_impeccable_auditar_diseno.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Criterio Estético:** [[Skill_Taste_Subagente_Desarrollo]]
-- **Motion UI:** [[Skill_Animaciones_Subagente_Desarrollo]]
-- **Pruebas en Navegador:** [[Skill_Playwright_Subagente_Desarrollo]]
-- **Desarrollo Web:** [[Skill_Web_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

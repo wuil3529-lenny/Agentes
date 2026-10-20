@@ -77,3 +77,6 @@ Always ship with the animation:
 - [x] No animating `width`, `height`, `top`, `left`, `margin`, `padding`.
 - [x] No duration > 300ms on UI controls.
 - [x] Always include `prefers-reduced-motion`.
+
+---
+**Conexiones:** [[sistema]]

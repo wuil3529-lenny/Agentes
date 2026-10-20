@@ -62,6 +62,29 @@ function connect() {
                 if (data.sesiones_chat && typeof updateSesionesChat === 'function') {
                     updateSesionesChat(data.sesiones_chat);
                 }
+                if (data.estado_voz) {
+                    const ev = data.estado_voz;
+                    const nowSec = Date.now() / 1000;
+                    const inicioTs = Number(ev.inicio_cornetas_ts || 0);
+                    const finTs = Number(ev.fin_cornetas_ts || 0);
+                    const hablandoAct = Boolean(ev.hablando_en_cornetas) && ((nowSec - inicioTs) < 180);
+                    const enColaAcustica = (finTs > 0) && ((nowSec - finTs) < 2.5);
+                    window.agentIsSpeakingOnSpeakers = hablandoAct || enColaAcustica;
+                    const inicioProc = Number(ev.inicio_proceso_ts || 0);
+                    window.agentIsThinkingOrProcessing = Boolean(ev.agente_procesando) && ((nowSec - inicioProc) < 120);
+                }
+                if (Array.isArray(data.chat)) {
+                    const agMsgs = data.chat.filter(m => m && (m.de === 'Agente_Orquestador' || m.de === 'Luffy'));
+                    window.lastAgentMessages = agMsgs.slice(-3).map(m => {
+                        return (m.contenido && typeof m.contenido === 'object') ? (m.contenido.texto || '') : String(m.contenido || '');
+                    });
+                    const lastAgId = agMsgs.length > 0 ? (agMsgs[agMsgs.length - 1].id || agMsgs.length) : null;
+                    if (window.waitingForAgentVoiceReply && lastAgId && lastAgId !== window.lastSeenAgentMsgIdBeforeSend) {
+                        window.agentReplyArrivedForTurn = true;
+                        window.agentReplyArrivedAt = Date.now();
+                    }
+                    window.currentLastAgentMsgId = lastAgId;
+                }
                 if (typeof updateChat !== 'undefined') updateChat(data.chat);
                 if (typeof updateLogs !== 'undefined') updateLogs(data.logs);
                 if (typeof updateCostos !== 'undefined') updateCostos(data.costos);
@@ -69,6 +92,9 @@ function connect() {
                 try { updateMainMetrics(data.system, data.costos, data.pizarra, data.tickets_archivados, data.tiempo_trabajo); } catch(e) { console.error('Metrics Error:', e); }
                 if (data.modelos && typeof updateModelBadges === 'function') {
                     updateModelBadges(data.modelos);
+                }
+                if (data.identidades && typeof updateAgentIdentities === 'function') {
+                    updateAgentIdentities(data.identidades);
                 }
                 if (data.flota_remota && typeof updateFleetMonitoring === 'function') {
                     updateFleetMonitoring(data.flota_remota);
@@ -726,11 +752,67 @@ function updateModelBadges(modelos) {
     });
 }
 
+function updateAgentIdentities(identidades) {
+    if (!identidades || typeof identidades !== 'object') return;
+    window.cachedIdentidades = identidades;
+    Object.keys(identidades).forEach(slot => {
+        const agKey = slot.toLowerCase();
+        const data = identidades[slot];
+        if (!data) return;
+
+        const nameEl = document.getElementById(`agent-name-${agKey}`);
+        if (nameEl && data.nombre_display) {
+            if (nameEl.innerText !== data.nombre_display) {
+                nameEl.innerText = data.nombre_display;
+            }
+        }
+
+        const sublabelEl = document.getElementById(`agent-sublabel-${agKey}`);
+        if (sublabelEl && data.sublabel) {
+            sublabelEl.innerText = data.sublabel;
+        }
+    });
+
+    const leaderData = identidades['luffy'] || identidades['agente_orquestador'];
+    if (leaderData && leaderData.nombre_display) {
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput && chatInput.placeholder && (chatInput.placeholder.includes('Luffy') || chatInput.placeholder.includes('orden'))) {
+            chatInput.placeholder = `Escribe una orden a ${leaderData.nombre_display}...`;
+        }
+    }
+}
+
+// Cargar identidades dinámicas de la tripulación en el arranque
+try {
+    fetch('/api/agentes/flota')
+        .then(r => r.json())
+        .then(data => {
+            if (data && data.status === 'ok' && data.agentes) {
+                updateAgentIdentities(data.agentes);
+            }
+        })
+        .catch(() => {});
+} catch(e) {}
+
 function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, function(m) {
         return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[m];
     });
+}
+
+function renderMarkdownChat(str) {
+    if (!str) return '';
+    let esc = escapeHtml(str);
+    // 1. Markdown links: [texto](https://url)
+    esc = esc.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline font-semibold cursor-pointer inline-flex items-center gap-0.5">$1 <span class="material-symbols-outlined text-[12px]">open_in_new</span></a>');
+    // 2. Raw URLs (including inside ** o () o [] o después de flechas)
+    esc = esc.replace(/(^|[\s\(\[\>\*]|&gt;)(https?:\/\/[^\s\)\"\'<>\*]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer" class="text-cyan-400 hover:text-cyan-300 underline font-semibold cursor-pointer inline-flex items-center gap-0.5 break-all">$2 <span class="material-symbols-outlined text-[12px]">open_in_new</span></a>');
+    // 3. Negrita **texto**
+    esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+    // 4. Código inline `codigo`
+    esc = esc.replace(/`([^`]+)`/g, '<code class="bg-surface-container-high px-1 py-0.5 rounded text-amber-300 font-mono text-[11px]">$1</code>');
+    return esc;
 }
 
 function updateChat(messages) {
@@ -760,7 +842,13 @@ function updateChat(messages) {
         'robin': { border: 'border-purple-400/50', bg: 'bg-purple-400/10', text: 'text-purple-400', shadow: 'shadow-md', name: 'Robin' }
     };
 
-    if (container.dataset.currentSesionId !== activeSesionId || container.dataset.lastCount != msgList.length) {
+    const lastMsgItem = msgList.length > 0 ? msgList[msgList.length - 1] : null;
+    const lastAudio = (lastMsgItem && lastMsgItem.contenido && typeof lastMsgItem.contenido === 'object') ? (lastMsgItem.contenido.audio_url || '') : '';
+    const lastTxt = (lastMsgItem && lastMsgItem.contenido && typeof lastMsgItem.contenido === 'object') ? (lastMsgItem.contenido.texto || '') : String(lastMsgItem ? (lastMsgItem.contenido || '') : '');
+    const currentChatSig = `${msgList.length}_${lastMsgItem ? (lastMsgItem.id || '') : ''}_${lastMsgItem ? (lastMsgItem.timestamp || '') : ''}_${lastAudio}_${lastTxt.length}`;
+
+    if (container.dataset.currentSesionId !== activeSesionId || container.dataset.lastChatSig !== currentChatSig) {
+        container.dataset.lastChatSig = currentChatSig;
         container.dataset.lastCount = msgList.length;
         container.dataset.currentSesionId = activeSesionId;
         container.innerHTML = '';
@@ -772,8 +860,12 @@ function updateChat(messages) {
             const theme = agentColors[senderRaw] || { border: 'border-outline-variant/30', bg: 'bg-surface-container-high', text: 'text-secondary', shadow: 'shadow-md', name: msg.de || 'Agente' };
             
             let msgText = '';
+            let audioUrl = '';
+            let esNotaVoz = false;
             if (msg.contenido && typeof msg.contenido === 'object') {
                 msgText = msg.contenido.texto || JSON.stringify(msg.contenido);
+                audioUrl = msg.contenido.audio_url || '';
+                esNotaVoz = Boolean(msg.contenido.es_nota_voz || audioUrl);
             } else {
                 msgText = String(msg.contenido || '');
             }
@@ -790,23 +882,57 @@ function updateChat(messages) {
                 ? 'self-end bg-secondary/15 text-on-surface p-3 rounded-2xl rounded-tr-none border border-secondary/40 max-w-[88%] shadow-[0_0_14px_rgb(var(--c-secondary)/0.18)] text-xs transition-all backdrop-blur-sm'
                 : `self-start ${theme.bg} text-on-surface p-3 rounded-2xl rounded-tl-none border ${theme.border} max-w-[88%] ${theme.shadow || 'shadow-md'} text-xs transition-all backdrop-blur-sm`;
 
+            const voiceBadgeHtml = esNotaVoz
+                ? `<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-bold">🎙️ Nota de Voz</span>`
+                : '';
+
+            const audioPlayerHtml = audioUrl
+                ? `<div class="mt-2 pt-1.5 border-t border-outline-variant/30"><audio controls src="${audioUrl}" class="w-full h-8 rounded-lg"></audio></div>`
+                : '';
+
+            const listenBtnHtml = !isUser
+                ? `<button type="button" onclick="reproducirMensajeVoz(this)" data-texto="${escapeHtml(msgText)}" class="text-on-surface-variant/60 hover:text-secondary transition-colors cursor-pointer ml-1" title="Escuchar por las cornetas / Generar nota de voz"><span class="material-symbols-outlined text-[14px]">volume_up</span></button>`
+                : '';
+
             div.innerHTML = `
                 <div class="flex justify-between items-center gap-3 mb-1">
-                    <span class="${theme.text} font-bold tracking-wider uppercase text-[10px]">${theme.name}</span>
-                    ${timeStr ? `<span class="text-[9px] text-on-surface-variant/50">${timeStr}</span>` : ''}
+                    <div class="flex items-center gap-1.5">
+                        <span class="${theme.text} font-bold tracking-wider uppercase text-[10px]">${theme.name}</span>
+                        ${voiceBadgeHtml}
+                    </div>
+                    <div class="flex items-center gap-1">
+                        ${listenBtnHtml}
+                        ${timeStr ? `<span class="text-[9px] text-on-surface-variant/50">${timeStr}</span>` : ''}
+                    </div>
                 </div>
-                <div class="leading-relaxed whitespace-pre-wrap select-text">${escapeHtml(msgText)}</div>
+                <div class="leading-relaxed whitespace-pre-wrap select-text">${renderMarkdownChat(msgText)}</div>
+                <div class="voice-player-slot">${audioPlayerHtml}</div>
             `;
             container.appendChild(div);
         });
 
         if (msgList.length > 0) {
             const lastMsg = msgList[msgList.length - 1];
+            const lastId = lastMsg.id || lastMsg.timestamp || String(msgList.length);
             if (lastMsg && lastMsg.de && lastMsg.de.toLowerCase() !== 'usuario') {
                 if (typeof setSpeakingAgent === 'function') {
                     setSpeakingAgent(lastMsg.de);
                 }
+                if (container.dataset.lastSpokenId && container.dataset.lastSpokenId !== lastId) {
+                    const lastAudioUrl = (lastMsg.contenido && lastMsg.contenido.audio_url) ? lastMsg.contenido.audio_url : '';
+                    if (!lastAudioUrl && (window.voiceSessionActive || window.speakerCornetasActive)) {
+                        const txtSpeak = (lastMsg.contenido && lastMsg.contenido.texto) ? lastMsg.contenido.texto : String(lastMsg.contenido || '');
+                        if (txtSpeak) {
+                            fetch('/api/voz/hablar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ texto: txtSpeak, reproducir_cornetas_pc: true })
+                            }).catch(() => {});
+                        }
+                    }
+                }
             }
+            container.dataset.lastSpokenId = lastId;
         }
 
         setTimeout(() => {
@@ -1236,17 +1362,25 @@ async function sendChatMessage() {
                 <span class="text-secondary font-bold tracking-wider uppercase text-[10px]">Capitán (Tú)</span>
                 <span class="text-[9px] text-on-surface-variant/50">${timeStr}</span>
             </div>
-            <div class="leading-relaxed whitespace-pre-wrap select-text">${escapeHtml(text)}</div>
+            <div class="leading-relaxed whitespace-pre-wrap select-text">${renderMarkdownChat(text)}</div>
         `;
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
     }
 
     try {
+        if (window.voiceSessionActive && typeof window.onVoiceMessageSentExplicitly === 'function') {
+            window.onVoiceMessageSentExplicitly();
+        }
         await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ texto: text, modo: currentChatMode })
+            body: JSON.stringify({
+                texto: text,
+                modo: currentChatMode,
+                es_nota_voz: Boolean(window.voiceSessionActive),
+                usar_cornetas: Boolean(window.voiceSessionActive || window.speakerCornetasActive)
+            })
         });
     } catch(e) {
         console.error('Error enviando chat:', e);
@@ -1835,14 +1969,61 @@ function cambiarTabTareas(tab) {
     }
 }
 
+// Variables de almacenamiento en caché para tickets y control de modal
+let cachePizarraTickets = [];
+let cacheArchivadosTickets = [];
+let ticketActualModalData = null;
+
+function cleanCardDescription(str) {
+    if (!str) return 'Sin detalles adicionales.';
+    let txt = cleanMarkdownText(str);
+    // Quitar volcados de JSON o datos estructurados
+    txt = txt.replace(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g, '[Datos adjuntos]');
+    // Quitar tags HTML
+    txt = txt.replace(/<[^>]+>/g, ' ');
+    // Quitar enlaces URLs largos
+    txt = txt.replace(/https?:\/\/\S+/g, '');
+    // Quitar saltos y espacios múltiples
+    txt = txt.replace(/\s+/g, ' ').trim();
+    if (!txt || txt === '[Datos adjuntos]') {
+        return 'Ticket de tarea registrado. Haz clic en "Ver más" para ver los detalles completos.';
+    }
+    return txt;
+}
+
+function findTicketById(id) {
+    if (!id) return null;
+    const cleanSearchId = String(id).trim().toUpperCase();
+    
+    // Buscar en pizarra activa
+    let found = cachePizarraTickets.find(t => String(t.id || '').trim().toUpperCase() === cleanSearchId);
+    if (found) return found;
+
+    // Buscar en archivados
+    found = cacheArchivadosTickets.find(t => String(t.id || '').trim().toUpperCase() === cleanSearchId);
+    if (found) return found;
+
+    // Buscar en programadas
+    if (cacheProgramadas) {
+        for (const cat of ['diarias', 'semanales', 'mensuales']) {
+            if (Array.isArray(cacheProgramadas[cat])) {
+                found = cacheProgramadas[cat].find(t => String(t.id || '').trim().toUpperCase() === cleanSearchId);
+                if (found) return found;
+            }
+        }
+    }
+    return null;
+}
+
 function renderTareaBlock(tarea) {
     // tarea: {id, titulo, descripcion, tarea, criterios, responsable, estado, evidencia}
-    const cleanId = cleanMarkdownText(tarea.id || '');
+    const cleanId = cleanMarkdownText(tarea.id || 'TKT');
     const cleanTitle = cleanMarkdownText(tarea.titulo || '');
-    const cleanDesc = cleanMarkdownText(tarea.descripcion || '');
     const cleanTask = cleanMarkdownText(tarea.tarea || '');
     const cleanEvidencia = cleanMarkdownText(tarea.evidencia || '');
-    
+    const displayDesc = cleanCardDescription(tarea.descripcion || cleanTask);
+    const displayTitle = cleanTitle || cleanTask || cleanId || 'Ticket de Tarea';
+
     // Configuración de Agentes (Robin morado, Sanji amarillo, Nami rosa, Zoro verde, Luffy rojo)
     const agentesConfig = {
         robin: {
@@ -1890,7 +2071,6 @@ function renderTareaBlock(tarea) {
     };
 
     let rawName = tarea.responsable ? String(tarea.responsable).toLowerCase().trim() : 'sistema';
-    // Si el ID del ticket pertenece a un subagente (ej: TKT-SANJI-..., TKT-ROBIN-..., TKT-NAMI-..., TKT-ZORO-...)
     const ticketIdUpper = String(tarea.id || '').toUpperCase();
     for (const ag of ['sanji', 'robin', 'nami', 'zoro']) {
         if (ticketIdUpper.startsWith('TKT-' + ag.toUpperCase() + '-')) {
@@ -1952,52 +2132,56 @@ function renderTareaBlock(tarea) {
         };
     }
 
-    // Texto descriptivo principal (conciso, evitando redundancias)
-    const displayTitle = cleanTitle || cleanTask || 'Ticket de Tarea';
-    const displayDesc = cleanDesc || (cleanTask && cleanTask !== cleanTitle ? cleanTask : '') || 'Sin detalles adicionales.';
-
     return `
-    <div class="glass-panel rounded-2xl p-4 border ${statusConfig.cardBorder} ${statusConfig.cardBg} ${statusConfig.cardGlow} transition-all duration-200 flex flex-col justify-between gap-3 group relative overflow-hidden min-h-[200px] h-[215px]">
+    <div onclick="abrirModalDetalleTicket('${cleanId}')" class="glass-panel rounded-2xl p-3 sm:p-3.5 border ${statusConfig.cardBorder} ${statusConfig.cardBg} ${statusConfig.cardGlow} transition-all duration-200 flex flex-col justify-between gap-2.5 group relative overflow-hidden min-h-[195px] h-[210px] cursor-pointer hover:translate-y-[-2px] shadow-sm select-none">
         <!-- Top Row: ID chip + Status badge -->
         <div class="flex items-center justify-between gap-2 shrink-0">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-white/5 text-on-surface/90 border border-white/10 tracking-wider">
-                ${cleanId || 'TKT'}
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-white/5 text-on-surface/90 border border-white/10 tracking-tight max-w-[130px] sm:max-w-[145px] truncate shrink min-w-0" title="${cleanId}">
+                ${cleanId}
             </span>
-            <span class="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-lg ${statusConfig.badgeClass} shrink-0">
-                <span class="material-symbols-outlined text-[12px] ${statusConfig.spin ? 'animate-spin' : ''}">${statusConfig.icon}</span>
+            <span class="inline-flex items-center gap-1 text-[8.5px] sm:text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md ${statusConfig.badgeClass} shrink-0 whitespace-nowrap">
+                <span class="material-symbols-outlined text-[11px] ${statusConfig.spin ? 'animate-spin' : ''}">${statusConfig.icon}</span>
                 <span>${statusConfig.label}</span>
             </span>
         </div>
 
         <!-- Middle: Title and truncated description -->
-        <div class="flex flex-col gap-1.5 flex-1 min-h-0 overflow-hidden">
-            <h4 class="text-on-surface font-semibold text-xs leading-snug line-clamp-2 group-hover:text-white transition-colors" title="${displayTitle}">
+        <div class="flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
+            <h4 class="text-on-surface font-semibold text-[11px] leading-snug line-clamp-2 group-hover:text-cyan-300 transition-colors" title="${displayTitle}">
                 ${displayTitle}
             </h4>
-            <p class="text-[11px] text-on-surface-variant/80 leading-relaxed line-clamp-3" title="${displayDesc}">
+            <p class="text-[9.5px] sm:text-[10px] text-on-surface-variant/80 leading-relaxed line-clamp-3 overflow-hidden text-ellipsis" title="${displayDesc}">
                 ${displayDesc}
             </p>
         </div>
 
-        <!-- Bottom: Agent Badge with individual color + Evidence indicator -->
-        <div class="mt-auto pt-2.5 border-t border-white/10 flex items-center justify-between shrink-0">
-            <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded-lg overflow-hidden border ${cfg.border} bg-surface-container shrink-0">
+        <!-- Bottom: Agent Badge + Ver más button -->
+        <div class="mt-auto pt-2 border-t border-white/10 flex items-center justify-between gap-2 shrink-0">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <div class="w-5 h-5 rounded-md overflow-hidden border ${cfg.border} bg-surface-container shrink-0">
                     <img alt="${nameFormatted}" class="w-full h-full object-cover" src="https://api.dicebear.com/7.x/bottts/svg?seed=${cfg.avatar}&backgroundColor=0f0f1a">
                 </div>
-                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${cfg.badge}">
+                <span class="text-[8.5px] sm:text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${cfg.badge} truncate">
                     ${nameFormatted}
                 </span>
             </div>
-            ${cleanEvidencia ? `<span class="material-symbols-outlined text-[15px] text-on-surface-variant/70 hover:text-secondary cursor-help transition-colors" title="Evidencia: ${cleanEvidencia}">attachment</span>` : ''}
+            
+            <div class="flex items-center gap-1 shrink-0">
+                ${cleanEvidencia ? `<span class="material-symbols-outlined text-[13px] text-on-surface-variant/70 hover:text-secondary cursor-help transition-colors" title="Evidencia física disponible">attachment</span>` : ''}
+                <button onclick="event.stopPropagation(); abrirModalDetalleTicket('${cleanId}')" type="button" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/25 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-[9px] font-bold transition-all cursor-pointer shadow-sm active:scale-95">
+                    <span>Ver más</span>
+                    <span class="material-symbols-outlined text-[11px]">visibility</span>
+                </button>
+            </div>
         </div>
     </div>`;
 }
 
 function updatePizarra(pizarraData) {
+    cachePizarraTickets = Array.isArray(pizarraData) ? pizarraData : [];
     const list = document.getElementById('pizarra-list');
     const countEl = document.getElementById('count-activas');
-    const count = (pizarraData && Array.isArray(pizarraData)) ? pizarraData.length : 0;
+    const count = cachePizarraTickets.length;
     if (countEl) countEl.textContent = count;
     if (!list) return;
     if (count === 0) {
@@ -2006,16 +2190,17 @@ function updatePizarra(pizarraData) {
     }
     
     let html = '';
-    pizarraData.forEach(t => {
+    cachePizarraTickets.forEach(t => {
         html += renderTareaBlock(t);
     });
     list.innerHTML = html;
 }
 
 function updateArchivados(archivadosData) {
+    cacheArchivadosTickets = Array.isArray(archivadosData) ? archivadosData : [];
     const list = document.getElementById('archivados-list');
     const countEl = document.getElementById('count-archivados');
-    const count = (archivadosData && Array.isArray(archivadosData)) ? archivadosData.length : 0;
+    const count = cacheArchivadosTickets.length;
     if (countEl) countEl.textContent = count;
     if (!list) return;
     if (count === 0) {
@@ -2023,7 +2208,7 @@ function updateArchivados(archivadosData) {
         return;
     }
     let html = '';
-    archivadosData.forEach(t => {
+    cacheArchivadosTickets.forEach(t => {
         html += renderTareaBlock(t);
     });
     list.innerHTML = html;
@@ -2057,6 +2242,228 @@ function renderProgramadas() {
     });
     list.innerHTML = html;
 }
+
+// ==========================================
+// CONTROL DEL MODAL DE DETALLE DE TICKET
+// ==========================================
+function abrirModalDetalleTicket(ticketId) {
+    const modal = document.getElementById('modal-detalle-ticket');
+    if (!modal) return;
+    
+    const ticket = findTicketById(ticketId);
+    if (!ticket) {
+        console.warn('Ticket no encontrado en caché:', ticketId);
+        return;
+    }
+    
+    ticketActualModalData = ticket;
+    
+    // ID
+    const elId = document.getElementById('modal-ticket-id');
+    if (elId) elId.textContent = ticket.id || 'TKT';
+    
+    // Responsable y Configuración de Agente
+    const elAgentBadge = document.getElementById('modal-ticket-agent-badge');
+    let rawName = ticket.responsable ? String(ticket.responsable).toLowerCase().trim() : 'sistema';
+    const ticketIdUpper = String(ticket.id || '').toUpperCase();
+    for (const ag of ['sanji', 'robin', 'nami', 'zoro']) {
+        if (ticketIdUpper.startsWith('TKT-' + ag.toUpperCase() + '-')) {
+            rawName = ag;
+            break;
+        }
+    }
+    let agKey = 'sistema';
+    for (const k of ['robin', 'sanji', 'nami', 'zoro', 'luffy']) {
+        if (rawName.includes(k)) {
+            agKey = k;
+            break;
+        }
+    }
+    const agentesConfig = {
+        robin: { name: 'Robin', badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40' },
+        sanji: { name: 'Sanji', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40' },
+        nami: { name: 'Nami', badge: 'bg-pink-500/20 text-pink-300 border-pink-500/40' },
+        zoro: { name: 'Zoro', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+        luffy: { name: 'Luffy', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40' },
+        sistema: { name: 'Sistema', badge: 'bg-slate-500/20 text-slate-300 border-slate-500/30' }
+    };
+    const cfg = agentesConfig[agKey] || agentesConfig.sistema;
+    const nameFormatted = agKey !== 'sistema' ? cfg.name : (cleanMarkdownText(ticket.responsable) || 'Sistema');
+    if (elAgentBadge) {
+        elAgentBadge.textContent = nameFormatted;
+        elAgentBadge.className = `px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${cfg.badge}`;
+    }
+    
+    // Estado
+    const elStatusBadge = document.getElementById('modal-ticket-status-badge');
+    const elStatusIcon = document.getElementById('modal-ticket-status-icon');
+    const elStatusText = document.getElementById('modal-ticket-status-text');
+    const estadoRaw = ticket.estado ? String(ticket.estado).toLowerCase().trim() : '';
+    
+    let stLabel = 'En Espera';
+    let stClass = 'bg-blue-500/15 text-blue-400 border border-blue-500/40';
+    let stIcon = 'hourglass_empty';
+    
+    if (estadoRaw.includes('fall') || estadoRaw.includes('error') || estadoRaw.includes('rechaz') || estadoRaw.includes('abort') || estadoRaw.includes('critic') || estadoRaw.includes('bloquead')) {
+        stLabel = 'Fallido / Abortado';
+        stClass = 'bg-rose-500/20 text-rose-400 border border-rose-500/50';
+        stIcon = 'error';
+    } else if (estadoRaw.includes('proceso') || estadoRaw.includes('progreso') || estadoRaw.includes('ejecut') || estadoRaw.includes('trabajando') || estadoRaw.includes('procesando')) {
+        stLabel = 'En Proceso';
+        stClass = 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40';
+        stIcon = 'progress_activity';
+    } else if (estadoRaw.includes('completad') || estadoRaw.includes('cerrad') || estadoRaw.includes('archiv')) {
+        stLabel = 'Completado';
+        stClass = 'bg-teal-500/15 text-teal-300 border border-teal-500/40';
+        stIcon = 'check_circle';
+    }
+    if (elStatusBadge) elStatusBadge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border flex items-center gap-1.5 ${stClass}`;
+    if (elStatusIcon) elStatusIcon.textContent = stIcon;
+    if (elStatusText) elStatusText.textContent = stLabel;
+    
+    // Título
+    const elTitle = document.getElementById('modal-ticket-title');
+    if (elTitle) elTitle.textContent = ticket.titulo || ticket.id || 'Ticket de Tarea';
+    
+    // Descripción / Resumen
+    const elDescBox = document.getElementById('modal-ticket-desc-box');
+    const elDesc = document.getElementById('modal-ticket-desc');
+    const fullDesc = ticket.descripcion_completa || ticket.descripcion || ticket.tarea || '';
+    if (fullDesc && elDesc) {
+        elDesc.textContent = fullDesc;
+        if (elDescBox) elDescBox.classList.remove('hidden');
+    } else if (elDescBox) {
+        elDescBox.classList.add('hidden');
+    }
+    
+    // Tarea específica
+    const elTaskBox = document.getElementById('modal-ticket-task-box');
+    const elTask = document.getElementById('modal-ticket-task');
+    if (ticket.tarea && ticket.tarea !== fullDesc && elTask) {
+        elTask.textContent = ticket.tarea;
+        if (elTaskBox) elTaskBox.classList.remove('hidden');
+    } else if (elTaskBox) {
+        elTaskBox.classList.add('hidden');
+    }
+    
+    // Criterios
+    const elCritBox = document.getElementById('modal-ticket-criterios-box');
+    const elCrit = document.getElementById('modal-ticket-criterios');
+    if (ticket.criterios && elCrit) {
+        elCrit.textContent = ticket.criterios;
+        if (elCritBox) elCritBox.classList.remove('hidden');
+    } else if (elCritBox) {
+        elCritBox.classList.add('hidden');
+    }
+    
+    // Evidencia
+    const elEvidBox = document.getElementById('modal-ticket-evidence-box');
+    const elEvid = document.getElementById('modal-ticket-evidence');
+    if (ticket.evidencia && elEvid) {
+        elEvid.textContent = ticket.evidencia;
+        if (elEvidBox) elEvidBox.classList.remove('hidden');
+    } else if (elEvidBox) {
+        elEvidBox.classList.add('hidden');
+    }
+    
+    // Diagnóstico / Pruebas
+    const elDiagBox = document.getElementById('modal-ticket-diag-box');
+    const elDiag = document.getElementById('modal-ticket-diag');
+    let diagPruebasText = '';
+    if (ticket.diagnostico) diagPruebasText += 'Diagnóstico:\n' + ticket.diagnostico + '\n\n';
+    if (ticket.pruebas) diagPruebasText += 'Pruebas:\n' + ticket.pruebas;
+    if (diagPruebasText.trim() && elDiag) {
+        elDiag.textContent = diagPruebasText.trim();
+        if (elDiagBox) elDiagBox.classList.remove('hidden');
+    } else if (elDiagBox) {
+        elDiagBox.classList.add('hidden');
+    }
+    
+    // Contexto
+    const elCtxBox = document.getElementById('modal-ticket-contexto-box');
+    const elCtx = document.getElementById('modal-ticket-contexto');
+    if (ticket.contexto && elCtx) {
+        elCtx.textContent = ticket.contexto;
+        if (elCtxBox) elCtxBox.classList.remove('hidden');
+    } else if (elCtxBox) {
+        elCtxBox.classList.add('hidden');
+    }
+    
+    // Historial
+    const elHistBox = document.getElementById('modal-ticket-historial-box');
+    const elHist = document.getElementById('modal-ticket-historial');
+    if (ticket.historial && Array.isArray(ticket.historial) && ticket.historial.length > 0 && elHist) {
+        let histHtml = '';
+        ticket.historial.forEach((item) => {
+            histHtml += `<div class="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-start gap-2 text-xs leading-relaxed">
+                <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-1.5 shrink-0"></span>
+                <span class="text-slate-300 font-mono text-[11px] leading-relaxed select-text">${escapeHtml(item)}</span>
+            </div>`;
+        });
+        elHist.innerHTML = histHtml;
+        if (elHistBox) elHistBox.classList.remove('hidden');
+    } else if (elHistBox) {
+        elHistBox.classList.add('hidden');
+    }
+    
+    // Raw Markdown block
+    const elRaw = document.getElementById('modal-ticket-raw');
+    if (elRaw) {
+        elRaw.textContent = ticket.raw_block || JSON.stringify(ticket, null, 2);
+    }
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalDetalleTicket() {
+    const modal = document.getElementById('modal-detalle-ticket');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    document.body.style.overflow = '';
+}
+
+function copiarIdTicketModal() {
+    if (!ticketActualModalData || !ticketActualModalData.id) return;
+    navigator.clipboard.writeText(ticketActualModalData.id).then(() => {
+        const icon = document.getElementById('modal-ticket-copy-icon');
+        if (icon) {
+            icon.textContent = 'check';
+            icon.classList.add('text-emerald-400');
+            setTimeout(() => {
+                icon.textContent = 'content_copy';
+                icon.classList.remove('text-emerald-400');
+            }, 2000);
+        }
+    }).catch(err => console.error('Error al copiar ID:', err));
+}
+
+function copiarDetalleCompletoTicketModal() {
+    if (!ticketActualModalData) return;
+    const txt = ticketActualModalData.raw_block || JSON.stringify(ticketActualModalData, null, 2);
+    navigator.clipboard.writeText(txt).then(() => {
+        const icon = document.getElementById('modal-ticket-copy-all-icon');
+        const text = document.getElementById('modal-ticket-copy-all-text');
+        if (icon) icon.textContent = 'check';
+        if (text) text.textContent = '¡Copiado!';
+        setTimeout(() => {
+            if (icon) icon.textContent = 'content_copy';
+            if (text) text.textContent = 'Copiar Todo';
+        }, 2000);
+    }).catch(err => console.error('Error al copiar detalle:', err));
+}
+
+// Escuchar tecla Escape para cerrar modal
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('modal-detalle-ticket');
+        if (modal && !modal.classList.contains('hidden')) {
+            cerrarModalDetalleTicket();
+        }
+    }
+});
 
 // Update WebSocket hook in connect function
 // It will now also look for data.tickets_archivados and data.tareas_programadas
@@ -2262,6 +2669,14 @@ async function toggleVoiceSession() {
             source.connect(voiceAnalyser);
 
             voiceSessionActive = true;
+            window.voiceSessionActive = true;
+
+            // Activar cornetas y auto-nota de voz en backend
+            fetch('/api/voz/estado', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cornetas_activas: true, auto_nota_voz: true })
+            }).catch(() => {});
 
             // Update Button & UI to Active State
             if (btn) {
@@ -2274,51 +2689,295 @@ async function toggleVoiceSession() {
             }
             if (btnText) btnText.innerText = 'Finalizar Comunicación';
             if (badge) {
-                badge.innerText = 'Escuchando Voz';
+                badge.innerText = 'Escuchando Voz + Cornetas';
                 badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
                 badge.style = '';
             }
             if (feedback) {
-                feedback.innerText = 'Canal de voz activo';
+                feedback.innerText = 'Micrófono y cornetas activos — Habla ahora';
                 feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-secondary font-bold pointer-events-none transition-all';
             }
 
-            // Web Speech Recognition for hands-free voice transcription
+            // Web Speech Recognition for hands-free continuous voice conversation (Half-Duplex Anti-Eco)
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRec) {
-                speechRecognizer = new SpeechRec();
-                speechRecognizer.continuous = true;
-                speechRecognizer.interimResults = true;
-                speechRecognizer.lang = 'es-ES';
+                let accumulatedFinalTranscript = '';
+                let pendingInterimTranscript = '';
+                let silenceCommitTimer = null;
+                const SILENCE_COMMIT_MS = 3200; // 3.2 segundos de silencio continuo para auto-enviar
+                window.waitingForAgentVoiceReply = false;
+                window.agentReplyArrivedForTurn = false;
 
-                speechRecognizer.onresult = (event) => {
-                    let interimTranscript = '';
-                    let finalTranscript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            finalTranscript += event.results[i][0].transcript;
-                        } else {
-                            interimTranscript += event.results[i][0].transcript;
-                        }
+                const normalizarTextoEco = (str) => {
+                    return String(str || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-z0-9\s]/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                };
+
+                const esPosibleEcoAcustico = (texto) => {
+                    // Si las cornetas no están activas físicamente ni en cola acústica, y el agente no está procesando,
+                    // NO es eco: es el usuario hablando legítimamente. No filtrar por coincidencia con respuestas.
+                    if (!window.agentIsSpeakingOnSpeakers && !window.agentIsThinkingOrProcessing) {
+                        return false;
                     }
-                    if (interimTranscript && feedback) {
-                        feedback.innerText = `"${interimTranscript}"`;
+                    const cand = normalizarTextoEco(texto);
+                    if (!cand) return true;
+                    const frasesAgente = [
+                        'hola capitan',
+                        'aqui luffy',
+                        'pizarra limpia',
+                        'tickets a ciegas',
+                        'alcanzo a leer',
+                        'opciones mas probables',
+                        'llegaron fragmentados',
+                        'dime en una frase clara',
+                        'estructuramos de inmediato',
+                        'parece que querias pedirme',
+                        'necesito que me aclares'
+                    ];
+                    for (const f of frasesAgente) {
+                        if (cand.includes(f)) return true;
                     }
-                    if (finalTranscript) {
-                        if (feedback) feedback.innerText = `Transmitiendo: "${finalTranscript}"`;
-                        const chatIn = document.getElementById('chat-input');
-                        if (chatIn) chatIn.value = finalTranscript;
-                        if (typeof sendChatMessage === 'function') {
-                            sendChatMessage();
-                        }
+                    return false;
+                };
+
+                const hayAudioReproduciendose = () => {
+                    const domAudioPlaying = Array.from(document.querySelectorAll('audio')).some(a => !a.paused && !a.ended);
+                    return Boolean(window.agentIsSpeakingOnSpeakers) || domAudioPlaying;
+                };
+
+                const estaOcupadoElAgente = () => {
+                    return Boolean(
+                        window.waitingForAgentVoiceReply ||
+                        window.agentIsThinkingOrProcessing ||
+                        hayAudioReproduciendose()
+                    );
+                };
+
+                // APAGADO FÍSICO DE MICRÓFONO (HARD MUTE WALKIE-TALKIE)
+                const silenciarMicrofonoHard = () => {
+                    accumulatedFinalTranscript = '';
+                    pendingInterimTranscript = '';
+                    if (silenceCommitTimer) {
+                        clearTimeout(silenceCommitTimer);
+                        silenceCommitTimer = null;
+                    }
+                    // 1. Cortar señal a nivel de hardware de audio en el navegador
+                    if (voiceMicrophoneStream) {
+                        try {
+                            voiceMicrophoneStream.getAudioTracks().forEach(t => { t.enabled = false; });
+                        } catch(e) {}
+                    }
+                    // 2. Destruir el reconocedor para no capturar conversaciones en la habitación
+                    if (speechRecognizer) {
+                        try {
+                            speechRecognizer.onend = null;
+                            speechRecognizer.onerror = null;
+                            speechRecognizer.onresult = null;
+                            speechRecognizer.abort();
+                        } catch (e) {}
+                        speechRecognizer = null;
+                    }
+                    if (badge) {
+                        badge.innerText = 'Micrófono Apagado';
+                        badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-500/20 border border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.3)]';
                     }
                 };
 
-                speechRecognizer.onerror = (e) => {
-                    console.warn('SpeechRecognition error:', e);
+                // REACTIVACIÓN FÍSICA DE MICRÓFONO (TU TURNO)
+                const activarMicrofonoHard = () => {
+                    if (!voiceSessionActive || estaOcupadoElAgente()) return;
+                    accumulatedFinalTranscript = '';
+                    pendingInterimTranscript = '';
+                    // 1. Reactivar señal de audio a nivel de hardware
+                    if (voiceMicrophoneStream) {
+                        try {
+                            voiceMicrophoneStream.getAudioTracks().forEach(t => { t.enabled = true; });
+                        } catch(e) {}
+                    }
+                    if (badge) {
+                        badge.innerText = 'Escuchando Voz + Cornetas';
+                        badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
+                    }
+                    crearYArrancarRecognizer();
                 };
 
-                speechRecognizer.start();
+                const enviarTextoVozDetectado = (textoEnviar) => {
+                    const limpio = (textoEnviar || '').trim();
+                    if (!limpio) return;
+                    if (estaOcupadoElAgente() || esPosibleEcoAcustico(limpio)) {
+                        console.log('[Walkie-Talkie] Transcripción ignorada por estar ocupado o eco:', limpio);
+                        accumulatedFinalTranscript = '';
+                        pendingInterimTranscript = '';
+                        return;
+                    }
+
+                    // 🔇 APAGAR EL MICRÓFONO INMEDIATAMENTE: No escuchar a nadie más en la habitación
+                    silenciarMicrofonoHard();
+                    window.waitingForAgentVoiceReply = true;
+                    window.waitingForAgentSince = Date.now();
+                    window.agentReplyArrivedForTurn = false;
+                    window.lastSeenAgentMsgIdBeforeSend = window.currentLastAgentMsgId || null;
+
+                    if (feedback) {
+                        feedback.innerText = `🔇 Micrófono apagado — Orquestador procesando tu respuesta...`;
+                    }
+                    const chatIn = document.getElementById('chat-input');
+                    if (chatIn) chatIn.value = limpio;
+                    if (typeof sendChatMessage === 'function') {
+                        sendChatMessage();
+                    }
+                };
+
+                // Callback cuando el usuario envía manualmente (Enter o botón Enviar) en modo voz
+                window.onVoiceMessageSentExplicitly = () => {
+                    if (silenceCommitTimer) {
+                        clearTimeout(silenceCommitTimer);
+                        silenceCommitTimer = null;
+                    }
+                    accumulatedFinalTranscript = '';
+                    pendingInterimTranscript = '';
+                    silenciarMicrofonoHard();
+                    window.waitingForAgentVoiceReply = true;
+                    window.waitingForAgentSince = Date.now();
+                    window.agentReplyArrivedForTurn = false;
+                    window.lastSeenAgentMsgIdBeforeSend = window.currentLastAgentMsgId || null;
+                    if (feedback) {
+                        feedback.innerText = `🔇 Micrófono apagado — Orquestador procesando tu respuesta...`;
+                    }
+                };
+
+                const crearYArrancarRecognizer = () => {
+                    if (!voiceSessionActive) return;
+                    if (estaOcupadoElAgente()) return;
+                    if (speechRecognizer) return;
+                    try {
+                        const rec = new SpeechRec();
+                        rec.continuous = true; // Permite hablar oraciones múltiples sin cortar la grabación
+                        rec.interimResults = true;
+                        rec.lang = 'es-ES';
+
+                        rec.onresult = (event) => {
+                            if (estaOcupadoElAgente()) {
+                                silenciarMicrofonoHard();
+                                return;
+                            }
+
+                            // Reconstruir el texto completo acumulado de la locución continua
+                            let totalFinal = '';
+                            let currentInterim = '';
+
+                            for (let i = 0; i < event.results.length; ++i) {
+                                const res = event.results[i];
+                                if (res.isFinal) {
+                                    const part = res[0].transcript.trim();
+                                    if (part) {
+                                        totalFinal += (totalFinal ? ' ' : '') + part;
+                                    }
+                                } else {
+                                    currentInterim += res[0].transcript;
+                                }
+                            }
+
+                            accumulatedFinalTranscript = totalFinal.trim();
+                            pendingInterimTranscript = currentInterim.trim();
+
+                            const textoCompleto = (accumulatedFinalTranscript + (pendingInterimTranscript ? (' ' + pendingInterimTranscript) : '')).trim();
+
+                            if (textoCompleto) {
+                                // Reflejar en vivo en el campo de texto del chat
+                                const chatIn = document.getElementById('chat-input');
+                                if (chatIn) chatIn.value = textoCompleto;
+
+                                if (feedback) {
+                                    feedback.innerHTML = `🎙️ <span class="text-white font-medium">"${textoCompleto}"</span> <span class="text-secondary/80 text-[10px] block mt-0.5">(Pausa de 3.2s para enviar automáticamente, o pulsa Enter para enviar ya 🚀)</span>`;
+                                }
+
+                                // Reiniciar temporizador de silencio cada vez que pronuncia nuevas palabras
+                                if (silenceCommitTimer) clearTimeout(silenceCommitTimer);
+                                silenceCommitTimer = setTimeout(() => {
+                                    const textoFinalAEnviar = (accumulatedFinalTranscript + (pendingInterimTranscript ? (' ' + pendingInterimTranscript) : '')).trim();
+                                    if (textoFinalAEnviar && !estaOcupadoElAgente()) {
+                                        accumulatedFinalTranscript = '';
+                                        pendingInterimTranscript = '';
+                                        silenceCommitTimer = null;
+                                        enviarTextoVozDetectado(textoFinalAEnviar);
+                                    }
+                                }, SILENCE_COMMIT_MS);
+                            }
+                        };
+
+                        rec.onerror = (e) => {
+                            if (e && e.error !== 'no-speech' && e.error !== 'aborted') {
+                                console.warn('SpeechRecognition aviso:', e.error);
+                            }
+                        };
+
+                        rec.onend = () => {
+                            speechRecognizer = null;
+                            // Si la sesión sigue activa y el agente no está ocupado, reiniciar para seguir escuchando
+                            if (voiceSessionActive && !estaOcupadoElAgente()) {
+                                setTimeout(() => {
+                                    if (voiceSessionActive && !estaOcupadoElAgente() && !speechRecognizer) {
+                                        crearYArrancarRecognizer();
+                                    }
+                                }, 100);
+                            }
+                        };
+
+                        speechRecognizer = rec;
+                        rec.start();
+                    } catch (errStart) {
+                        speechRecognizer = null;
+                    }
+                };
+
+                // Monitor Walkie-Talkie (cada 300ms): mantiene el micrófono apagado mientras el agente piensa o habla
+                if (window.voiceHalfDuplexInterval) clearInterval(window.voiceHalfDuplexInterval);
+                window.voiceHalfDuplexInterval = setInterval(() => {
+                    if (!voiceSessionActive) {
+                        clearInterval(window.voiceHalfDuplexInterval);
+                        window.voiceHalfDuplexInterval = null;
+                        return;
+                    }
+                    const now = Date.now();
+                    const audioActivo = hayAudioReproduciendose();
+                    const pensando = Boolean(window.agentIsThinkingOrProcessing);
+
+                    // Liberar bloqueo de espera cuando la respuesta ya llegó y las cornetas terminaron de hablar
+                    if (window.waitingForAgentVoiceReply) {
+                        const elapsedWait = now - (window.waitingForAgentSince || now);
+                        const elapsedSinceReply = window.agentReplyArrivedAt ? (now - window.agentReplyArrivedAt) : 0;
+                        if (window.agentReplyArrivedForTurn && elapsedSinceReply > 3500 && !audioActivo && !pensando) {
+                            window.waitingForAgentVoiceReply = false;
+                        } else if (elapsedWait > 90000 && !audioActivo && !pensando) {
+                            window.waitingForAgentVoiceReply = false;
+                        }
+                    }
+
+                    const ocupado = estaOcupadoElAgente();
+                    if (ocupado) {
+                        silenciarMicrofonoHard();
+                        if (feedback) {
+                            if (audioActivo) {
+                                feedback.innerText = '🔊 Micrófono apagado — Orquestador hablando por cornetas...';
+                            } else {
+                                feedback.innerText = '🔇 Micrófono apagado — Orquestador procesando tu respuesta...';
+                            }
+                        }
+                    } else if (!speechRecognizer) {
+                        if (feedback) {
+                            feedback.innerText = '🎙️ Tu turno — Habla ahora para continuar';
+                        }
+                        activarMicrofonoHard();
+                    }
+                }, 300);
+
+                activarMicrofonoHard();
             }
 
         } catch (err) {
@@ -2327,6 +2986,17 @@ async function toggleVoiceSession() {
         }
     } else {
         // DETENER COMUNICACIÓN
+        voiceSessionActive = false;
+        window.voiceSessionActive = false;
+        window.waitingForAgentVoiceReply = false;
+        if (window.voiceHalfDuplexInterval) {
+            clearInterval(window.voiceHalfDuplexInterval);
+            window.voiceHalfDuplexInterval = null;
+        }
+        if (speechRecognizer) {
+            try { speechRecognizer.onend = null; speechRecognizer.abort(); } catch(e) {}
+            speechRecognizer = null;
+        }
         if (voiceMicrophoneStream) {
             voiceMicrophoneStream.getTracks().forEach(t => t.stop());
             voiceMicrophoneStream = null;
@@ -2336,11 +3006,12 @@ async function toggleVoiceSession() {
             voiceAudioContext = null;
             voiceAnalyser = null;
         }
-        if (speechRecognizer) {
-            try { speechRecognizer.stop(); } catch(e) {}
-            speechRecognizer = null;
-        }
-        voiceSessionActive = false;
+
+        fetch('/api/voz/estado', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cornetas_activas: Boolean(window.speakerCornetasActive), auto_nota_voz: false })
+        }).catch(() => {});
 
         // Restore Button & UI to Idle
         if (btn) {
@@ -2364,6 +3035,209 @@ async function toggleVoiceSession() {
     }
 }
 window.toggleVoiceSession = toggleVoiceSession;
+
+// ---------------------------------------------------------------------------
+// CONTROLES DE CORNETAS Y NOTAS DE VOZ EN EL CHAT DE LA CONSOLA
+// ---------------------------------------------------------------------------
+window.speakerCornetasActive = false;
+let mediaRecorderVoiceNote = null;
+let voiceNoteChunks = [];
+let isRecordingVoiceNote = false;
+let isSendingVoiceNote = false;
+
+async function toggleSpeakerCornetasMode() {
+    window.speakerCornetasActive = !window.speakerCornetasActive;
+    const icon = document.getElementById('chat-speaker-icon');
+    const btn = document.getElementById('chat-speaker-btn');
+    if (icon) {
+        icon.innerText = window.speakerCornetasActive ? 'volume_up' : 'volume_off';
+    }
+    if (btn) {
+        if (window.speakerCornetasActive) {
+            btn.className = 'text-secondary bg-secondary/15 p-1 rounded-lg border border-secondary/40 transition-colors cursor-pointer flex items-center justify-center';
+        } else {
+            btn.className = 'text-on-surface-variant hover:text-secondary p-1 rounded-lg hover:bg-secondary/10 transition-colors cursor-pointer flex items-center justify-center';
+        }
+    }
+    try {
+        await fetch('/api/voz/estado', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cornetas_activas: window.speakerCornetasActive })
+        });
+    } catch(e) {}
+}
+window.toggleSpeakerCornetasMode = toggleSpeakerCornetasMode;
+
+function renderOptimisticVoiceNoteInChat(textoTranscrito, audioUrl) {
+    const container = document.getElementById('chat-messages');
+    if (!container || !textoTranscrito) return;
+    const div = document.createElement('div');
+    div.className = 'self-end bg-secondary/15 text-on-surface p-3 rounded-2xl rounded-tr-none border border-secondary/40 max-w-[88%] shadow-[0_0_14px_rgb(var(--c-secondary)/0.18)] text-xs transition-all backdrop-blur-sm';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const audioPlayerHtml = audioUrl
+        ? `<div class="mt-2 pt-1.5 border-t border-outline-variant/30"><audio controls src="${audioUrl}" class="w-full h-8 rounded-lg"></audio></div>`
+        : '';
+    div.innerHTML = `
+        <div class="flex justify-between items-center gap-3 mb-1">
+            <div class="flex items-center gap-1.5">
+                <span class="text-secondary font-bold tracking-wider uppercase text-[10px]">Capitán (Tú)</span>
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-primary/15 text-primary text-[9px] font-bold">🎙️ Nota de Voz</span>
+            </div>
+            <span class="text-[9px] text-on-surface-variant/50">${timeStr}</span>
+        </div>
+        <div class="leading-relaxed whitespace-pre-wrap select-text">${renderMarkdownChat(textoTranscrito)}</div>
+        <div class="voice-player-slot">${audioPlayerHtml}</div>
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+async function toggleRecordVoiceNote() {
+    const btn = document.getElementById('chat-voice-note-btn');
+    const icon = document.getElementById('chat-voice-note-icon');
+    const input = document.getElementById('chat-input');
+
+    if (isSendingVoiceNote) return;
+
+    if (!isRecordingVoiceNote) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            voiceNoteChunks = [];
+            const mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+                ? 'audio/webm;codecs=opus'
+                : 'audio/webm';
+            mediaRecorderVoiceNote = new MediaRecorder(stream, { mimeType });
+            mediaRecorderVoiceNote.ondataavailable = (ev) => {
+                if (ev.data && ev.data.size > 0) voiceNoteChunks.push(ev.data);
+            };
+            mediaRecorderVoiceNote.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                mediaRecorderVoiceNote = null;
+                const chunksCopy = voiceNoteChunks.slice();
+                voiceNoteChunks = [];
+                if (chunksCopy.length === 0) {
+                    if (input) input.placeholder = 'Escribe un comando o envía una nota de voz...';
+                    return;
+                }
+                const blob = new Blob(chunksCopy, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64Audio = reader.result;
+                    isSendingVoiceNote = true;
+                    if (icon) {
+                        icon.innerText = 'sync';
+                        icon.classList.add('animate-spin');
+                    }
+                    if (input) input.placeholder = '⏳ Transcribiendo y enviando nota de voz...';
+                    try {
+                        const res = await fetch('/api/voz/nota-voz', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                audio_base64: base64Audio,
+                                ext: 'webm',
+                                usar_cornetas: true,
+                                modo: currentChatMode
+                            })
+                        });
+                        const data = await res.json();
+                        if (input) input.placeholder = 'Escribe un comando o envía una nota de voz...';
+                        if (data.status === 'ok') {
+                            if (data.mensajes && typeof updateChat === 'function') {
+                                updateChat(data.mensajes);
+                            } else if (data.texto_transcrito) {
+                                renderOptimisticVoiceNoteInChat(data.texto_transcrito, data.audio_url);
+                            }
+                        } else {
+                            alert(data.message || 'No se pudo procesar la nota de voz.');
+                        }
+                    } catch (err) {
+                        if (input) input.placeholder = 'Escribe un comando o envía una nota de voz...';
+                        console.error('Error enviando nota de voz:', err);
+                    } finally {
+                        isSendingVoiceNote = false;
+                        if (icon) {
+                            icon.classList.remove('animate-spin');
+                            icon.innerText = 'mic';
+                        }
+                        if (btn) {
+                            btn.className = 'text-on-surface-variant hover:text-primary p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center';
+                        }
+                    }
+                };
+                reader.readAsDataURL(blob);
+            };
+            mediaRecorderVoiceNote.start(200);
+            isRecordingVoiceNote = true;
+            if (icon) icon.innerText = 'stop_circle';
+            if (btn) btn.className = 'text-error bg-error/20 p-1 rounded-lg border border-error animate-pulse cursor-pointer flex items-center justify-center';
+            if (input) input.placeholder = '🎙️ Grabando nota de voz... Pulsa el botón rojo para enviar';
+        } catch (e) {
+            // Fallback directo al micrófono físico de la PC gestionado por el backend Python
+            isSendingVoiceNote = true;
+            if (input) input.placeholder = '🎙️ Escuchando por el micrófono de la PC... Habla ahora';
+            try {
+                const res = await fetch('/api/voz/nota-voz', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ usar_microfono_pc: true, usar_cornetas: true, modo: currentChatMode })
+                });
+                const data = await res.json();
+                if (input) input.placeholder = 'Escribe un comando o envía una nota de voz...';
+                if (data.status === 'ok') {
+                    if (data.mensajes && typeof updateChat === 'function') {
+                        updateChat(data.mensajes);
+                    } else if (data.texto_transcrito) {
+                        renderOptimisticVoiceNoteInChat(data.texto_transcrito, data.audio_url);
+                    }
+                } else {
+                    alert(data.message || 'No se detectó voz en el micrófono.');
+                }
+            } catch (err) {
+                if (input) input.placeholder = 'Escribe un comando o envía una nota de voz...';
+            } finally {
+                isSendingVoiceNote = false;
+            }
+        }
+    } else {
+        isRecordingVoiceNote = false;
+        if (icon) icon.innerText = 'mic';
+        if (btn) btn.className = 'text-on-surface-variant hover:text-primary p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center';
+        if (mediaRecorderVoiceNote && mediaRecorderVoiceNote.state !== 'inactive') {
+            try { mediaRecorderVoiceNote.stop(); } catch (e) {}
+        }
+    }
+}
+window.toggleRecordVoiceNote = toggleRecordVoiceNote;
+
+async function reproducirMensajeVoz(btnEl) {
+    if (!btnEl) return;
+    const texto = btnEl.getAttribute('data-texto') || '';
+    if (!texto) return;
+    const bubble = btnEl.closest('.self-start') || btnEl.parentElement;
+    const slot = bubble ? bubble.querySelector('.voice-player-slot') : null;
+    try {
+        if (typeof setSpeakingAgent === 'function') setSpeakingAgent('luffy');
+        const res = await fetch('/api/voz/hablar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texto: texto, reproducir_cornetas_pc: true })
+        });
+        const data = await res.json();
+        if (data && data.audio_url) {
+            if (slot) {
+                slot.innerHTML = `<div class="mt-2 pt-1.5 border-t border-outline-variant/30"><audio controls autoplay src="${data.audio_url}" class="w-full h-8 rounded-lg"></audio></div>`;
+            } else {
+                new Audio(data.audio_url).play().catch(() => {});
+            }
+        }
+    } catch (e) {
+        console.error('Error reproduciendo voz:', e);
+    }
+}
+window.reproducirMensajeVoz = reproducirMensajeVoz;
 
 // Initialize visualizer on DOM ready or immediate if ready
 if (document.readyState === 'complete' || document.readyState === 'interactive') {

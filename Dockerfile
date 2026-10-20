@@ -16,7 +16,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
     # Las rutas internas del contenedor (sobreescriben las rutas Windows en los .py)
     AGENTES_ROOT=/app \
-    SHARED_MEMORY_PATH=/app/memoria_compartida \
+    SHARED_MEMORY_PATH=/app/memoria \
     PYTHONPATH=/app/Agente_Orquestador:/app/Subagente_Desarrollo:/app/Subagente_Ciberseguridad:/app/Subagente_Diseno:/app/Subagente_Asistencia:/app/Luffy:/app/Zoro:/app/Robin:/app/Nami
 
 # ── Dependencias del Sistema Operativo ───────────────────────────────────────

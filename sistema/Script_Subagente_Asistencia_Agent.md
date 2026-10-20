@@ -108,4 +108,4 @@ El `base_listener.py` valida físicamente la existencia del archivo en disco (`o
   - Bloque JSON validado por el Auditor del sistema.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

@@ -132,13 +132,4 @@ tool_solicitar_ayuda_pizarra.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Asistencia]]
-- **Director de Flota:** [[Perfil_Agente_Orquestador]]
-- **Pizarra Central:** [[Bitacora]]
-- **Constitución:** [[Reglas de la Tripulacion]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

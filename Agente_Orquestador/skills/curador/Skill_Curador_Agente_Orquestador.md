@@ -132,4 +132,4 @@ tool_parchear_archivo(
 El agente reintenta la función y completa el ticket exitosamente.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

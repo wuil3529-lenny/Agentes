@@ -59,8 +59,14 @@ except Exception:
     def publicar_mensaje(*args, **kwargs): return ""
     def leer_nodo_obsidian(*args, **kwargs): return ""
     def leer_mensajes(*args, **kwargs): return []
-    def registrar_bitacora(*args, **kwargs): return ""
     def guardar_cerebro(*args, **kwargs): return ""
+try:
+    from bucle_autocorreccion import interceptar_tool_call
+except Exception:
+    try:
+        from Agente_Orquestador.bucle_autocorreccion import interceptar_tool_call
+    except Exception:
+        interceptar_tool_call = None
 
 try:
     from luffy_agent import crear_llm
@@ -163,6 +169,13 @@ from Subagente_Asistencia.skills.auto_aprendizaje.skill_auto_aprendizaje import 
 )
 HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_AUTO_APRENDIZAJE)
 
+# 14. Manos y Ojos (Navegación Web con Playwright y Control de PC con PyAutoGUI + Visión IA)
+from Subagente_Asistencia.skills.manos_y_ojos import (
+    HERRAMIENTAS_MANOS_Y_OJOS,
+    obtener_prompt_manos_y_ojos
+)
+HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_MANOS_Y_OJOS)
+
 NOMBRE_AGENTE = "Subagente_Asistencia"
 NOMBRE_AGENTE_ALIAS = "Sanji"
 
@@ -207,6 +220,19 @@ MAPA_HERRAMIENTA_PROMPTS = {
     # 13. Auto-Aprendizaje
     "tool_consultar_playbook_memoria": ("Auto-Aprendizaje Continuo", obtener_prompt_auto_aprendizaje),
     "tool_registrar_playbook_memoria": ("Auto-Aprendizaje Continuo", obtener_prompt_auto_aprendizaje),
+    # 14. Manos y Ojos (Navegación Web y Control PC)
+    "tool_navegar_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_rellenar_formulario_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_hacer_clic_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_extraer_informacion_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_capturar_pantalla_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_cerrar_navegador_web": ("Navegación Web y Formularios", obtener_prompt_manos_y_ojos),
+    "tool_capturar_pantalla_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    "tool_analizar_pantalla_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    "tool_hacer_clic_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    "tool_escribir_teclado_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    "tool_presionar_teclas_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    "tool_abrir_aplicacion_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
 }
 
 # ─── Configuración LLM ─────────────────────────────────────────────────────────
@@ -346,6 +372,19 @@ def detectar_prompts_habilidad(texto: str) -> List[str]:
         except Exception:
             pass
 
+    # Manos y Ojos (Navegación Web con Playwright y Control de PC con PyAutoGUI + Visión IA)
+    if any(k in t for k in [
+        "navegar", "navegador", "formulario", "rellenar", "web", "pagina", "página",
+        "pantalla", "captura", "screenshot", "clic", "click", "mouse", "teclado",
+        "abrir app", "abrir aplicacion", "abrir aplicación", "manos", "ojos", "vision",
+        "visión", "playwright", "pyautogui", "tool_navegar", "tool_capturar_pantalla"
+    ]):
+        try:
+            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Manos y Ojos (Navegación Web y Control PC).")
+            inyectados.append(obtener_prompt_manos_y_ojos())
+        except Exception:
+            pass
+
     return inyectados
 
 
@@ -429,10 +468,11 @@ def _herramientas_schema() -> list:
     return schemas
 
 
-def _procesar_tool_calls(client, messages, tool_calls):
+def _procesar_tool_calls(client, messages, tool_calls, objetivo_ticket: str = "", historial_firmas: list = None, conteo_fallos: dict = None):
     """
     Ejecuta las llamadas a herramientas, inyectando el System Prompt
     especializado de la habilidad en el contexto de respuesta.
+    Aplica QA Gherkin Universal, Filtro Anti-Bucle y Autocorrección de Causa Raíz.
     """
     for tc in tool_calls:
         if hasattr(tc, "function"):
@@ -447,7 +487,18 @@ def _procesar_tool_calls(client, messages, tool_calls):
             args_tool = tc.get("args", {})
             tc_id = tc.get("id", "")
 
-        resultado = _ejecutar_herramienta(nombre_tool, args_tool)
+        if interceptar_tool_call:
+            resultado, exito, _ = interceptar_tool_call(
+                nombre_tool=nombre_tool,
+                args_tool=args_tool,
+                func_ejecutar=_ejecutar_herramienta,
+                objetivo_ticket=objetivo_ticket,
+                nombre_agente=NOMBRE_AGENTE,
+                historial_firmas=historial_firmas,
+                conteo_fallos=conteo_fallos
+            )
+        else:
+            resultado = _ejecutar_herramienta(nombre_tool, args_tool)
 
         # Inyección dinámica del System Prompt de la habilidad que se acaba de usar
         contenido_tool = resultado
@@ -472,6 +523,7 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
     """
     Ejecuta un ciclo completo de razonamiento y ejecución para el Subagente de Asistencia.
     Garantiza la inyección del prompt canónico y de los prompts especializados de skills.
+    Integra QA Gherkin Universal y Filtro Anti-Bucle en cada llamada de herramienta.
     """
     client = _crear_client()
     system_prompt = construir_system_prompt(instruccion=mensaje_entrada)
@@ -483,6 +535,8 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
 
     max_rondas = 50
     schemas = _herramientas_schema()
+    historial_firmas = []
+    conteo_fallos = {}
 
     for ronda in range(max_rondas):
         try:
@@ -513,7 +567,14 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
             if not assistant_msg.get('content'):
                 assistant_msg['content'] = ''
             messages.append(assistant_msg)
-            messages = _procesar_tool_calls(client, messages, msg.tool_calls)
+            messages = _procesar_tool_calls(
+                client,
+                messages,
+                msg.tool_calls,
+                objetivo_ticket=mensaje_entrada,
+                historial_firmas=historial_firmas,
+                conteo_fallos=conteo_fallos
+            )
             continue
 
         # Procesar respuesta final

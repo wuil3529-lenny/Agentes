@@ -122,6 +122,68 @@ def _msg_hard_stop(ruta: str) -> str:
     )
 
 
+# ─── SEC-H04: Utilidades de saneamiento de comandos (shell=False) ─────────────
+_OPERADORES_SHELL_PROHIBIDOS = (
+    "&&", "||", ";", "|", "`", "$(", "${", ">", "<", "&>", ">>",
+)
+
+
+def _tokenizar_comando_seguro(comando: str, binarios_permitidos) -> list:
+    """
+    Tokeniza un comando en una lista de argumentos SIN invocar una shell.
+
+    Raises:
+        ValueError: si el comando contiene operadores de shell o un binario
+                    fuera de la lista blanca.
+    """
+    import shlex
+
+    if not isinstance(comando, str) or not comando.strip():
+        raise ValueError("Comando vacío o inválido.")
+
+    for op in _OPERADORES_SHELL_PROHIBIDOS:
+        if op in comando:
+            raise ValueError(
+                f"Operador de shell '{op}' no permitido (ejecución sin shell intermedio). "
+                "Emite un único comando por invocación."
+            )
+
+    try:
+        argv = shlex.split(comando, posix=True)
+    except ValueError as e:
+        raise ValueError(f"Comando no tokenizable de forma segura: {e}")
+
+    if not argv:
+        raise ValueError("Comando vacío tras tokenizar.")
+
+    binario = Path(argv[0]).name.lower()
+    if binario.endswith(".exe"):
+        binario = binario[:-4]
+
+    permitidos = {str(b).lower() for b in binarios_permitidos}
+    if binario not in permitidos:
+        raise ValueError(
+            f"Binario '{binario}' no autorizado. Permitidos: {', '.join(sorted(permitidos))}"
+        )
+
+    return argv
+
+
+def _validar_directorio_trabajo(directorio, raiz) -> str:
+    """Confina el directorio de trabajo a la raíz del proyecto."""
+    raiz_p = Path(raiz).resolve()
+    try:
+        candidato = Path(directorio).resolve() if directorio else raiz_p
+    except Exception:
+        return str(raiz_p)
+    try:
+        candidato.relative_to(raiz_p)
+    except ValueError:
+        return str(raiz_p)
+    return str(candidato) if candidato.is_dir() else str(raiz_p)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 @tool
 def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
     """
@@ -151,11 +213,15 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
         p = Path(ruta_final)
         p.parent.mkdir(parents=True, exist_ok=True)
 
-        # Auto-enlace a Obsidian si es markdown y no lo tiene
-        if p.suffix == ".md" and "**Pertenece a:**" not in contenido:
-            # Enlazar a perfil canónico
-            conexion = f"\n\n---\n**Pertenece a:** [[Perfil_{_AGENTE}]]\n"
-            contenido = contenido.rstrip() + conexion
+        # Auto-enlace canónico a Obsidian si es markdown
+        if p.suffix.lower() == ".md":
+            try:
+                if str(_APP_ROOT / "Agente_Orquestador") not in sys.path:
+                    sys.path.insert(0, str(_APP_ROOT / "Agente_Orquestador"))
+                from sync_cerebro import formatear_md_canonico
+                contenido = formatear_md_canonico(p, contenido)
+            except Exception:
+                pass
 
         p.write_text(contenido, encoding="utf-8")
         return json.dumps({
@@ -271,12 +337,21 @@ def ejecutar_comando(comando: str, directorio: Optional[str] = None) -> str:
             "mensaje": f"FIREWALL: Binario '{binario}' no autorizado. Binarios permitidos: {', '.join(_COMANDOS_AUTORIZADOS)}"
         }, ensure_ascii=False)
 
-    cwd = directorio if directorio and Path(directorio).is_dir() else str(_APP_ROOT)
+    # SEC-H04: tokenización segura + ejecución SIN shell intermedio
+    try:
+        argv = _tokenizar_comando_seguro(comando, _COMANDOS_AUTORIZADOS)
+    except ValueError as e:
+        return json.dumps({
+            "status": "error",
+            "mensaje": f"FIREWALL: {e}"
+        }, ensure_ascii=False)
+
+    cwd = _validar_directorio_trabajo(directorio, _APP_ROOT)
 
     try:
         proc = subprocess.run(
-            comando,
-            shell=True,
+            argv,
+            shell=False,
             cwd=cwd,
             capture_output=True,
             text=True,

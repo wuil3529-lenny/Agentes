@@ -218,4 +218,4 @@ Acuerdo de almacenamiento en carpeta de diseño y despacho de vista previa. Vali
 ```
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

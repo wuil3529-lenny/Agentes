@@ -158,7 +158,8 @@ def tool_reportar_fallo_critico(modulo_afectado: str, error_log: str, descripcio
         descripcion_bloqueo: Explicación del bloqueo y acciones recomendadas.
     """
     try:
-        ruta_errores = _APP_ROOT / "Memoria_Viva_Errores.md"
+        ruta_errores = _APP_ROOT / "memoria" / "Memoria_Viva_Errores.md"
+        ruta_errores.parent.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         bloque = f"""

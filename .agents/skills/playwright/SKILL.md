@@ -21,3 +21,6 @@ When validating, testing, or inspecting live web pages and dashboards, use Playw
    - Intercept runtime exceptions with `page.on('console')` and `page.on('pageerror')`.
 4. **Visual Evidence**:
    - Take full-page screenshots (`page.screenshot({ fullPage: true })`) to verify final render.
+
+---
+**Conexiones:** [[sistema]]

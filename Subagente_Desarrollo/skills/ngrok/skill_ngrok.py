@@ -12,6 +12,7 @@ Herramientas disponibles:
 import os
 import time
 import json
+import shlex
 import subprocess
 import requests
 from typing import Dict, Any, List, Optional
@@ -69,9 +70,22 @@ def ngrok_iniciar_tunel(puerto: int) -> str:
         if auth_token:
             subprocess.run(["ngrok", "config", "add-authtoken", auth_token], capture_output=True, text=True)
 
-        # Iniciar en background
-        comando = f"nohup ngrok http {puerto} > /dev/null 2>&1 &"
-        subprocess.run(comando, shell=True)
+        # H-04: validacion estricta del puerto (entero 1-65535) y Popen sin shell
+        try:
+            puerto_int = int(puerto)
+        except (TypeError, ValueError):
+            return json.dumps({"status": "error", "mensaje": "Puerto invalido: debe ser un entero."})
+        if not (1 <= puerto_int <= 65535):
+            return json.dumps({"status": "error", "mensaje": "Puerto fuera de rango (1-65535)."})
+
+        subprocess.Popen(
+            ["ngrok", "http", str(puerto_int)],
+            shell=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True
+        )
 
         url_publica = None
         for _ in range(10):

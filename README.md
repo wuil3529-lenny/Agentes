@@ -42,30 +42,29 @@ El sistema utiliza nombres canónicos funcionales y profesionales, manteniendo c
 
 ```plaintext
 Agentes/
-├── Agente_Orquestador/          # Núcleo director (base_listener, memory, sync_cerebro, RAG)
-│   ├── _agents/                 # Perfiles JSON y configuración del Orquestador
-│   └── skills/                  # Habilidades estratégicas (curador, entrevistador, supervisor)
-├── Subagente_Desarrollo/        # Entorno de desarrollo (zoro_agent, subagente_desarrollo_agent)
-│   ├── .agents/                 # Perfil JSON y directivas de desarrollo
-│   ├── n8n-mcp-skills/          # Librerías de patrones, validaciones y flujos n8n
+├── Agente_Orquestador/          # Núcleo director (base_listener, memory, sync_cerebro, qa_gherkin, bucle_autocorreccion)
+│   ├── _agents/                 # Identidad maestra canónica (agente.md)
+│   └── skills/                  # Habilidades estratégicas (entrevistador, plan, supervisor, sentry)
+├── Subagente_Desarrollo/        # Entorno de desarrollo de software (subagente_desarrollo_agent, 21 skills)
+│   ├── _agents/                 # Identidad maestra canónica (agente.md)
 │   ├── proyectos/               # Entregables de código y aplicaciones construidas
-│   └── skills/                  # Habilidades de software, git, web, n8n y sentry
-├── Subagente_Diseno/            # Entorno de UI/UX y multimedia (nami_agent, subagente_diseno_agent)
-│   ├── .agents/                 # Perfil JSON y directivas de diseño
-│   ├── informes/                # Mockups index.html, guiones y artes visuales generados
-│   └── skills/                  # Habilidades de renderizado 2D/3D, presentaciones y vídeo
-├── Subagente_Ciberseguridad/    # Entorno de seguridad (robin_agent, subagente_ciberseguridad_agent)
-│   ├── .agents/                 # Perfil JSON y directivas de auditoría
-│   ├── reportes/                # Informes formales de auditoría y análisis de riesgos
-│   └── skills/                  # Escáneres de seguridad, auditoría y contención
-├── Subagente_Asistencia/        # Entorno de asistencia técnica (sanji_agent, subagente_asistencia_agent)
-│   ├── .agents/                 # Perfil JSON y directivas operativas
-│   ├── documentos_sanji/        # Documentos procesados, entregables y minutas técnicas
-│   └── skills/                  # Lector de PDFs, Google Workspace, inbox y clima
+│   └── skills/                  # Habilidades de software, git, web, n8n, frontend y sentry
+├── Subagente_Diseno/            # Entorno de UI/UX y producción multimedia (subagente_diseno_agent, 12 skills)
+│   ├── _agents/                 # Identidad maestra canónica (agente.md)
+│   ├── informes/                # Entregables visuales, feeds, vídeo, Marp y brand book
+│   └── skills/                  # Habilidades de renderizado local, vídeo, edición y presentaciones
+├── Subagente_Ciberseguridad/    # Entorno de seguridad, SAST y SOC (subagente_ciberseguridad_agent, 9 skills)
+│   ├── _agents/                 # Identidad maestra canónica (agente.md)
+│   ├── reportes/                # Dictámenes e informes formales de auditoría y análisis de riesgos
+│   └── skills/                  # Escáneres de seguridad, auditoría SAST/SCA y contención
+├── Subagente_Asistencia/        # Entorno de asistencia ejecutiva y Workspace (subagente_asistencia_agent, 13 skills)
+│   ├── _agents/                 # Identidad maestra canónica (agente.md)
+│   ├── documentos_asistencia/   # Documentos ejecutivos, minutas técnicas y resúmenes ofimáticos
+│   └── skills/                  # Lector de PDFs, Google Workspace, clima y mensajería
 ├── dashboard/                   # Panel de control web (FastAPI, WebSockets, Tailwind UI)
-├── memoria/                     # Base de conocimiento transversal a largo plazo
+├── memoria/                     # Base de conocimiento persistente (Tickets_Archivados, Perfil de wuil, memoria, Memoria_Viva_Errores)
 ├── protocolo/                   # Directivas, reglas de conducta y protocolos inter-agente
-├── sistema/                     # Documentación de arquitectura, seguridad y configuración
+├── sistema/                     # Biblioteca de documentación de arquitectura, seguridad y scripts
 ├── Bitacora.md                  # La Pizarra: gestor de tareas y tickets activos
 ├── Cerebro.md                   # Índice cronológico central de memoria viva
 ├── docker-compose.yml           # Configuración del contenedor aislado tripulacion_ia_v3
@@ -148,8 +147,4 @@ python Agente_Orquestador/sync_cerebro.py
 *Desarrollado y mantenido por Wuilfredo en colaboración con el sistema multi-agente Antigravity 2.0.*
 
 ---
-**Pertenece a:** [[archivos_temporales]]
-
-
----
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

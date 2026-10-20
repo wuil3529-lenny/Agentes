@@ -145,4 +145,4 @@ Para proporcionar al usuario una experiencia de navegación ejecutiva y limpia s
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

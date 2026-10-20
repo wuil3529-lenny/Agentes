@@ -1383,7 +1383,7 @@
         <!-- Col 1: Agent Name -->
         <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
           <div id="dot-luffy" class="w-2.5 h-2.5 rounded-full bg-secondary shadow-[0_0_8px_#00ffcc] shrink-0 animate-pulse"></div>
-          <span class="text-base font-bold text-on-surface tracking-wide">Luffy</span>
+          <span class="text-base font-bold text-on-surface tracking-wide" id="agent-name-luffy">Luffy</span>
         </div>
 
         <!-- Col 2: Model Badge -->
@@ -1392,7 +1392,7 @@
             <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
             <div class="flex flex-col">
               <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="luffy" data-leader="true">DeepSeek Chat</span>
-              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Líder</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70" id="agent-sublabel-luffy">DeepSeek V3 • Líder</span>
             </div>
           </div>
         </div>
@@ -1429,7 +1429,7 @@
         <!-- Col 1: Agent Name -->
         <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
           <div id="dot-zoro" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
-          <span class="text-base font-bold text-on-surface tracking-wide">Zoro</span>
+          <span class="text-base font-bold text-on-surface tracking-wide" id="agent-name-zoro">Zoro</span>
         </div>
 
         <!-- Col 2: Model Badge -->
@@ -1438,7 +1438,7 @@
             <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
             <div class="flex flex-col">
               <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="zoro">DeepSeek Chat</span>
-              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Código</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70" id="agent-sublabel-zoro">DeepSeek V3 • Código</span>
             </div>
           </div>
         </div>
@@ -1475,7 +1475,7 @@
         <!-- Col 1: Agent Name -->
         <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
           <div id="dot-sanji" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
-          <span class="text-base font-bold text-on-surface tracking-wide">Sanji</span>
+          <span class="text-base font-bold text-on-surface tracking-wide" id="agent-name-sanji">Sanji</span>
         </div>
 
         <!-- Col 2: Model Badge -->
@@ -1484,7 +1484,7 @@
             <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
             <div class="flex flex-col">
               <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="sanji">DeepSeek Chat</span>
-              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Diseño</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70" id="agent-sublabel-sanji">DeepSeek V3 • Asistencia</span>
             </div>
           </div>
         </div>
@@ -1521,7 +1521,7 @@
         <!-- Col 1: Agent Name -->
         <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
           <div id="dot-robin" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
-          <span class="text-base font-bold text-on-surface tracking-wide">Robin</span>
+          <span class="text-base font-bold text-on-surface tracking-wide" id="agent-name-robin">Robin</span>
         </div>
 
         <!-- Col 2: Model Badge -->
@@ -1530,7 +1530,7 @@
             <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
             <div class="flex flex-col">
               <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="robin">DeepSeek Chat</span>
-              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Auditoría</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70" id="agent-sublabel-robin">DeepSeek V3 • Auditoría</span>
             </div>
           </div>
         </div>
@@ -1567,7 +1567,7 @@
         <!-- Col 1: Agent Name -->
         <div class="col-span-12 sm:col-span-4 flex items-center gap-3.5">
           <div id="dot-nami" class="w-2.5 h-2.5 rounded-full bg-outline-variant/60 shrink-0"></div>
-          <span class="text-base font-bold text-on-surface tracking-wide">Nami</span>
+          <span class="text-base font-bold text-on-surface tracking-wide" id="agent-name-nami">Nami</span>
         </div>
 
         <!-- Col 2: Model Badge -->
@@ -1576,7 +1576,7 @@
             <span class="material-symbols-outlined text-[16px] text-cyan-400">psychology</span>
             <div class="flex flex-col">
               <span class="agent-model-display font-mono text-xs font-bold text-on-surface" data-agent="nami">DeepSeek Chat</span>
-              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70">DeepSeek V3 • Finanzas</span>
+              <span class="model-sublabel text-[9px] font-mono text-on-surface-variant/70" id="agent-sublabel-nami">DeepSeek V3 • Diseño</span>
             </div>
           </div>
         </div>
@@ -2305,12 +2305,20 @@
             </div>
           </div>
 
-          <!-- Input Textarea & Send Button -->
+          <!-- Input Textarea, Voice Note Mic, Speakers & Send Button -->
           <div class="relative flex-1 flex items-end min-w-0">
-            <textarea id="chat-input" rows="1" placeholder="Escribe un comando a la tripulación..." class="w-full bg-surface-container-highest/80 border border-outline-variant/50 rounded-xl py-2 pl-3 pr-10 text-body-sm focus:outline-none focus:border-primary/60 transition-all placeholder:text-on-surface-variant/40 text-on-surface resize-none overflow-y-auto leading-relaxed custom-scrollbar" style="min-height: 38px; max-height: 140px; height: 38px;"></textarea>
-            <button id="send-btn" onclick="sendChatMessage()" class="absolute right-2 bottom-1.5 text-primary hover:text-primary-fixed p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center" title="Enviar mensaje">
-              <span class="material-symbols-outlined text-[18px]">send</span>
-            </button>
+            <textarea id="chat-input" rows="1" placeholder="Escribe un comando o envía una nota de voz..." class="w-full bg-surface-container-highest/80 border border-outline-variant/50 rounded-xl py-2 pl-3 pr-24 text-body-sm focus:outline-none focus:border-primary/60 transition-all placeholder:text-on-surface-variant/40 text-on-surface resize-none overflow-y-auto leading-relaxed custom-scrollbar" style="min-height: 38px; max-height: 140px; height: 38px;"></textarea>
+            <div class="absolute right-1.5 bottom-1.5 flex items-center gap-0.5">
+              <button id="chat-speaker-btn" onclick="toggleSpeakerCornetasMode()" type="button" class="text-on-surface-variant hover:text-secondary p-1 rounded-lg hover:bg-secondary/10 transition-colors cursor-pointer flex items-center justify-center" title="Activar/Desactivar respuesta por Cornetas de la PC">
+                <span id="chat-speaker-icon" class="material-symbols-outlined text-[18px]">volume_off</span>
+              </button>
+              <button id="chat-voice-note-btn" onclick="toggleRecordVoiceNote()" type="button" class="text-on-surface-variant hover:text-primary p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center" title="Grabar y enviar Nota de Voz (Micrófono)">
+                <span id="chat-voice-note-icon" class="material-symbols-outlined text-[18px]">mic</span>
+              </button>
+              <button id="send-btn" onclick="sendChatMessage()" type="button" class="text-primary hover:text-primary-fixed p-1 rounded-lg hover:bg-primary/10 transition-colors cursor-pointer flex items-center justify-center" title="Enviar mensaje">
+                <span class="material-symbols-outlined text-[18px]">send</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -3663,6 +3671,142 @@ window.toggleMobileSidebar = toggleMobileSidebar;
   </div>
 </div>
 
-<script src="/static/script.js?v=101"></script>
+<!-- MODAL DE DETALLE COMPLETO DE TICKET -->
+<div id="modal-detalle-ticket" onclick="if(event.target === this) cerrarModalDetalleTicket()" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-[#060810]/90 backdrop-blur-xl transition-all duration-200">
+  <div class="glass-panel w-full max-w-2xl max-h-[90vh] rounded-3xl p-5 sm:p-7 border border-cyan-500/30 shadow-[0_0_50px_rgba(0,255,204,0.15)] flex flex-col gap-4 relative overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <!-- Top Cyber Accent Line -->
+    <div id="modal-ticket-accent-line" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-secondary to-purple-500"></div>
+
+    <!-- Header: ID + Status + Close Button -->
+    <div class="flex items-center justify-between gap-3 pb-3 border-b border-outline-variant/20">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shadow-sm shrink-0">
+          <span class="material-symbols-outlined text-[19px]">confirmation_number</span>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span id="modal-ticket-id" class="font-mono text-xs sm:text-sm font-black text-white tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10 select-all">TKT-000</span>
+            <button onclick="copiarIdTicketModal()" type="button" class="text-slate-400 hover:text-cyan-300 transition-colors p-0.5 cursor-pointer" title="Copiar ID del Ticket">
+              <span class="material-symbols-outlined text-[15px]" id="modal-ticket-copy-icon">content_copy</span>
+            </button>
+          </div>
+          <div id="modal-ticket-agent" class="text-[10.5px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
+            <span>Responsable:</span>
+            <span id="modal-ticket-agent-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-white/5 border border-white/10 text-white">-</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <span id="modal-ticket-status-badge" class="px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border flex items-center gap-1.5 bg-blue-500/15 text-blue-400 border-blue-500/40">
+          <span class="material-symbols-outlined text-[13px]" id="modal-ticket-status-icon">info</span>
+          <span id="modal-ticket-status-text">Estado</span>
+        </span>
+        <button onclick="cerrarModalDetalleTicket()" type="button" class="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer border border-white/10" title="Cerrar modal (Esc)">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Scrollable Content Body -->
+    <div class="flex-1 overflow-y-auto pr-1 space-y-3.5 max-h-[calc(90vh-170px)] custom-scrollbar">
+      <!-- Title -->
+      <div>
+        <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">Título / Asunto</span>
+        <h3 id="modal-ticket-title" class="text-base sm:text-lg font-bold text-white mt-0.5 leading-snug select-text"></h3>
+      </div>
+
+      <!-- Description / Summary -->
+      <div id="modal-ticket-desc-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-cyan-400">subject</span>
+          <span>Descripción & Resumen</span>
+        </div>
+        <div id="modal-ticket-desc" class="text-xs sm:text-[13px] text-slate-300 leading-relaxed whitespace-pre-wrap select-text font-sans"></div>
+      </div>
+
+      <!-- Specific Task (if present) -->
+      <div id="modal-ticket-task-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-amber-400">task</span>
+          <span>Tarea Específica Requerida</span>
+        </div>
+        <div id="modal-ticket-task" class="text-xs sm:text-[13px] text-slate-300 leading-relaxed whitespace-pre-wrap select-text"></div>
+      </div>
+
+      <!-- Criteria (if present) -->
+      <div id="modal-ticket-criterios-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-emerald-400">checklist</span>
+          <span>Criterios de Aceptación</span>
+        </div>
+        <div id="modal-ticket-criterios" class="text-xs sm:text-[13px] text-slate-300 leading-relaxed whitespace-pre-wrap select-text"></div>
+      </div>
+
+      <!-- Evidence / Artifact (if present) -->
+      <div id="modal-ticket-evidence-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-secondary">verified</span>
+          <span>Evidencia Física & Artefactos</span>
+        </div>
+        <div id="modal-ticket-evidence" class="text-xs font-mono text-secondary/90 bg-secondary/10 p-2.5 rounded-xl border border-secondary/30 break-all select-all"></div>
+      </div>
+
+      <!-- Diagnostics / Tests (if present) -->
+      <div id="modal-ticket-diag-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-amber-400">bug_report</span>
+          <span>Diagnóstico & Pruebas Realizadas</span>
+        </div>
+        <div id="modal-ticket-diag" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap select-text"></div>
+      </div>
+
+      <!-- Context / Trigger (if present) -->
+      <div id="modal-ticket-contexto-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-purple-400">bolt</span>
+          <span>Contexto & Disparador</span>
+        </div>
+        <div id="modal-ticket-contexto" class="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap select-text"></div>
+      </div>
+
+      <!-- Historial / Timeline (if present) -->
+      <div id="modal-ticket-historial-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2 hidden">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-300">
+          <span class="material-symbols-outlined text-[16px] text-cyan-400">history</span>
+          <span>Historial de Eventos & Auditoría</span>
+        </div>
+        <div id="modal-ticket-historial" class="space-y-1.5 text-xs text-slate-300"></div>
+      </div>
+
+      <!-- Raw Markdown / Content fallback (collapsible) -->
+      <details id="modal-ticket-raw-box" class="group rounded-2xl bg-black/40 border border-white/10 p-3">
+        <summary class="text-[11px] font-mono text-slate-400 cursor-pointer hover:text-white flex items-center justify-between select-none">
+          <span class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px]">code</span>
+            <span>Ver Registro Markdown Original</span>
+          </span>
+          <span class="material-symbols-outlined text-[16px] group-open:rotate-180 transition-transform">expand_more</span>
+        </summary>
+        <pre id="modal-ticket-raw" class="mt-2.5 text-[10px] font-mono text-slate-400 whitespace-pre-wrap overflow-x-auto p-2.5 bg-black/60 rounded-xl max-h-60 overflow-y-auto border border-white/5 select-all"></pre>
+      </details>
+    </div>
+
+    <!-- Footer: Close & Copy buttons -->
+    <div class="pt-3 border-t border-outline-variant/20 flex items-center justify-between gap-3 shrink-0">
+      <span class="text-[10px] font-mono text-slate-500">TripulacionIA OS • Sistema de Tareas</span>
+      <div class="flex items-center gap-2">
+        <button onclick="copiarDetalleCompletoTicketModal()" type="button" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer">
+          <span class="material-symbols-outlined text-[15px]" id="modal-ticket-copy-all-icon">content_copy</span>
+          <span id="modal-ticket-copy-all-text">Copiar Todo</span>
+        </button>
+        <button onclick="cerrarModalDetalleTicket()" type="button" class="px-4 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-xs font-bold text-cyan-300 hover:text-cyan-200 transition-all cursor-pointer">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/script.js?v=108"></script>
 </body>
 </html>

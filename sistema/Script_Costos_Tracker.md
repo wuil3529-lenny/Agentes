@@ -72,4 +72,4 @@ Implementa un observador nativo derivado de `BaseCallbackHandler`:
 ```
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

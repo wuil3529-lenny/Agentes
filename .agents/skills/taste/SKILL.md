@@ -25,3 +25,6 @@ Before writing code, declare a one-line Design Read:
 2. **Never default to 3 identical feature cards** with generic icons. Use asymmetrical Bento Grids.
 3. **Never overuse glassmorphism** (`backdrop-blur`). Reserve it for navigation bars or floating modals.
 4. **Never use flat typography**. Differentiate headings with tight tracking (`tracking-tight`) and intentional fonts.
+
+---
+**Conexiones:** [[sistema]]

@@ -147,7 +147,7 @@ Definición de qué resultado exacto considerará el Usuario como misión cumpli
 Registro acumulativo de las rondas de intercambio estratégico.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[contexto_y_proyectos]]
 """
             ctx_path.write_text(plantilla, encoding="utf-8")
             
@@ -184,8 +184,8 @@ Registro acumulativo de las rondas de intercambio estratégico.
             )
             
             # Si el archivo tiene la marca de pertenencia al final, insertar antes de ella
-            marca = "\n---\n**Pertenece a:** [[Perfil_Agente_Orquestador]]"
-            marca_legada = "\n---\n**Pertenece a:** [[Perfil_Luffy]]"
+            marca = "\n---\n**Conexiones:** [[contexto_y_proyectos]]"
+            marca_legada = "\n---\n**Pertenece a:** [[Perfil_Agente_Orquestador]]"
             if marca in texto_actual:
                 partes = texto_actual.split(marca)
                 texto_actual = partes[0] + bloque_nuevo + marca + "\n"
@@ -193,7 +193,7 @@ Registro acumulativo de las rondas de intercambio estratégico.
                 partes = texto_actual.split(marca_legada)
                 texto_actual = partes[0] + bloque_nuevo + marca + "\n"
             else:
-                texto_actual += bloque_nuevo
+                texto_actual = texto_actual.rstrip() + bloque_nuevo + "\n" + marca + "\n"
 
             ctx_path.write_text(texto_actual, encoding="utf-8")
 

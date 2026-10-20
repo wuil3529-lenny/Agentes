@@ -174,16 +174,14 @@ def tool_reportar_fallo_critico(mensaje_fallo: str, detalles_tecnicos: str) -> s
         except Exception:
             pass
 
-        # Registrar en Memoria_Viva_Errores.md
-        memoria_errores_file = _APP_ROOT / "contexto" / "Memoria_Viva_Errores.md"
-        if not memoria_errores_file.exists():
-            memoria_errores_file = _APP_ROOT / "Memoria_Viva_Errores.md"
+        # Registrar en memoria/Memoria_Viva_Errores.md
+        memoria_errores_file = _APP_ROOT / "memoria" / "Memoria_Viva_Errores.md"
+        memoria_errores_file.parent.mkdir(parents=True, exist_ok=True)
 
         entrada_md = f"\n\n### [{fecha_str}] {error_id}: {mensaje_fallo}\n- **Agente:** {_AGENTE}\n- **Detalles:**\n```\n{detalles_tecnicos.strip()[:1500]}\n```\n"
 
-        if memoria_errores_file.exists():
-            with open(memoria_errores_file, "a", encoding="utf-8") as f:
-                f.write(entrada_md)
+        with open(memoria_errores_file, "a", encoding="utf-8") as f:
+            f.write(entrada_md)
 
         return json.dumps({
             "status": "success",

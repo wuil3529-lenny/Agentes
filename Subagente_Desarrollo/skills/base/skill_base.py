@@ -16,6 +16,7 @@ import os
 import sys
 import re
 import json
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
@@ -155,18 +156,16 @@ def crear_archivo(ruta_absoluta: str, contenido: str) -> str:
         ruta = Path(ruta_final)
         ruta.parent.mkdir(parents=True, exist_ok=True)
 
-        # AUTO-ENLAZADOR OBSIDIAN para archivos Markdown
+        # AUTO-ENLAZADOR OBSIDIAN CANÓNICO para archivos Markdown
         ruta_str = str(ruta_final).replace("\\", "/")
         if ruta_str.endswith(".md"):
-            contenido_limpio = re.sub(r"(?im)^\s*\*\*(Pertenece a|Conexiones):\*\*.*\n?", "", contenido_limpio).strip()
-            enlace_fuerte = None
-            if "/Archivos_temporales/" in ruta_str or ruta_str.endswith("/Archivos_temporales"):
-                enlace_fuerte = "[[archivos_temporales]]"
-            elif f"/{_AGENTE}/proyectos/" in ruta_str or ruta_str.endswith(f"/{_AGENTE}/proyectos"):
-                enlace_fuerte = "[[proyectos]]"
-
-            if enlace_fuerte:
-                contenido_limpio += f"\n\n---\n**Pertenece a:** {enlace_fuerte}\n"
+            try:
+                if str(_APP_ROOT / "Agente_Orquestador") not in sys.path:
+                    sys.path.insert(0, str(_APP_ROOT / "Agente_Orquestador"))
+                from sync_cerebro import formatear_md_canonico
+                contenido_limpio = formatear_md_canonico(ruta, contenido_limpio)
+            except Exception:
+                pass
 
         ruta.write_text(contenido_limpio, encoding="utf-8")
         return json.dumps({
@@ -301,9 +300,20 @@ def ejecutar_comando(comando: str, directorio: str) -> str:
                 "mensaje": f"El directorio de ejecución no existe: {directorio}"
             })
 
+        # H-04: parseo seguro a lista de argumentos (sin interprete de shell)
+        try:
+            argv = shlex.split(comando, posix=(os.name != "nt"))
+        except ValueError as e:
+            return json.dumps({
+                "status": "error",
+                "mensaje": "Comando malformado (parseo shlex fallido): %s" % e
+            })
+        if not argv:
+            return json.dumps({"status": "error", "mensaje": "Comando vacio."})
+
         resultado = subprocess.run(
-            comando,
-            shell=True,
+            argv,
+            shell=False,
             cwd=str(dir_path),
             capture_output=True,
             text=True,

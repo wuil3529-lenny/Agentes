@@ -120,14 +120,4 @@ tool_registrar_playbook_memoria.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Cerebro Central:** [[Cerebro]]
-- **Índice de Memoria:** [[memoria]]
-- **Diseño Frontend:** [[Skill_Taste_Subagente_Desarrollo]]
-- **Arquitectura de Interfaz:** [[Skill_Impeccable_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

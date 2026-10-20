@@ -1,7 +1,7 @@
 # Documentación Técnica: `memory.py`
 
 **Ubicación del Script:** `Agente_Orquestador/memory.py`  
-**Rol del Módulo:** Motor de Memoria Compartida, Canales de Comunicación y Persistencia  
+**Rol del Módulo:** Motor de Memoria Persistente, Canales de Comunicación y Consolidación  
 **Subsistema:** Memoria y Almacenamiento Central  
 
 ---
@@ -30,11 +30,16 @@
 - **Actualización de Tickets (`actualizar_ticket_bitacora`):** Modifica el estado de un ticket existente (`EN_PROGRESO`, `PENDIENTE_REVISION`, `CERRADO`) sin destruir el contexto ni las notas previas de ejecución.
 - **Historial de Auditoría:** Mantiene la trazabilidad de intentos, diagnósticos y evidencias físicas requeridas por el auditor del sistema.
 
-### 2.3. Pilar Cerebro: Memoria de Largo Plazo
+### 2.3. Pilar Cerebro: Memoria de Largo Plazo (`memoria/`)
+- **Directorio Canónico:** `memoria/` (sustituye permanentemente cualquier referencia a `memoria_compartida`).
+- **Archivos Esenciales Preservados:**
+  - `Tickets_Archivados.md`: Historial consolidado de tickets cerrados y auditados.
+  - `Perfil de wuil.md`: Perfil, directivas y requerimientos específicos del usuario humano.
+  - `memoria.md`: Nodo conector del sistema de memoria con la trinidad central.
+  - `Memoria_Viva_Errores.md`: Bóveda procedural de fallos, diagnósticos y vacunas técnicas.
 - **Registro de Soluciones Exitosas (`guardar_cerebro`):**
   - Solo se invoca cuando una misión ha alcanzado el estado `CERRADO`.
-  - Genera un archivo Markdown dedicado dentro del directorio `memoria/` con el Recibo Ejecutivo de Misión.
-  - El recibo estructura: agentes involucrados, herramientas utilizadas, ruta de evidencia física validada y decisiones clave adoptadas.
+  - Genera un archivo Markdown dedicado dentro de `memoria/` con el Recibo Ejecutivo de Misión.
   - Agrega la entrada correspondiente al índice central `Cerebro.md`.
 
 ---
@@ -50,9 +55,9 @@ El script centraliza la lectura de identidades de los agentes:
 
 ## 4. Funciones Auxiliares de Consulta
 
-- `leer_nodo_obsidian(ruta_relativa)`: Lee archivos Markdown de la memoria compartida o protocolos, asegurando la extensión `.md`.
+- `leer_nodo_obsidian(ruta_relativa)`: Lee archivos Markdown del directorio `memoria/` o protocolos, asegurando la extensión `.md`.
 - `leer_turno()`: Provee la estructura básica de control de turno orientada a orquestación on-demand.
 - `limpiar_canal_mensajes()`: Utilidad de mantenimiento para depurar mensajes antiguos ya procesados.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

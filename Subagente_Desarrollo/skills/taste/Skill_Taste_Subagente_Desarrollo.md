@@ -118,14 +118,4 @@ tool_taste_generar_tokens.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Arquitectura de Interfaz:** [[Skill_Impeccable_Subagente_Desarrollo]]
-- **Motion UI:** [[Skill_Animaciones_Subagente_Desarrollo]]
-- **Desarrollo Web:** [[Skill_Web_Subagente_Desarrollo]]
-- **Pruebas en Navegador:** [[Skill_Playwright_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

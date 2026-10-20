@@ -36,7 +36,7 @@ El ciclo de desarrollo en Python sigue un flujo estructurado de preparación, ai
 flowchart TD
     Inicio["Requerimiento de Software Python"] --> Venv["1. python_crear_venv\n(Creación de .venv + requirements.txt + .gitignore)"]
     Venv --> Pip["2. python_pip_instalar\n(Instalación de paquetes requeridos)"]
-    Pip --> Codigo["[Desarrollo de Código con skill_base]"]
+    Pip --> Codigo["(Desarrollo de Código con skill_base)"]
     Codigo --> Test["3. python_ejecutar_script\n(Ejecución y Verificación de Retorno)"]
     Test --> Check{¿Código 0?}
     Check -->|No (Error)| Fix["Analizar stderr y corregir"]
@@ -116,13 +116,4 @@ python_ejecutar_script(
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Habilidad Base:** [[Skill_Base_Subagente_Desarrollo]]
-- **Habilidad Git:** [[Skill_Git_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

@@ -210,7 +210,7 @@ Este playbook almacena la metodología exacta, esquema y plantilla probada para 
 - **Privacidad y Credenciales:** Sanitización estricta de tokens OAuth y datos confidenciales.
 
 ---
-**Pertenece a:** [[memoria]] · [[Perfil_{_AGENTE_ORIGEN}]]
+**Conexiones:** [[memoria]]
 """
 
         ruta_archivo.write_text(contenido_md, encoding="utf-8")

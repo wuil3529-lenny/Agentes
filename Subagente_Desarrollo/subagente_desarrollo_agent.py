@@ -62,7 +62,13 @@ except Exception:
     def leer_nodo_obsidian(*args, **kwargs): return ""
     def leer_mensajes(*args, **kwargs): return []
     def registrar_bitacora(*args, **kwargs): return ""
-    def guardar_cerebro(*args, **kwargs): return ""
+try:
+    from bucle_autocorreccion import interceptar_tool_call
+except Exception:
+    try:
+        from Agente_Orquestador.bucle_autocorreccion import interceptar_tool_call
+    except Exception:
+        interceptar_tool_call = None
 
 # ─── Carga Modular de las 20 Habilidades y sus Prompts Especializados ──────────
 from Subagente_Desarrollo.skills import (
@@ -195,10 +201,11 @@ def _herramientas_schema() -> list:
     return schemas
 
 
-def _procesar_tool_calls(client, messages, tool_calls):
+def _procesar_tool_calls(client, messages, tool_calls, objetivo_ticket: str = "", historial_firmas: list = None, conteo_fallos: dict = None):
     """
     Ejecuta las llamadas a herramientas, inyectando el System Prompt
     especializado de la habilidad en el contexto de respuesta (Inyección Nivel 2).
+    Aplica QA Gherkin Universal, Filtro Anti-Bucle y Autocorrección de Causa Raíz.
     """
     for tc in tool_calls:
         if hasattr(tc, "function"):
@@ -213,7 +220,18 @@ def _procesar_tool_calls(client, messages, tool_calls):
             args_tool = tc.get("args", {})
             tc_id = tc.get("id", "")
 
-        resultado = _ejecutar_herramienta(nombre_tool, args_tool)
+        if interceptar_tool_call:
+            resultado, exito, _ = interceptar_tool_call(
+                nombre_tool=nombre_tool,
+                args_tool=args_tool,
+                func_ejecutar=_ejecutar_herramienta,
+                objetivo_ticket=objetivo_ticket,
+                nombre_agente=NOMBRE_AGENTE,
+                historial_firmas=historial_firmas,
+                conteo_fallos=conteo_fallos
+            )
+        else:
+            resultado = _ejecutar_herramienta(nombre_tool, args_tool)
 
         # Inyección dinámica Nivel 2: System Prompt de la habilidad ejecutada
         contenido_tool = resultado
@@ -238,6 +256,7 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
     """
     Ejecuta un ciclo completo de razonamiento y desarrollo de software.
     Garantiza la inyección del prompt canónico y de los prompts especializados de skills.
+    Integra QA Gherkin Universal y Filtro Anti-Bucle en cada llamada de herramienta.
     """
     client = _crear_client()
     system_prompt = construir_system_prompt(instruccion=mensaje_entrada)
@@ -249,6 +268,8 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
 
     max_rondas = 50
     schemas = _herramientas_schema()
+    historial_firmas = []
+    conteo_fallos = {}
 
     for ronda in range(max_rondas):
         try:
@@ -279,7 +300,14 @@ def ejecutar_ciclo(mensaje_entrada: str, historial: list = None) -> str:
             if not assistant_msg.get('content'):
                 assistant_msg['content'] = ''
             messages.append(assistant_msg)
-            messages = _procesar_tool_calls(client, messages, msg.tool_calls)
+            messages = _procesar_tool_calls(
+                client,
+                messages,
+                msg.tool_calls,
+                objetivo_ticket=mensaje_entrada,
+                historial_firmas=historial_firmas,
+                conteo_fallos=conteo_fallos
+            )
             continue
 
         # Procesar respuesta final

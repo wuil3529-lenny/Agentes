@@ -106,4 +106,4 @@ Resultados de búsqueda web para 'fastapi lifespan event context manager python 
 El Agente Orquestador utiliza la sintaxis oficial de `lifespan` en lugar de la sintaxis obsoleta `on_event`, asegurando que el código de la tripulación cumpla con los estándares modernos sin errores de deprecación.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

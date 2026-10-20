@@ -30,7 +30,7 @@ ROOT_ENV_PATH = _APP_ROOT / ".env"
 load_dotenv(dotenv_path=ROOT_ENV_PATH)
 
 SHARED_MEMORY_PATH = Path(
-    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / ".memoria_compartida"))
+    os.getenv("SHARED_MEMORY_PATH", str(_APP_ROOT / "memoria"))
 )
 SHARED_MEMORY_PATH.mkdir(parents=True, exist_ok=True)
 
@@ -39,8 +39,7 @@ CANAL_FILE    = _APP_ROOT / "canal_comunicacion.json"
 CANAL_USUARIO_FILE = _APP_ROOT / "dashboard" / "canal_usuario.json" if (_APP_ROOT / "dashboard" / "canal_usuario.json").exists() else (_APP_ROOT / "canal_usuario.json")
 
 # ─── Archivos Obsidian (Living Vault .md) ──────────────────────────────────────
-MEMORIA_MD_PATH = _APP_ROOT / "memoria"
-MEMORIA_MD_PATH.mkdir(parents=True, exist_ok=True)
+MEMORIA_MD_PATH = SHARED_MEMORY_PATH
 
 CANAL_USUARIO_MD = _APP_ROOT / "CanalUsuario.md"
 BITACORA_MD = _APP_ROOT / "Bitacora.md"
@@ -74,7 +73,7 @@ def publicar_mensaje(de: str, para: str, tipo: str, contenido: dict, canal_tipo:
     canal = _cargar_canal(canal_tipo)
     mensajes = canal.get("mensajes", [])
     
-    msg_id = f"msg-{len(mensajes) + 1:03d}"
+    msg_id = f"msg-{int(datetime.now().timestamp() * 1000)}"
     
     nuevo_mensaje = {
         "id": msg_id,
@@ -137,16 +136,50 @@ def leer_mensajes(agente: str) -> list[dict]:
     return mensajes_finales
 
 
+def _es_peticion_limpiar_historial(txt: str) -> bool:
+    import unicodedata
+    import re
+    s = unicodedata.normalize("NFD", str(txt or "").lower())
+    s = "".join(c for c in s if unicodedata.category(c) != "Mn")
+    patrones = [
+        r"\blimpiar?\s+(el\s+)?historial\b",
+        r"\bborrar?\s+(el\s+)?historial\b",
+        r"\breiniciar?\s+(la\s+)?conversacion\b",
+        r"\breiniciar?\s+(el\s+)?chat\b",
+        r"\bempezar?\s+de\s+cero\b",
+        r"\barrancar?\s+de\s+cero\b",
+        r"\bresetear?\s+(el\s+)?chat\b",
+        r"\bresetear?\s+(el\s+)?historial\b",
+        r"\bolvida(r)?\s+(todo\s+)?lo\s+anterior\b",
+        r"\bpurgar?\s+(el\s+)?historial\b",
+    ]
+    return any(re.search(p, s) for p in patrones)
+
+
 def construir_contexto_canal_usuario(canal_u: dict, max_tokens: int = 3500) -> str:
     """
     Construye el contexto de conversación para el Agente_Orquestador con presupuesto controlado (~3,500 tokens).
     Implementa compresión rodante:
+    - Si el usuario pidió limpiar o reiniciar en algún momento, descarta todo lo anterior a ese punto.
     - Los mensajes recientes se conservan textuales palabra por palabra.
     - Los mensajes antiguos fuera del presupuesto se comprimen en un resumen ejecutivo cronológico.
     """
     mensajes = canal_u.get("mensajes", []) if isinstance(canal_u, dict) else []
     if not mensajes:
         return "No hay mensajes previos en la conversación."
+
+    # Si en algún punto del historial el usuario pidió limpiar o reiniciar, cortar todo lo anterior
+    idx_ultimo_reset = -1
+    for idx_m, m in enumerate(mensajes):
+        if str(m.get("de", "")).lower() not in ("luffy", "agente_orquestador", "orquestador"):
+            c = m.get("contenido", {})
+            t_str = c.get("texto", str(c)) if isinstance(c, dict) else str(c)
+            if _es_peticion_limpiar_historial(t_str):
+                idx_ultimo_reset = idx_m
+    if idx_ultimo_reset >= 0:
+        mensajes = mensajes[idx_ultimo_reset + 1:]
+        if not mensajes:
+            return "No hay mensajes previos en la conversación (historial reiniciado)."
         
     char_budget = max_tokens * 4
     min_recientes = 6
@@ -238,7 +271,7 @@ def _cargar_bitacora() -> list:
     except Exception:
         return []
 
-def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> None:
+def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> str:
     timestamp = datetime.now().isoformat()
     
     if not BITACORA_MD.exists():
@@ -262,8 +295,7 @@ def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> None:
 >     - `sistema\\`: Documentación arquitectónica de Antigravity.
 >     - `perfiles\\`: Perfiles detallados de cada agente y el del usuario (Wuilfredo).
 >     - `recursos_externos\\`: Recursos, exports y plantillas externas.
->   - **Memoria Compartida:** `C:\\Users\\admin\\Documents\\Agentes\\memoria_compartida\\`
->     - `memoria\\`: Archivos detallados del Cerebro a largo plazo (bóveda).
+>   - **Memoria Compartida (Bóveda):** `C:\\Users\\admin\\Documents\\Agentes\\memoria\\`
 >   - **Archivos Base en Raíz:**
 >     - `Bitacora.md`: Tablero de tareas. Agente_Orquestador crea tickets aquí. Los agentes buscan sus tickets PENDIENTES.
 >     - `Cerebro.md`: Registro de conocimiento a largo plazo (solo tareas COMPLETADAS).
@@ -273,6 +305,7 @@ def registrar_bitacora(agente: str, entrada: str, estado: str = "INFO") -> None:
         
     with open(BITACORA_MD, "a", encoding="utf-8") as f:
         f.write(f"\n- **[{timestamp[:19]}] [{estado}] {agente}:** {entrada}\n")
+    return timestamp[:19]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -390,9 +423,15 @@ def guardar_cerebro(
     md_filepath = MEMORIA_MD_PATH / md_filename
     
     fecha_hora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    with open(CEREBRO_MD, "a", encoding="utf-8") as f:
-        linea_indice = f"- **[{new_id:02d}]** | **Fecha:** {fecha_hora} | **Agente:** {agente} | **Descripción:** {tema} | **Ruta:** `C:\\Users\\admin\\Documents\\Agentes\\memoria\\{md_filename}`\n"
-        f.write(linea_indice)
+    linea_indice = f"- **[{new_id:02d}]** | **Fecha:** {fecha_hora} | **Agente:** {agente} | **Descripción:** {tema} | **Ruta:** `C:\\Users\\admin\\Documents\\Agentes\\memoria\\{md_filename}`\n"
+    try:
+        from sync_cerebro import formatear_md_canonico, purgar_todos_los_wikilinks
+        texto_c = purgar_todos_los_wikilinks(CEREBRO_MD.read_text(encoding="utf-8")).strip()
+        texto_c = f"{texto_c}\n{linea_indice}"
+        CEREBRO_MD.write_text(formatear_md_canonico(CEREBRO_MD, texto_c), encoding="utf-8")
+    except Exception:
+        with open(CEREBRO_MD, "a", encoding="utf-8") as f:
+            f.write(linea_indice)
 
     # ── Construir Recibo Ejecutivo de Misión ──
     if not evidencia_fisica or evidencia_fisica == "N/A":
@@ -445,7 +484,7 @@ def guardar_cerebro(
         if ruta_local:
             f.write(f"\n**Ruta Local Asociada:** `{ruta_local}`\n")
             
-        # Conexiones Obsidian
+        # Conexiones Obsidian (únicamente al nodo memoria)
         f.write("\n---\n")
         f.write("**Conexiones:** [[memoria]]\n")
 
@@ -474,28 +513,6 @@ def guardar_cerebro(
         print(f"[Memoria RAG] Solución con Recibo de Misión guardada en ChromaDB: {ticket_id_virt}")
     except Exception as e:
         print(f"[Memoria RAG] Error al sincronizar con ChromaDB: {e}")
-        
-    # Si tiene ruta_local, es una habilidad. Lo guardamos en el .md local del agente
-    if ruta_local:
-        ruta_raiz = _APP_ROOT / agente
-        ruta_raiz.mkdir(parents=True, exist_ok=True)
-        md_file = ruta_raiz / f"Perfil_{agente}.md"
-        
-        if not md_file.exists():
-            with open(md_file, "w", encoding="utf-8") as f:
-                f.write(f"# Perfil de {agente}\n\n")
-                
-        with open(md_file, "a", encoding="utf-8") as f:
-            f.write(f"\n## Habilidad: {tema}\n")
-            f.write(f"* **Descripción:** {contenido}\n")
-            f.write(f"* **Ruta:** `{ruta_local}`\n")
-            
-        # Sincronizar automáticamente la tarjeta de presentación global
-        import shutil
-        global_agentes_dir = SHARED_MEMORY_PATH / "agentes"
-        global_agentes_dir.mkdir(parents=True, exist_ok=True)
-        global_md_file = global_agentes_dir / f"{agente}.md"
-        shutil.copy2(md_file, global_agentes_dir / f"Perfil_{agente}.md")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Perfiles y Utilidades
@@ -520,7 +537,11 @@ def cargar_perfil_agente(nombre: str) -> dict:
         "subagente_asistencia": "Subagente_Asistencia",
         "asistencia": "Subagente_Asistencia",
     }
-    carpeta_agente = mapa_carpetas.get(nombre_norm, nombre)
+    try:
+        from identidad_agentes import mapear_responsable_a_canonico
+        carpeta_agente = mapear_responsable_a_canonico(nombre_norm)
+    except Exception:
+        carpeta_agente = mapa_carpetas.get(nombre_norm, nombre)
     dir_agente = _APP_ROOT / carpeta_agente
     
     # 0. Buscar primero en agente.md (modelo canónico consolidado)

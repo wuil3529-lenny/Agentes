@@ -39,10 +39,10 @@ flowchart TD
     TipoOp{¿Tipo de Operación?}
 
     TipoOp -->|Escritura: crear_archivo| ValidaRuta["1. Validación de Firewall de Rutas\n(proyectos, skills, temporales)"]
-    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n(si es archivo .md: [[proyectos]])"]
+    ValidaRuta --> AutoObsidian["2. Inyección de Auto-Enlace Obsidian\n(si es archivo .md: proyectos)"]
     AutoObsidian --> EscrituraDisco["3. Persistencia Segura en Disco"]
 
-    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar [[Conexiones]] anti-alucinación)"]
+    TipoOp -->|Lectura: leer_archivo| CensuraGrafo["1. Censura de Metadatos de Grafo\n(Ocultar Conexiones anti-alucinación)"]
     CensuraGrafo --> PaginaContexto["2. Paginación de Seguridad\n(Máximo 12.000 caracteres)"]
 
     TipoOp -->|Terminal: ejecutar_comando| CheckFirewall["1. Verificación de Lista Negra Anti-Destrucción"]
@@ -54,7 +54,7 @@ flowchart TD
 
 ### Herramienta 1: `crear_archivo(ruta_absoluta, contenido)`
 - Escribe o sobreescribe archivos garantizando que existan sus carpetas contenedoras (`mkdir(parents=True)`).
-- Asocia automáticamente los archivos `.md` al perfil en Obsidian (`**Pertenece a:** [[proyectos]]`).
+- Asocia automáticamente los archivos `.md` al perfil en Obsidian (`**Pertenece a:** proyectos`).
 - Rutas autorizadas: `/app/Subagente_Desarrollo/proyectos/`, `/app/Subagente_Desarrollo/skills/`, `/app/Archivos_temporales/` y `/app/Bitacora.md`.
 
 ### Herramienta 2: `leer_archivo(ruta_absoluta)`
@@ -90,7 +90,7 @@ DIRECTIVAS OPERATIVAS FUNDAMENTALES:
    - Tienes terminantemente prohibido ejecutar comandos destructivos (`rm -rf`, `del /f`, `format`, `shutdown`, `drop database`, etc.).
 3. INTEGRIDAD DEL CONOCIMIENTO (OBSIDIAN & GRAFO):
    - NUNCA escribas manualmente en `Cerebro.md` ni en `memoria/`. El conocimiento se registra a través de las herramientas de aprendizaje autorizadas.
-   - Todo archivo markdown generado debe conservar conexiones limpias hacia el perfil correspondiente (`[[proyectos]]` o `[[Perfil_Subagente_Desarrollo]]`).
+   - Todo archivo markdown generado debe conservar conexiones limpias hacia el perfil correspondiente (`proyectos` o `Perfil_Subagente_Desarrollo`).
 4. CONTROL DE VOLUMEN DE CONTEXTO:
    - Al leer archivos de código fuente grandes, ten en cuenta que el contenido se censura de metadatos de grafo y se pagina para evitar saturar la ventana de contexto.
 ```
@@ -135,12 +135,4 @@ ejecutar_comando(
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Carpeta de Entregables:** [[proyectos]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

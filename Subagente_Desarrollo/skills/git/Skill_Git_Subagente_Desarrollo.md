@@ -35,7 +35,7 @@ Las 11 herramientas de Git operan en un flujo estructurado de evolución de soft
 ```mermaid
 flowchart TD
     Init["1. git_init / git_clone\n(Creación de Repo + .gitignore)"] --> Branch["2. git_branch / git_checkout\n(Gestión de Ramas de Trabajo)"]
-    Branch --> Edicion["[Desarrollo de Código en proyectos/]"]
+    Branch --> Edicion["(Desarrollo de Código en proyectos/)"]
     Edicion --> Status["3. git_status\n(Inspección de Archivos Modificados)"]
     Status --> Diff["4. git_diff\n(Auditoría de Diferencias)"]
     Diff --> Add["5. git_add\n(Paso al Staging Area)"]
@@ -137,12 +137,4 @@ git_commit(
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Habilidad Base:** [[Skill_Base_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

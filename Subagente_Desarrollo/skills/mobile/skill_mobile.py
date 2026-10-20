@@ -12,6 +12,7 @@ Herramientas disponibles:
 import os
 import sys
 import json
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List
@@ -64,9 +65,17 @@ def _ejecutar(comando: str, cwd: str, timeout: int = 180) -> Dict[str, Any]:
                 "code": -1
             }
 
+        # H-04: lista de argumentos sin interprete de shell
+        try:
+            argv = shlex.split(comando, posix=(os.name != "nt"))
+        except ValueError as e:
+            return {"ok": False, "stdout": "", "stderr": "Comando malformado: %s" % e, "code": -1}
+        if not argv:
+            return {"ok": False, "stdout": "", "stderr": "Comando vacio.", "code": -1}
+
         r = subprocess.run(
-            comando,
-            shell=True,
+            argv,
+            shell=False,
             cwd=str(dir_cwd),
             capture_output=True,
             text=True,

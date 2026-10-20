@@ -3,11 +3,11 @@
 **Identificador Canónico de Sistema:** `Subagente_Desarrollo`  
 **Identidad Conversacional / Alias de Tripulación:** `Zoro`  
 **Perfil Maestro (SSOT):** `Subagente_Desarrollo/_agents/agente.md`  
-**Perfil en el Grafo de Obsidian:** `Subagente_Desarrollo/Perfil_Subagente_Desarrollo.md`  
 **Script Ejecutable Principal:** `Subagente_Desarrollo/subagente_desarrollo_agent.py`  
 **Punto de Entrada Canónico:** `Subagente_Desarrollo/Perfil_Subagente_Desarrollo.py`  
+**Motor de Verificación y Resiliencia:** `Agente_Orquestador/qa_gherkin.py` y `Agente_Orquestador/bucle_autocorreccion.py`  
 **Directorio de Entregables Oficiales:** `Subagente_Desarrollo/proyectos/`  
-**Estado Operativo:** Modernizado, Modularizado en 21 Skills (71 herramientas especializadas + 5 base = 76 tools), SSOT Consolidado, Inyección en 2 Niveles, Memoria Procedural One-Shot.
+**Estado Operativo:** Modernizado, Modularizado en 21 Skills (71 herramientas especializadas + 5 base = 76 tools), SSOT Consolidado, Inyección en 2 Niveles, Motor QA Gherkin y Filtro Anti-Bucle Integrado.
 
 ---
 
@@ -115,4 +115,14 @@ Para preservar la integridad del sistema multi-agente, `subagente_desarrollo_age
 3. **`evidencia_hallazgo` Obligatorio (Zero-Trust):** Ruta física comprobable en el sistema de archivos (`/app/Subagente_Desarrollo/proyectos/...`). Si no existe el archivo, el ticket es rechazado por el Orquestador.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+
+## 6. Motor de Verificación y Filtro Anti-Bucle en Tiempo de Ejecución
+
+Durante la ejecución del ciclo cognitivo (`subagente_desarrollo_agent.py`), cada tool call es interceptado por `interceptar_tool_call`:
+- **Filtro Anti-Bucle:** Si el agente intenta invocar repetitivamente la misma herramienta con los mismos argumentos (ej. consultas redundantes a APIs o reintentos ciegos de compilación), el sistema congela la herramienta e inyecta la directiva obligatoria de analizar los datos ya obtenidos.
+- **Doble Validación QA Gherkin:** Evalúa en tiempo real operaciones críticas (`crear_archivo`, `ejecutar_comando`, `python_ejecutar_script`, `git_commit`, etc.), verificando que el código o script termine con exit code 0 y genere contenido sustancial.
+- **Clasificador de Errores y Diagnóstico:** Ante fallos de ejecución, `_clasificar_error` diagnostica la causa raíz (ej. módulos faltantes, puertos ocupados o sintaxis) e inyecta la receta de corrección específica.
+- **Referencias:** Script_Bucle_Autocorreccion y Script_Qa_Gherkin.
+
+---
+**Conexiones:** [[sistema]]

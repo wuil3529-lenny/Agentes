@@ -98,14 +98,4 @@ n8n_activar_workflow(workflow_id="42")
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Documentación de Nodos n8n:** [[Skill_N8N_Docs_Subagente_Desarrollo]]
-- **Plantillas Comunitarias n8n:** [[Skill_N8N_Templates_Subagente_Desarrollo]]
-- **Actualizaciones n8n:** [[Skill_N8N_Updater_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

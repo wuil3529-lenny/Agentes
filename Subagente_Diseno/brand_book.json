@@ -1,0 +1,35 @@
+{
+  "versiones_soporte": "1.0.0",
+  "marcas_registradas": {
+    "tripulacion_ia": {
+      "nombre": "Ecosistema Tripulación IA",
+      "nicho": "tecnologia_saas",
+      "colores_hex": {
+        "fondo_base": "#020617",
+        "superficie_tarjeta": "#0F172A",
+        "acento_primario": "#6366F1",
+        "acento_secundario": "#38BDF8",
+        "texto_titular": "#FFFFFF",
+        "texto_atenuado": "#94A3B8"
+      },
+      "tipografia_recomendada": "Plus Jakarta Sans / Outfit",
+      "iluminacion_default": "Studio dark mode with subtle indigo edge lighting",
+      "espacio_negativo_ratio": "40% superior",
+      "negative_prompts": "cheap gradients, cartoonish slop, messy artifacts, blurry text"
+    },
+    "cafe_artesanal": {
+      "nombre": "Café de Especialidad Demo",
+      "nicho": "gastronomia_restaurante",
+      "colores_hex": {
+        "fondo_base": "#1C1917",
+        "acento_primario": "#D97706",
+        "acento_secundario": "#F59E0B",
+        "texto_titular": "#FFFBEB"
+      },
+      "tipografia_recomendada": "Playfair Display / Inter",
+      "iluminacion_default": "Warm golden hour natural side-light",
+      "espacio_negativo_ratio": "45% superior derecho",
+      "negative_prompts": "cold blue tint, plastic cup, artificial foam, messy table"
+    }
+  }
+}

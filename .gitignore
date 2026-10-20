@@ -54,14 +54,29 @@ canal_usuario.json
 *canal_usuario*
 *.chat
 dashboard/chats/
+dashboard/canales/
 
 # Carpetas Personales, Pruebas y Evidencias de los Agentes
 Zoro/proyectos/
 Robin/reportes/
 Robin/informes/
 Sanji/documentos_sanji/
-Nami/informes/
-*/proyectos/*
-*/reportes/*
-*/informes/*
-*/documentos_sanji/*
+# Archivos multimedia temporales, capturas y cachés locales
+*.mp3
+*.wav
+*.ogg
+*.png
+*.jpg
+*.jpeg
+*.webp
+dashboard/static/capturas/
+dashboard/static/notas_voz/
+dashboard/estado_voz.json
+*BACKUP*
+*/data/*.json
+Agente_Orquestador/data/sensores/*.json
+Subagente_Asistencia/data/*.json
+*/informes/*.png
+*/reportes/*.png
+*/proyectos/*.png
+

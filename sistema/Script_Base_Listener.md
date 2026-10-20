@@ -57,4 +57,4 @@ El script se invoca principalmente mediante la línea de comandos:
 - `--ticket`: (Opcional) Especifica un ID de ticket único para procesamiento efímero inmediato, finalizando tras su resolución.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

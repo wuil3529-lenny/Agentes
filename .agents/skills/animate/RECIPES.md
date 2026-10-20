@@ -66,3 +66,6 @@ const cardVariants = {
   />
 )}
 ```
+
+---
+**Conexiones:** [[sistema]]

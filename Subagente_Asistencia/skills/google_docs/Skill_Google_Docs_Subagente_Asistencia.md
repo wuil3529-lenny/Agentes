@@ -243,4 +243,4 @@ Para evitar que los documentos luzcan como simples volcados de texto plano o pre
 5. **Ubicación de Imágenes:** Las figuras siempre se maquetan centradas, acompañadas de su respectivo pie de imagen descriptivo en cuerpo menor (9pt) y cursiva.
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

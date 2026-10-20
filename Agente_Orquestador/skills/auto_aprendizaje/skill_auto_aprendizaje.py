@@ -25,14 +25,26 @@ _MEMORIA_DIR = _APP_ROOT / "memoria"
 _AGENTE_ORIGEN = "Agente_Orquestador"
 
 
+from .gestor_procedimientos import (
+    tool_iniciar_aprendizaje_tarea,
+    tool_registrar_paso_aprendizaje,
+    tool_finalizar_aprendizaje_tarea,
+    tool_guardar_procedimiento_aprendido,
+    tool_ejecutar_tarea_aprendida,
+    tool_listar_tareas_aprendidas,
+    tool_eliminar_tarea_aprendida,
+    HERRAMIENTAS_PROCEDIMIENTOS
+)
+
+
 def obtener_prompt_auto_aprendizaje() -> str:
     """
-    System Prompt especializado para el motor de Auto-Aprendizaje y Memoria Procedural en el Orquestador.
+    System Prompt especializado para el motor de Auto-Aprendizaje, Memoria Procedural y Grabación/Repetición de Tareas.
     """
-    return """[🧠 DIRECTIVA MAESTRA: AUTO-APRENDIZAJE CONTINUO Y MEMORIA PROCEDURAL]
-Tienes la capacidad de acumular conocimiento procedural para orquestar y ejecutar misiones complejas en UN SOLO PASO (One-Shot):
+    return """[🧠 DIRECTIVA MAESTRA: AUTO-APRENDIZAJE CONTINUO, GRABACIÓN Y REPETICIÓN DE PROCEDIMIENTOS]
+Tienes la capacidad de acumular conocimiento procedural, aprender tareas guiadas por el usuario y reproducirlas autónomamente:
 
-1. PASO 0 OBLIGATORIO — CONSULTA ANTES DE CREAR:
+1. PASO 0 OBLIGATORIO — CONSULTA ANTES DE CREAR (PLAYBOOKS ARQUITECTÓNICOS):
    - Ante CUALQUIER requerimiento de diseño web, dashboard, flujo n8n, conexión MCP, API o arquitectura multi-agente, tu PRIMERA ACCIÓN debe ser invocar:
      `tool_consultar_playbook_memoria(tema_o_dominio="...")`
    - Si se encuentra un Playbook previo:
@@ -41,9 +53,23 @@ Tienes la capacidad de acumular conocimiento procedural para orquestar y ejecuta
      * Delega y coordina la ejecución en One-Shot evitando redundancias o entrevistas innecesarias sobre temas ya resueltos.
 
 2. PASO FINAL OBLIGATORIO — REGISTRO DE PRIMERA VEZ (FIRST-RUN):
-   - Si la misión se realizó por primera vez (no existía Playbook previo) y superó la supervisión física Zero-Trust con éxito, antes de cerrar el ticket DEBES invocar:
+   - Si la misión técnica se realizó por primera vez (no existía Playbook previo) y superó la supervisión física Zero-Trust con éxito, antes de cerrar el ticket DEBES invocar:
      `tool_registrar_playbook_memoria(...)`
-   - Esto archivará el pipeline de delegación, tokens, blueprint maestro y variables adaptables en `memoria/` y ChromaDB.
+
+3. MODO APRENDIZAJE POR DEMOSTRACIÓN (ENSEÑANZA Y GRABACIÓN PASO A PASO):
+   - Cuando el usuario exprese que quiere enseñarte cómo hacer una tarea ("te voy a enseñar a...", "aprende cómo hacer...", "graba este procedimiento", "la primera vez lo hago yo paso a paso para que luego lo repitas"):
+     * Si el usuario te guía paso a paso interactivamente:
+       1) Invoca `tool_iniciar_aprendizaje_tarea(nombre_tarea="...", descripcion="...", disparadores="...")` para abrir la sesión de grabación.
+       2) A medida que el usuario te indique cada acción (ej: 'Paso 1: navega a YouTube'), ejecútala con Manos y Ojos (`tool_navegar_web`, etc.) y regístrala con `tool_registrar_paso_aprendizaje(descripcion_paso="...", herramienta="...", parametros_json="...")`.
+       3) Cuando el usuario te diga "listo", "guarda la tarea" o "finalizar aprendizaje", invoca `tool_finalizar_aprendizaje_tarea(resultado_esperado="...")`.
+     * Si el usuario te describe todos los pasos de una vez:
+       Invoca directamente `tool_guardar_procedimiento_aprendido(nombre="...", descripcion="...", disparadores="...", pasos_json="...", resultado_esperado="...")`.
+
+4. MODO REPETICIÓN AUTÓNOMA (REPRODUCCIÓN DE PROCEDIMIENTOS APRENDIDOS):
+   - Cuando el usuario te pida "repite la tarea [nombre]", "ejecuta la tarea aprendida [nombre]", o use cualquiera de las frases disparadoras de una tarea guardada:
+     Invoca INMEDIATAMENTE `tool_ejecutar_tarea_aprendida(nombre_o_disparador="...", parametros_json="{}")`.
+     Esto ejecutará toda la secuencia de herramientas de manera secuencial, determinista y autónoma en la PC/navegador sin pedir confirmación en cada paso y con 0 desperdicio de tokens.
+   - Para revisar qué tareas tienes aprendidas: usa `tool_listar_tareas_aprendidas()`.
 """
 
 
@@ -209,7 +235,7 @@ Este playbook almacena la metodología, arquitectura probada y pipeline de deleg
 - **Auditoría SSOT:** Consistencia con Bitacora.md y tickets cerrados.
 
 ---
-**Pertenece a:** [[memoria]] · [[Perfil_{_AGENTE_ORIGEN}]]
+**Conexiones:** [[memoria]]
 """
 
         ruta_archivo.write_text(contenido_md, encoding="utf-8")
@@ -248,4 +274,5 @@ Este playbook almacena la metodología, arquitectura probada y pipeline de deleg
 HERRAMIENTAS_AUTO_APRENDIZAJE = [
     tool_consultar_playbook_memoria,
     tool_registrar_playbook_memoria,
-]
+] + HERRAMIENTAS_PROCEDIMIENTOS
+

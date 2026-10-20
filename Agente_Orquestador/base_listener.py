@@ -16,6 +16,7 @@ from memory import (leer_mensajes, publicar_mensaje, leer_nodo_obsidian,
                     cargar_perfil_agente, registrar_bitacora, guardar_cerebro, 
                     leer_turno, avanzar_turno, reclamar_turno,
                     leer_tickets_pendientes, crear_ticket_bitacora, actualizar_ticket_bitacora)
+from identidad_agentes import obtener_identidades_agentes, mapear_responsable_a_canonico, obtener_nombre_display
 from nim_client import call_nim_with_fallback
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 load_dotenv((_APP_ROOT / ".env"))
@@ -502,14 +503,15 @@ Si este campo falta o está vacío, el Auditor RECHAZARÁ tu trabajo y entrarás
 """
 
 def iniciar_listener(agente_nombre, ticket_efimero=None):
-    print(f"[{agente_nombre} Listener] Iniciando bucle de escucha infinita...")
+    nombre_display = obtener_nombre_display(agente_nombre)
+    print(f"[{nombre_display} ({agente_nombre}) Listener] Iniciando bucle de escucha infinita...")
     api_key = os.getenv("DEEPSEEK_API_KEY")
     if not api_key or api_key == "YOUR_NVIDIA_API_KEY_HERE":
-        print(f"[{agente_nombre} Listener] ERROR CRÍTICO: No se encontró la DEEPSEEK_API_KEY en el .env.")
+        print(f"[{nombre_display} Listener] ERROR CRÍTICO: No se encontró la DEEPSEEK_API_KEY en el .env.")
         print(f"Configura DEEPSEEK_API_KEY en el archivo .env")
         return
     sys_prompt = build_system_prompt(agente_nombre)
-    print(f"[{agente_nombre} Listener] Ejecutando rutina de despertar...")
+    print(f"[{nombre_display} Listener] Ejecutando rutina de despertar...")
     from memory import publicar_mensaje
     # Rutina de inicio automático deshabilitada para evitar creación de tickets bloqueantes (TKT-LEER-001)
     # publicar_mensaje(
@@ -551,8 +553,8 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
             {
                 "agente_orquestador": "agente_orquestador_agent",
                 "subagente_desarrollo": "subagente_desarrollo_agent",
-                "subagente_diseno": "nami_agent",
-                "subagente_ciberseguridad": "robin_agent",
+                "subagente_diseno": "subagente_diseno_agent",
+                "subagente_ciberseguridad": "subagente_ciberseguridad_agent",
                 "subagente_asistencia": "subagente_asistencia_agent"
             }.get(agente_nombre.lower(), f"{agente_nombre.lower()}_agent")
         ]
@@ -572,7 +574,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 "agente_orquestador": "funcion_nodo_agente_orquestador",
                 "subagente_desarrollo": "funcion_nodo_zoro",
                 "subagente_diseno": "funcion_nodo_nami",
-                "subagente_ciberseguridad": "funcion_nodo_robin",
+                "subagente_ciberseguridad": "funcion_nodo_subagente_ciberseguridad",
                 "subagente_asistencia": "funcion_nodo_subagente_asistencia"
             }.get(agente_nombre.lower(), "")
         ]
@@ -595,6 +597,14 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
         try:
             # ── CRÓNOMETRO ÁRBITRO: se ejecuta en CADA vuelta, antes de todo ──
             _verificar_timeout()
+
+            # ── MOTOR CRON Y MONITOREO CONTINUO (Sólo Modo Daemon / Orquestador) ──
+            if not ticket_efimero and agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+                try:
+                    from tareas_programadas.skill_tareas_programadas import ejecutar_ciclo_tareas_programadas
+                    ejecutar_ciclo_tareas_programadas()
+                except Exception as e_cron:
+                    print(f"[Orquestador Cron] Advertencia en ciclo de tareas programadas: {e_cron}")
 
             # ══════════════════════════════════════════════════════════════
             # ORQUESTACIÓN ON-DEMAND (SPAWN -> EXEC -> KILL)
@@ -668,29 +678,11 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                     if ticket_subagente:
                         # [ORQUESTACIÓN] Iniciar Subagente en proceso aislado
                         raw_responsable = ticket_subagente['responsable']
-                        import re
-                        m = re.search(r'(?i)\b(luffy|zoro|nami|robin|sanji|agente_orquestador|subagente_desarrollo|subagente_diseno|subagente_ciberseguridad|subagente_asistencia|desarrollo|diseno|diseño|ciberseguridad|asistencia)\b', raw_responsable)
-                        matched = m.group(1).lower() if m else raw_responsable.lower()
-                        
-                        map_canon = {
-                            "zoro": "Subagente_Desarrollo",
-                            "desarrollo": "Subagente_Desarrollo",
-                            "subagente_desarrollo": "Subagente_Desarrollo",
-                            "nami": "Subagente_Diseno",
-                            "diseno": "Subagente_Diseno",
-                            "diseño": "Subagente_Diseno",
-                            "subagente_diseno": "Subagente_Diseno",
-                            "robin": "Subagente_Ciberseguridad",
-                            "ciberseguridad": "Subagente_Ciberseguridad",
-                            "subagente_ciberseguridad": "Subagente_Ciberseguridad",
-                            "sanji": "Subagente_Asistencia",
-                            "asistencia": "Subagente_Asistencia",
-                            "subagente_asistencia": "Subagente_Asistencia"
-                        }
-                        agente_asignado = map_canon.get(matched, "Subagente_Desarrollo")
+                        agente_asignado = mapear_responsable_a_canonico(raw_responsable)
+                        nombre_display_asignado = obtener_nombre_display(agente_asignado)
                         
                         id_tk = ticket_subagente['id_bloque'].strip()
-                        print(f"\n[Orquestador] ⚡ Tarea detectada para {agente_asignado} ({id_tk}). Iniciando ejecución aislada (Spawn)...")
+                        print(f"\n[Orquestador] ⚡ Tarea detectada para {nombre_display_asignado} ({agente_asignado}) ({id_tk}). Iniciando ejecución aislada (Spawn)...")
                         import subprocess
                         
                         max_intentos = 3
@@ -725,7 +717,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                     
                                     last_log_time = time.time()
                                     linea_str = linea.strip()
-                                    print(f"[Monitoreo {agente_asignado}] {linea_str}")
+                                    print(f"[Monitoreo {nombre_display_asignado}] {linea_str}")
                                     log_history.append(linea_str)
                                     if len(log_history) > 100:
                                         log_history.pop(0)
@@ -768,12 +760,24 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             except:
                                 t_post = None
                                 
-                            if t_post and t_post['estado'] in ['PENDIENTE_REVISION', 'PENDIENTE_APROBACION', 'COMPLETADO']:
+                            if t_post and any(t_post['estado'].upper().startswith(st) for st in ['PENDIENTE_REVISION', 'PENDIENTE_APROBACION', 'COMPLETADO']):
                                 print(f"[Orquestador] ✅ Auditoría exitosa: {agente_asignado} completó {id_tk} correctamente.")
                                 import re
                                 nb = t_post['bloque_original']
                                 nb = re.sub(r"(?i)(-?\s*\*\*Responsable:\*\*\s*)\w+", r"\g<1>Agente_Orquestador", nb)
-                                nb += f"\n  - [Sistema - {datetime.now().isoformat()[:19]}]: Tarea completada por {agente_asignado}. Agente_Orquestador, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
+                                nota_cierre = f"Tarea completada por {agente_asignado}. Agente_Orquestador, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
+                                if "[PIPELINE MULTI-AGENTE]" in nb and "[ETAPA SECUNDARIA DESPACHADA]" not in nb:
+                                    nota_cierre = (
+                                        f"Etapa inicial completada por {agente_asignado}. Agente_Orquestador: este ticket tiene un [PIPELINE MULTI-AGENTE] activo. "
+                                        f"Verifica el entregable inicial y reasigna este ticket (o crea el ticket encadenado) al agente secundario indicado en el Contexto con Estado: PENDIENTE (añadiendo la marca [ETAPA SECUNDARIA DESPACHADA])."
+                                    )
+                                elif "[MODO MONITOREO DE CONDICIÓN / ALERTA]" in nb:
+                                    nota_cierre = (
+                                        f"Ciclo de monitoreo completado por {agente_asignado}. Agente_Orquestador: revisa la evidencia_hallazgo. "
+                                        f"Si el estado reportado es 'ESTADO: NORMAL / SIN ALERTA', cierra el ticket (CERRADO) en silencio SIN enviar mensaje de Telegram. "
+                                        f"Si el estado es 'ESTADO: ALERTA' (se cumplió la condición crítica), notifica inmediatamente al usuario por Telegram con tool_enviar_telegram y cierra el ticket (CERRADO)."
+                                    )
+                                nb += f"\n  - [Sistema - {datetime.now().isoformat()[:19]}]: {nota_cierre}"
                                 texto_b = texto_b.replace(t_post['bloque_original'], nb)
                                 BITACORA_MD.write_text(texto_b, encoding="utf-8")
                                 print(f"[Orquestador] 🔄 Ticket devuelto a Agente_Orquestador para notificación final.")
@@ -789,6 +793,7 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                     print(f"[Orquestador] ❌ Límite de intentos alcanzado. Abortando flujo de {id_tk}.")
                                     # Abortar el ticket directamente para evitar que el Orquestador lo usurpe, y notificar
                                     if t_post:
+                                        import re
                                         bloque = t_post['bloque_original']
                                         nuevo_bloque = re.sub(r'(?i)(-?\s*\*\*Estado:\*\*\s*).*', r'\g<1>ABORTADO', bloque)
                                         nuevo_bloque += f"\n  - [Sistema - Final]: Límite de intentos alcanzado. Tarea abortada."
@@ -829,22 +834,84 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                 if forzar_despertar:
                     print(f"\n[{agente_nombre} Listener] 🚨 Mensaje entrante detectado. Invocando la consciencia de {agente_nombre}...")
                     try:
+                        from voz.skill_voz import actualizar_estado_procesando
+                        actualizar_estado_procesando(True)
+                    except Exception:
+                        pass
+                    try:
                         from memory import _cargar_canal, _guardar_canal
                         canal_u = _cargar_canal("usuario")
                         cu_nuevos = [m for m in canal_u.get("mensajes", []) if not any(al in [str(x).lower() for x in m.get("leido_por", [])] for al in aliases_orq)]
                         
                         texto_piezas = []
+                        vino_por_nota_voz = False
+                        usar_cornetas_msg = False
                         for m in cu_nuevos:
+                            if m.get("tipo") in ("nota_voz_telegram", "nota_voz_dashboard"):
+                                vino_por_nota_voz = True
                             c = m.get("contenido", {})
                             if isinstance(c, dict):
                                 t = c.get("texto", "")
+                                if c.get("es_nota_voz"):
+                                    vino_por_nota_voz = True
+                                if c.get("usar_cornetas"):
+                                    usar_cornetas_msg = True
                             else:
                                 t = str(c)
                             if t:
                                 texto_piezas.append(t)
                         texto_completo = "\n".join(texto_piezas)
                         
-                        from memory import construir_contexto_canal_usuario
+                        from memory import construir_contexto_canal_usuario, _es_peticion_limpiar_historial
+
+                        # DETECCIÓN DE PURGA FÍSICA DE HISTORIAL EN DISCO
+                        if _es_peticion_limpiar_historial(texto_completo):
+                            print(f"\n[{agente_nombre} Listener] 🧹 Petición explícita de limpieza de historial detectada: '{texto_completo}'")
+                            # 1. Purgar canal_usuario.json
+                            _guardar_canal({"mensajes": []}, "usuario")
+                            # 2. Purgar sesión activa en dashboard/canales/
+                            try:
+                                canales_dir = _APP_ROOT / "dashboard" / "canales"
+                                ses_idx_path = canales_dir / "sesiones_index.json"
+                                if ses_idx_path.exists():
+                                    sesiones = json.loads(ses_idx_path.read_text(encoding="utf-8"))
+                                    for s in sesiones:
+                                        if s.get("activo"):
+                                            s["total_mensajes"] = 0
+                                            s["titulo"] = "Nueva Asignación"
+                                            s["actualizado"] = datetime.now().isoformat()
+                                            s_file = canales_dir / f"{s['id']}.json"
+                                            s_file.write_text(json.dumps({"mensajes": []}, indent=2, ensure_ascii=False), encoding="utf-8")
+                                    ses_idx_path.write_text(json.dumps(sesiones, indent=2, ensure_ascii=False), encoding="utf-8")
+                            except Exception as e_can:
+                                print(f"[{agente_nombre} Listener] Advertencia purgando canales dashboard: {e_can}")
+
+                            texto_resp = "¡Entendido, Capitán! 🏴☠️ Historial purgado por completo en disco y memoria reseteada. No conservo ningún dato de conversaciones anteriores. Estoy listo para tu nueva orden."
+                            try:
+                                from telegram_bridge import enviar_mensaje_telegram, enviar_nota_voz_telegram
+                                from voz.skill_voz import generar_audio_voz, reproducir_archivo_en_cornetas, obtener_estado_voz
+                                estado_voz = obtener_estado_voz()
+                                cornetas_on = bool(estado_voz.get("cornetas_activas")) or usar_cornetas_msg
+                                auto_nota = bool(estado_voz.get("auto_nota_voz")) or vino_por_nota_voz
+                                ruta_mp3_generada = None
+                                if auto_nota or cornetas_on:
+                                    ruta_mp3_generada = generar_audio_voz(texto_resp, formato="mp3")
+                                if auto_nota or ruta_mp3_generada:
+                                    enviar_nota_voz_telegram(
+                                        texto_o_ruta_audio=str(ruta_mp3_generada) if ruta_mp3_generada else texto_resp,
+                                        caption=texto_resp,
+                                        remitente="Agente_Orquestador",
+                                        espejear_en_consola=True,
+                                    )
+                                else:
+                                    enviar_mensaje_telegram(texto_resp)
+                                if cornetas_on and ruta_mp3_generada and os.path.exists(str(ruta_mp3_generada)):
+                                    reproducir_archivo_en_cornetas(ruta_mp3_generada, bloquear=False)
+                            except Exception as e_resp:
+                                print(f"[{agente_nombre} Listener] Error enviando confirmación de purga: {e_resp}")
+                            time.sleep(2)
+                            continue
+
                         # Presupuesto de 3,500 tokens con compresión rodante
                         historial_reciente = construir_contexto_canal_usuario(canal_u, max_tokens=3500)
 
@@ -916,12 +983,47 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             if texto_resp:
                                 try:
                                     sys.path.append(str(_APP_ROOT / "Agente_Orquestador"))
-                                    from telegram_bridge import enviar_mensaje_telegram
-                                    # enviar_mensaje_telegram ya envía a Telegram y realiza el espejo a canal_usuario automáticamente
-                                    enviar_mensaje_telegram(texto_resp)
-                                    print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram y espejeado a canal_usuario.")
+                                    from telegram_bridge import enviar_mensaje_telegram, enviar_nota_voz_telegram
+                                    from voz.skill_voz import (
+                                        generar_audio_voz,
+                                        reproducir_archivo_en_cornetas,
+                                        hablar_por_cornetas_pc,
+                                        obtener_estado_voz,
+                                    )
+
+                                    estado_voz = obtener_estado_voz()
+                                    cornetas_on = bool(estado_voz.get("cornetas_activas")) or usar_cornetas_msg
+                                    auto_nota = bool(estado_voz.get("auto_nota_voz")) or vino_por_nota_voz
+
+                                    ruta_mp3_generada = None
+                                    if auto_nota or cornetas_on:
+                                        ruta_mp3_generada = generar_audio_voz(texto_resp, formato="mp3")
+
+                                    if auto_nota or ruta_mp3_generada:
+                                        enviar_nota_voz_telegram(
+                                            texto_o_ruta_audio=str(ruta_mp3_generada) if ruta_mp3_generada else texto_resp,
+                                            caption=texto_resp,
+                                            remitente="Agente_Orquestador",
+                                            espejear_en_consola=True,
+                                        )
+                                        print(f"[{agente_nombre} Listener] 🎙️ Nota de voz enviada a Telegram y espejeada a Consola.")
+                                    else:
+                                        enviar_mensaje_telegram(texto_resp)
+                                        print(f"[{agente_nombre} Listener] Mensaje enviado a Telegram y espejeado a canal_usuario.")
+
+                                    if cornetas_on:
+                                        if ruta_mp3_generada and os.path.exists(str(ruta_mp3_generada)):
+                                            reproducir_archivo_en_cornetas(ruta_mp3_generada, bloquear=False)
+                                        else:
+                                            hablar_por_cornetas_pc(texto_resp, bloquear=False)
+                                        print(f"[{agente_nombre} Listener] 🔊 Reproduciendo respuesta por las cornetas de la computadora.")
                                 except Exception as e:
-                                    print(f"[{agente_nombre} Listener] Error enviando mensaje al usuario: {e}")
+                                    print(f"[{agente_nombre} Listener] Error enviando mensaje/voz al usuario: {e}")
+                                    try:
+                                        from telegram_bridge import enviar_mensaje_telegram
+                                        enviar_mensaje_telegram(texto_resp)
+                                    except Exception:
+                                        pass
 
                         # Marcar SIEMPRE como leídos para evitar bucle (recargando desde disco para no pisar respuestas)
                         canal_u = _cargar_canal("usuario")
@@ -942,6 +1044,12 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                                 if not any(al in leidos for al in ["luffy", "agente_orquestador", "orquestador"]):
                                     m.setdefault("leido_por", []).extend(["Luffy", "Agente_Orquestador"])
                             _guardar_canal(canal_u, "usuario")
+                        except Exception:
+                            pass
+                    finally:
+                        try:
+                            from voz.skill_voz import actualizar_estado_procesando
+                            actualizar_estado_procesando(False)
                         except Exception:
                             pass
                     

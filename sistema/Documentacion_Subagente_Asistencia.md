@@ -3,11 +3,11 @@
 **Identificador Canónico de Sistema:** `Subagente_Asistencia`  
 **Identidad Conversacional / Alias de Tripulación:** `Sanji`  
 **Perfil Maestro (SSOT):** `Subagente_Asistencia/_agents/agente.md`  
-**Perfil en el Grafo de Obsidian:** `Subagente_Asistencia/Perfil_Subagente_Asistencia.md`  
 **Script Ejecutable Principal:** `Subagente_Asistencia/subagente_asistencia_agent.py`  
 **Punto de Entrada Canónico:** `Subagente_Asistencia/Perfil_Subagente_Asistencia.py`  
+**Motor de Verificación y Resiliencia:** `Agente_Orquestador/qa_gherkin.py` y `Agente_Orquestador/bucle_autocorreccion.py`  
 **Directorio de Entregables Oficiales:** `Subagente_Asistencia/documentos_asistencia/`  
-**Estado Operativo:** Modernizado, Modularizado en 13 Skills (32 tools), Validado E2E (100% aprobado)
+**Estado Operativo:** Modernizado, Modularizado en 13 Skills (32 tools), Validado E2E (100% aprobado), Motor QA Gherkin y Filtro Anti-Bucle Integrado.
 
 ---
 
@@ -61,7 +61,7 @@ El Subagente de Asistencia fue completamente reestructurado bajo las **5 Reglas 
 | **1. Desacoplamiento Modular Absoluto** | Cada una de las 13 habilidades vive en su propia subcarpeta dentro de `Subagente_Asistencia/skills/<nombre_skill>/` con su propio `__init__.py`, script de lógica (`tool_<nombre>.py` o `skill_<nombre>.py`) y archivo cognitivo (`Skill_<Nombre>_Subagente_Asistencia.md`). | Cero acoplamiento; una modificación en `google_calendar` no altera `sentry` ni `auto_aprendizaje`. |
 | **2. Decorador Canónico `@tool` con Tipado Fuerte** | Todas las 32 herramientas del catálogo utilizan el decorador formal `@tool` de LangChain con docstrings descriptivos y type hints estrictos (`str`, `int`, `dict`). | Compatibilidad nativa con modelos de inferencia multi-proveedor (OpenAI, DeepSeek, NIM) e inspección automática de esquemas. |
 | **3. Encapsulamiento del Prompt de Habilidad** | Cada habilidad exporta una función dedicada `obtener_prompt_<nombre_skill>()` que carga dinámicamente su System Prompt desde su archivo `.md`. | Prohibición absoluta de prompts cableados en código duro (`hardcoded`); versionado independiente de la cognición. |
-| **4. Documentación Canónica y Obsidian Sync** | Cada habilidad cuenta con su documento Markdown `Skill_<Nombre>_Subagente_Asistencia.md` con enlaces directos (`[[Perfil_Subagente_Asistencia]]`, `[[Reglas de la Tripulacion]]`). | Sincronización transparente en el grafo visual de Obsidian y vectorización automática en ChromaDB. |
+| **4. Documentación Canónica y Obsidian Sync** | Cada habilidad cuenta con su documento Markdown `Skill_<Nombre>_Subagente_Asistencia.md` con enlaces directos (`Perfil_Subagente_Asistencia`, `Reglas de la Tripulacion`). | Sincronización transparente en el grafo visual de Obsidian y vectorización automática en ChromaDB. |
 | **5. Manejo Resiliente de Errores y Blindaje** | Todas las herramientas capturan excepciones en bloques estructurados `try/except`, registran detalles en logs y devuelven respuestas de diagnóstico sin romper la ejecución del agente. | Autotolerancia a fallos: caídas de red o tokens expirados no cuelgan el subproceso. |
 
 ---
@@ -193,15 +193,4 @@ El daemon `base_listener.py` ejecuta una verificación **Zero-Trust**:
 | **`TKT-ASI-20261003002`** | Validación integral de 4 ejes de mejora: diagnóstico OAuth Google Workspace, búsqueda semántica en ChromaDB Sentry RAG, economía de tokens en Nivel 1 y cumplimiento de rutas de firewall. | **APROBADO (100% - 0 rechazos)** | `Subagente_Asistencia/documentos_asistencia/informe_mejoras_validadas.md` (4,169 bytes) |
 
 ---
-
-## 9. Referencias y Conexiones en el Grafo
-
-- **Perfil Maestro de Obsidian:** [[Perfil_Subagente_Asistencia]]
-- **Documentación de Scripts:** [[Script_Subagente_Asistencia_Agent]]
-- **Arquitectura Global del Sistema:** [[Arquitectura]]
-- **Protocolo de la Pizarra:** [[Bitacora]]
-- **Bóveda de Conocimiento Colectivo:** [[Cerebro]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-
----
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

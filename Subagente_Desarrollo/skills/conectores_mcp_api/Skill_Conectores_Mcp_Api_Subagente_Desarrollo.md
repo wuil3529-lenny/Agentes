@@ -121,14 +121,4 @@ tool_conectar_servidor_mcp.invoke({
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro:** [[Perfil_Subagente_Desarrollo]]
-- **Auditoría Perimetral:** [[Perfil_Subagente_Ciberseguridad]]
-- **Automatización de Flujos:** [[Skill_N8N_Subagente_Desarrollo]]
-- **Túneles Seguros:** [[Skill_Ngrok_Subagente_Desarrollo]]
-- **Gestión de Datos:** [[Skill_Bases_De_Datos_Sql_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

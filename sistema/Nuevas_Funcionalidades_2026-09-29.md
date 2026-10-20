@@ -3,6 +3,9 @@
 **Autor:** Antigravity & Luffy  
 **Área:** Arquitectura Central, Memoria Bifocal, Consumo de Tokens y Panel de Control
 
+> [!NOTE]
+> *Nota de contexto arquitectónico:* Las referencias históricas a las carpetas `Luffy/`, `Zoro/`, `Sanji/`, `Robin/`, `Nami/` corresponden a los módulos consolidados actualmente en `Agente_Orquestador/`, `Subagente_Desarrollo/`, `Subagente_Asistencia/`, `Subagente_Ciberseguridad/` y `Subagente_Diseno/`, respectivamente.
+
 ---
 
 ## 1. Recibo Ejecutivo de Misión (Memoria Viva y Auditoría RAG)
@@ -86,4 +89,4 @@ Se reforzaron las reglas de exclusión para asegurar que ningún dato sensible n
 - Carpetas personales y reportes de prueba de los agentes (`Zoro/proyectos/`, `Robin/reportes/`, `Robin/informes/`, `Sanji/documentos_sanji/`, `Nami/informes/`).
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

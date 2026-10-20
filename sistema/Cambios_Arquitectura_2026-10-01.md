@@ -63,10 +63,13 @@ Para un detalle técnico exhaustivo de los componentes en código fuente de la h
 1. [Script_Agente_Orquestador_Agent.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Agente_Orquestador_Agent.md) — Agente ejecutor y despachador de herramientas.
 2. [Script_Base_Listener.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Base_Listener.md) — Daemon de escucha, arbitraje de timeouts y auditoría Zero-Trust.
 3. [Script_Costos_Tracker.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Costos_Tracker.md) — Rastreador de consumo de tokens y presupuesto.
-4. [Script_Memory.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Memory.md) — Motor de memoria compartida, canales y compresión de historial.
+4. [Script_Memory.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Memory.md) — Motor de memoria persistente, canales y compresión de historial.
 5. [Script_Nim_Client.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Nim_Client.md) — Cliente de inferencia con reintentos y fallback.
 6. [Script_Sync_Cerebro.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Sync_Cerebro.md) — Sincronizador del grafo de Obsidian y bóveda vectorial RAG.
 7. [Script_Telegram_Bridge.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Telegram_Bridge.md) — Puente de comunicación externa con Telegram.
+8. [Script_Qa_Gherkin.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Qa_Gherkin.md) — Motor universal de doble validación QA Gherkin (red y contenido).
+9. [Script_Bucle_Autocorreccion.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Bucle_Autocorreccion.md) — Interceptor de herramientas, filtro anti-bucle y clasificador de causa raíz.
+10. [Script_Identidad_Agentes.md](file:///c:/Users/admin/Documents/Agentes/sistema/Script_Identidad_Agentes.md) — Cargador dinámico de identidades SSOT y mapeo de roles.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[sistema]]

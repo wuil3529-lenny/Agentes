@@ -158,7 +158,7 @@ El Agente Orquestador detecta el modo activo, ingesta automáticamente `CTX-Gene
 
 ### Documento Resultante Generado en `proyectos/PLAN-Generador-Miniaturas-Youtube.md`
 
-```markdown
+````markdown
 # PLAN: Generador Miniaturas Youtube
 
 **Proyecto:** Generador Miniaturas Youtube  
@@ -242,7 +242,7 @@ flowchart TD
   *Mitigación:* Optimización automática con Pillow aplicando compresión PNG sin pérdida visual.
 
 ---
-```
+````
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

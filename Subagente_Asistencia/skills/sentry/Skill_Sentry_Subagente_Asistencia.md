@@ -127,4 +127,4 @@ tool_registrar_solucion_error(
 ```
 
 ---
-**Pertenece a:** [[Perfil_Subagente_Asistencia]]
+**Conexiones:** [[Perfil_Subagente_Asistencia]]

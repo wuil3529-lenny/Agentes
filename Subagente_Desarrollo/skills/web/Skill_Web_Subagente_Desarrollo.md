@@ -101,13 +101,4 @@ web_scaffold_html(
 ```
 
 ---
-
-## 6. Conexiones y Referencias en el Grafo
-
-- **Perfil Maestro del Agente:** [[Perfil_Subagente_Desarrollo]]
-- **Reglamento Operativo:** [[Reglas de la Tripulacion]]
-- **Habilidad Base:** [[Skill_Base_Subagente_Desarrollo]]
-- **Diseño Frontend:** [[Skill_Frontend_Design_Subagente_Desarrollo]]
-
----
-**Pertenece a:** [[Perfil_Subagente_Desarrollo]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

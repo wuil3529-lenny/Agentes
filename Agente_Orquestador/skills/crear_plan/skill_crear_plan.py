@@ -117,7 +117,7 @@ def tool_crear_plan(origen_contexto: str, nombre_proyecto: str, plan_estructurad
 {plan_estructurado.strip()}
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[contexto_y_proyectos]]
 """
         plan_path.write_text(contenido_final, encoding="utf-8")
         

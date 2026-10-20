@@ -72,7 +72,7 @@ flowchart TD
   * 3. System Prompt Completo de la Habilidad.
   * 4. Resultados y Entregables Esperados.
   * 5. Ejemplo Práctico Completo.
-  * Conexión final: `**Pertenece a:** [[Perfil_<Agente>]]`.
+  * Conexión final: `**Pertenece a:** Perfil_<Agente>`.
 
 ### Paso 4: Apertura de Ticket de Auditoría en la Pizarra
 - La herramienta redacta y exige el ticket `[TKT-AUDIT-<SKILL>]` en `Bitacora.md` asignado al Subagente de Ciberseguridad para auditar que el código no contenga bucles infinitos, fuga de secretos ni vulnerabilidades.
@@ -110,7 +110,7 @@ Cada habilidad que crees debe constar de dos artefactos coordinados e inmutables
    - Sección 3: El System Prompt Completo de la Habilidad.
    - Sección 4: Resultados y Entregables Esperados.
    - Sección 5: Ejemplo Práctico Completo (con diálogo, invocación y resultado).
-   - Vínculo exclusivo final: `**Pertenece a:** [[Perfil_<Agente>]]`.
+   - Vínculo exclusivo final: `**Pertenece a:** Perfil_<Agente>`.
 
 REGLAS DE IDENTIDAD Y SEGURIDAD:
 - TERMINOLOGÍA ESTRICTAMENTE AGNÓSTICA: Nunca quemes nombres de piratas ni nombres propios en las habilidades generadas. Utiliza: "Usuario", "Agente Orquestador", "Subagente de Desarrollo Técnico", "Subagente de Diseño y Arte Visual", "Subagente de Ciberseguridad y Auditoría", "Subagente de Asistencia Personal e Integraciones".
@@ -183,4 +183,4 @@ def optimizar_imagen_webp(ruta_origen: str, calidad: int = 85) -> str:
 > Una vez aprobada la auditoría, la herramienta quedará 100% activa para la tripulación.
 
 ---
-**Pertenece a:** [[Perfil_Agente_Orquestador]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

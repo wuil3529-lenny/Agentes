@@ -18,6 +18,7 @@ import time
 import json
 import psutil
 import platform
+import shlex
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -26,6 +27,44 @@ import urllib.error
 
 # Directorio raíz del cliente
 BASE_DIR = Path(__file__).resolve().parent
+
+# -- H-04: Controles de seguridad para comandos remotos ----------------------
+ACCIONES_PERMITIDAS = frozenset({
+    "reiniciar_tripulacion",
+    "limpiar_errores",
+    "pausar_flota",
+    "reanudar_flota",
+    "ejecutar_accion",
+})
+
+BINARIOS_PERMITIDOS = frozenset({
+    "echo", "hostname", "whoami", "date", "uptime", "pwd",
+    "systeminfo", "ipconfig", "tasklist", "df", "free", "uname",
+})
+
+_METACARACTERES_SHELL = ("&", "|", ";", ">", "<", "$", "`", "\n", "\r")
+
+
+def _validar_comando_seguro(cmd_custom):
+    """Valida un comando de 'ejecutar_accion'. Devuelve (argv, error)."""
+    if not isinstance(cmd_custom, str) or not cmd_custom.strip():
+        return None, "Comando vacio o invalido."
+    if len(cmd_custom) > 200:
+        return None, "Comando excede la longitud maxima permitida (200)."
+    if any(m in cmd_custom for m in _METACARACTERES_SHELL):
+        return None, "Comando rechazado: contiene metacaracteres de shell."
+    try:
+        argv = shlex.split(cmd_custom, posix=(os.name != "nt"))
+    except ValueError as e:
+        return None, "Comando malformado: %s" % e
+    if not argv:
+        return None, "Comando vacio tras el parseo."
+    binario = Path(argv[0]).name.lower()
+    if binario.endswith(".exe"):
+        binario = binario[:-4]
+    if binario not in BINARIOS_PERMITIDOS:
+        return None, "Binario '%s' no esta en la whitelist de ejecucion." % binario
+    return argv, None
 
 def cargar_env():
     env_file = BASE_DIR / ".env"
@@ -57,8 +96,14 @@ def obtener_metricas_locales():
     ram = psutil.virtual_memory().percent
     
     # Leer estado de agentes locales si existe
-    estado_path = (BASE_DIR / "Agente_Orquestador" / "estado_tripulacion.json") if (BASE_DIR / "Agente_Orquestador" / "estado_tripulacion.json").exists() else (BASE_DIR / "Luffy" / "estado_tripulacion.json")
-    agentes_estado = {"luffy": "activo", "zoro": "activo", "sanji": "espera", "robin": "activo", "nami": "espera"}
+    estado_path = BASE_DIR / "Agente_Orquestador" / "estado_tripulacion.json"
+    agentes_estado = {
+        "Agente_Orquestador": "activo",
+        "Subagente_Desarrollo": "activo",
+        "Subagente_Asistencia": "espera",
+        "Subagente_Ciberseguridad": "activo",
+        "Subagente_Diseno": "espera"
+    }
     if estado_path.exists():
         try:
             raw = json.loads(estado_path.read_text(encoding="utf-8"))
@@ -107,7 +152,7 @@ def ejecutar_comando_recibido(comando: dict) -> dict:
         if accion == "reiniciar_tripulacion":
             bat_path = BASE_DIR / "reiniciar_tripulacion.bat"
             if bat_path.exists():
-                subprocess.Popen([str(bat_path)], shell=True, cwd=str(BASE_DIR))
+                subprocess.Popen([str(bat_path)], shell=False, cwd=str(BASE_DIR))
                 salida = "Reinicio de tripulación iniciado mediante script bat."
             else:
                 salida = "Señal de reinicio aplicada a procesos locales."
@@ -132,9 +177,15 @@ def ejecutar_comando_recibido(comando: dict) -> dict:
             
         elif accion == "ejecutar_accion":
             cmd_custom = parametros.get("comando", "echo OK")
-            proc = subprocess.run(cmd_custom, shell=True, capture_output=True, text=True, timeout=15, cwd=str(BASE_DIR))
-            salida = (proc.stdout or proc.stderr or "Comando ejecutado").strip()[:300]
-            exito = (proc.returncode == 0)
+            argv, error_validacion = _validar_comando_seguro(cmd_custom)
+            if error_validacion:
+                exito = False
+                salida = "Orden rechazada por politica de seguridad: %s" % error_validacion
+                print("[Conector] [BLOQUEADO] %s" % salida)
+            else:
+                proc = subprocess.run(argv, shell=False, capture_output=True, text=True, timeout=15, cwd=str(BASE_DIR))
+                salida = (proc.stdout or proc.stderr or "Comando ejecutado").strip()[:300]
+                exito = (proc.returncode == 0)
             
         else:
             salida = f"Acción '{accion}' procesada y aplicada localmente."
