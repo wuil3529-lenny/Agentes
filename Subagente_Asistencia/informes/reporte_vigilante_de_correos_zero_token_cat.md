@@ -1,5 +1,5 @@
 # 📬 Reporte del Vigilante de Correos Zero-Token — Catalogación Automática
-**Buzón:** wuil3529@gmail.com | **Origen:** `gatillo_script_python` (Zero-Token Trigger v2 — Anti-Duplicado `\Seen`)
+**Buzón:** [CORREO_MONITOREADO] | **Origen:** `gatillo_script_python` (Zero-Token Trigger v2 — Anti-Duplicado `\Seen`)
 **Responsable:** Subagente_Asistencia (Sanji)
 **Vía:** IMAP puro (imap.gmail.com:993) — sin OAuth ni Gmail API
 

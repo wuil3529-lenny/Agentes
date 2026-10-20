@@ -29,6 +29,47 @@ export TZ="${TZ:-America/Caracas}"
 umask 077
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ═════════════════════════════════════════════════════════════════════════════
+# 🔐 [TKT-SEC-20261020151813] AUTO-SANEO DE PERMISOS DE ARCHIVOS SENSIBLES 🔐
+#
+# Mitiga el hallazgo H-01 (ALTO): /app/.env con permisos 0o777.
+# Bloque IDEMPOTENTE y TOLERANTE A FALLOS: intenta restringir a 0600 los
+# archivos con secretos en cada arranque. Si el archivo es un bind-mount del
+# host (root:root) y el usuario del contenedor no puede cambiarlo, emite una
+# ADVERTENCIA explícita con la acción requerida en el host, SIN abortar.
+# ═════════════════════════════════════════════════════════════════════════════
+endurecer_permisos() {
+    local archivo="$1"
+    local modo_deseado="${2:-600}"
+
+    [[ -e "$archivo" ]] || return 0
+
+    local modo_actual
+    modo_actual="$(stat -c '%a' "$archivo" 2>/dev/null || echo '???')"
+
+    if [[ "$modo_actual" == "$modo_deseado" ]]; then
+        ok "Permisos OK ($modo_actual): $archivo"
+        return 0
+    fi
+
+    if chmod "$modo_deseado" "$archivo" 2>/dev/null; then
+        ok "Permisos corregidos ($modo_actual -> $modo_deseado): $archivo"
+    else
+        local propietario
+        propietario="$(stat -c '%U:%G' "$archivo" 2>/dev/null || echo 'desconocido')"
+        warn "NO se pudo restringir $archivo (actual: $modo_actual, dueno: $propietario)."
+        warn "  -> Es un bind-mount del host o pertenece a otro usuario."
+        warn "  -> ACCION REQUERIDA EN EL HOST: chmod 600 <ruta_host>/.env"
+        warn "  -> En Windows: icacls .env /inheritance:r /grant:r \"%USERNAME%:R\""
+    fi
+}
+
+log "Aplicando hardening de permisos a archivos sensibles..."
+endurecer_permisos "/app/.env" 600
+endurecer_permisos "/app/Agente_Orquestador/data/credentials.json" 600
+endurecer_permisos "/app/Agente_Orquestador/data/token.json" 600
+# ═════════════════════════════════════════════════════════════════════════════
+
 # ── Colores para logs legibles en docker compose logs ────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'

@@ -3,7 +3,7 @@
 **Ticket:** TKT-ASI-20261014002
 **Responsable:** Subagente_Asistencia (Sanji)
 **Fecha:** 2026-10-14 14:25
-**Buzón:** Wuil3529@gmail.com
+**Buzón:** [CORREO_MONITOREADO]
 **Vía:** IMAP puro (imap.gmail.com:993) — `tool_correo_recibir_y_analizar`
 **Fuente de estado:** `Agente_Orquestador/data/sensores/estado_correo_imap.json`
 

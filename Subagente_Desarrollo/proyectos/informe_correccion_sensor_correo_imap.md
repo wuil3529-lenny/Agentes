@@ -69,10 +69,10 @@ y el login real contra `imap.gmail.com:993`.
 ```
 [SETUP] Credencial obsoleta inyectada en os.environ (hash=60dd5f8716ba)
 [POST-IMPORT] KEEP_APP_PASSWORD en entorno tras override (hash=8d8e36d26910)
-[POST-IMPORT] EMAIL_USER=Wuil3529@gmail.com
+[POST-IMPORT] EMAIL_USER=[CORREO_MONITOREADO]
 [POST-IMPORT] IMAP_HOST=imap.gmail.com:993
 [CHECK] Override OK: la credencial obsoleta fue reemplazada por la del .env
-[IMAP] LOGIN EXITOSO -> respuesta del servidor: ('OK', [b'wuil3529@gmail.com authenticated (Success)'])
+[IMAP] LOGIN EXITOSO -> respuesta del servidor: ('OK', [b'[CORREO_MONITOREADO] authenticated (Success)'])
 [IMAP] SELECT INBOX -> status=OK, total_mensajes=1166
 [IMAP] Correos NO leidos (UNSEEN): 1106
 [RESULTADO] PRUEBA DE LOGIN IMAP: EXITOSA

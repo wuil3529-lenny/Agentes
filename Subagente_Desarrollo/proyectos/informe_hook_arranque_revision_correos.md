@@ -12,7 +12,7 @@
 
 Garantizar que **cada vez que se encienda el ecosistema** (contenedor Docker) se ejecute
 automáticamente **una sola vez** una revisión de correos de valor en el buzón
-`Wuil3529@gmail.com`, de forma **Zero-Token** (sin polling LLM), cumpliendo dos acciones:
+`[CORREO_MONITOREADO]`, de forma **Zero-Token** (sin polling LLM), cumpliendo dos acciones:
 
 1. **Reanudar** el vigilante `REC-VIGILANTED-003` si quedó `PAUSADA` tras el reinicio.
 2. **Disparar** una evaluación inmediata del sensor v2.1 para detectar correos nuevos de

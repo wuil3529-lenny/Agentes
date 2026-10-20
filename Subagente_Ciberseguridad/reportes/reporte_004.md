@@ -51,4 +51,4 @@ Para garantizar una subida 100% segura a GitHub sin filtrar datos sensibles:
    Los scripts de prueba `Agente_Orquestador/data/sensores/analisis_plataformas_empleo*.py` deben eliminarse o ignorarse para mantener el repositorio limpio.
 
 ---
-**Conexiones:** [[reportes_ciberseguridad]] [[Perfil_Subagente_Ciberseguridad]] [[sistema]] [[Bitacora]]
+**Conexiones:** [[reportes_ciberseguridad]]

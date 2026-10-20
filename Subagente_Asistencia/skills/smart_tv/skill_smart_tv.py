@@ -12,6 +12,7 @@ import sys
 import asyncio
 from pathlib import Path
 from typing import Optional
+from langchain_core.tools import tool
 
 _APP_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 CERT_DIR = _APP_ROOT / "Archivos_temporales" / "tv_certs"
@@ -44,6 +45,7 @@ MAPA_TECLAS = {
     "pausa": "MEDIA_PLAY_PAUSE",
 }
 
+@tool
 def tool_silenciar_smart_tv(ip: str = DEFAULT_IP) -> dict:
     """
     Pone en silencio (Mute / Silenciar) la Smart TV inmediatamente.
@@ -51,6 +53,7 @@ def tool_silenciar_smart_tv(ip: str = DEFAULT_IP) -> dict:
     """
     return tool_controlar_smart_tv(comando="silenciar", repeticiones=1, ip=ip)
 
+@tool
 def tool_controlar_smart_tv(comando: str, repeticiones: int = 1, ip: str = DEFAULT_IP, texto_extra: str = "") -> dict:
     """
     Envía comandos de control remoto a la Smart TV:
@@ -114,8 +117,36 @@ def tool_controlar_smart_tv(comando: str, repeticiones: int = 1, ip: str = DEFAU
     except Exception as e:
         return {"status": "error", "mensaje": f"Error comunicando con la Smart TV ({ip}): {e}"}
 
+@tool
 def tool_obtener_estado_smart_tv(ip: str = DEFAULT_IP) -> dict:
     """
     Obtiene el estado en vivo de la Smart TV (encendido, volumen, app activa y dispositivo).
     """
     return tool_controlar_smart_tv(comando="estado", ip=ip)
+
+
+def obtener_prompt_smart_tv() -> str:
+    """
+    Retorna el System Prompt especializado para la habilidad de Smart TV de Sanji.
+    Lee dinámicamente el archivo Markdown cognitivo de la habilidad.
+    """
+    md_path = Path(__file__).resolve().parent / "Skill_Smart_TV_Subagente_Asistencia.md"
+    if md_path.exists():
+        try:
+            return md_path.read_text(encoding="utf-8").strip()
+        except Exception:
+            pass
+    return """[📺 DIRECTIVA OPERATIVA: ESPECIALISTA EN CONTROL REMOTO SMART TV - SANJI 📺]
+Eres Sanji (Subagente_Asistencia), actuando como Especialista en Control Remoto y Domótica Multimedia.
+Tu misión es gestionar televisores inteligentes Android TV de la red local con precisión:
+- Mando a distancia: Enviar teclas D-pad (arriba, abajo, izquierda, derecha, ok, atras, inicio, menu).
+- Audio y Volumen: Subir/bajar volumen y silenciar (mute) la televisión para facilitar la comunicación de la flota o por orden del usuario.
+- Aplicaciones y Contenido: Escribir texto en búsquedas de aplicaciones como Magic / Magis TV o YouTube.
+- Consulta de Estado: Verificar encendido, volumen y aplicación en primer plano."""
+
+
+HERRAMIENTAS_SMART_TV = [
+    tool_controlar_smart_tv,
+    tool_silenciar_smart_tv,
+    tool_obtener_estado_smart_tv,
+]

@@ -176,6 +176,13 @@ from Subagente_Asistencia.skills.manos_y_ojos import (
 )
 HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_MANOS_Y_OJOS)
 
+# 15. Smart TV Remote Control (Android TV Remote v2 / LAN Domótica)
+from Subagente_Asistencia.skills.smart_tv import (
+    HERRAMIENTAS_SMART_TV,
+    obtener_prompt_smart_tv
+)
+HERRAMIENTAS_ASISTENCIA.extend(HERRAMIENTAS_SMART_TV)
+
 NOMBRE_AGENTE = "Subagente_Asistencia"
 NOMBRE_AGENTE_ALIAS = "Sanji"
 
@@ -233,6 +240,10 @@ MAPA_HERRAMIENTA_PROMPTS = {
     "tool_escribir_teclado_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
     "tool_presionar_teclas_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
     "tool_abrir_aplicacion_pc": ("Visión y Control de Pantalla PC", obtener_prompt_manos_y_ojos),
+    # 15. Smart TV Remote Control
+    "tool_controlar_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
+    "tool_silenciar_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
+    "tool_obtener_estado_smart_tv": ("Control Remoto Smart TV", obtener_prompt_smart_tv),
 }
 
 # ─── Configuración LLM ─────────────────────────────────────────────────────────
@@ -382,6 +393,18 @@ def detectar_prompts_habilidad(texto: str) -> List[str]:
         try:
             print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Manos y Ojos (Navegación Web y Control PC).")
             inyectados.append(obtener_prompt_manos_y_ojos())
+        except Exception:
+            pass
+
+    # Smart TV / Domótica Multimedia
+    if any(k in t for k in [
+        "smart tv", "televisión", "television", "tele", "control remoto", "mando",
+        "volumen de la tele", "magic", "magis", "silenciar tv", "subir volumen",
+        "bajar volumen", "tool_smart_tv", "tool_controlar_smart_tv", "dpad"
+    ]):
+        try:
+            print(f"[{NOMBRE_AGENTE}] 💉 Inyección preventiva: System Prompt de Smart TV.")
+            inyectados.append(obtener_prompt_smart_tv())
         except Exception:
             pass
 
