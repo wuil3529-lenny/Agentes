@@ -195,6 +195,25 @@ def registrar_consumo_tokens(
         data["agentes"][ag_key]["tokens"] = int(data["agentes"][ag_key].get("tokens", 0)) + total_llamada
         data["agentes"][ag_key]["costo"] = round(float(data["agentes"][ag_key].get("costo", 0.0)) + costo_llamada, 6)
         
+        # Sincronizar espejo canónico <-> alias de interfaz
+        alias_espejo = {
+            "agente_orquestador": "luffy",
+            "subagente_desarrollo": "zoro",
+            "subagente_asistencia": "sanji",
+            "subagente_ciberseguridad": "robin",
+            "subagente_diseno": "nami",
+            "luffy": "agente_orquestador",
+            "zoro": "subagente_desarrollo",
+            "sanji": "subagente_asistencia",
+            "robin": "subagente_ciberseguridad",
+            "nami": "subagente_diseno"
+        }
+        alt_key = alias_espejo.get(ag_key)
+        if alt_key:
+            data["agentes"].setdefault(alt_key, {"tokens": 0, "costo": 0.0})
+            data["agentes"][alt_key]["tokens"] = data["agentes"][ag_key]["tokens"]
+            data["agentes"][alt_key]["costo"] = data["agentes"][ag_key]["costo"]
+        
         presupuesto = float(data.get("presupuesto_maximo", 100.0))
         if data["costo"] >= presupuesto:
             data["bloqueado_por_presupuesto"] = True

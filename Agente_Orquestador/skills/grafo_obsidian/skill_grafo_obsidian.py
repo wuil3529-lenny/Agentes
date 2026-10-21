@@ -129,24 +129,18 @@ Nodo central de memoria persistente de la tripulación y espejo estructurado de 
 ## 📂 Directorio y Estructura de `memoria/`
 
 ### 1. Gobernanza y Perfiles Humanos
-- `Perfil_Usuario.md` — Perfil de identidad, preferencias operativas y requerimientos del usuario.
-- `Perfil_Laboral.md` — Trayectoria profesional, certificaciones y requisitos para proyectos.
+- [[Perfil_Laboral_Wuil]] — Perfil laboral y técnico oficial de Wuilfredo Cortez.
+- [[Perfil de wuil]] — Perfil de identidad, preferencias operativas y requerimientos del usuario.
 
 ### 2. Bóvedas de Incidencias e Inmunización
-- `Memoria_Viva_Errores.md` — Bóveda centralizada de diagnóstico, códigos de error y recetas de inmunización.
-- `Tickets_Archivados.md` — Registro histórico consolidado de misiones y tickets resueltos por la tripulación.
+- [[Memoria_Viva_Errores]] — Bóveda centralizada de diagnóstico, códigos de error y recetas de inmunización.
+- [[Tickets_Archivados]] — Registro histórico consolidado de misiones y tickets resueltos por la tripulación.
 
 ### 3. Procedimientos y Aprendizaje Continuo
-- `playbooks_memoria.md` — Índice temático y catálogo de playbooks operacionales.
+- [[playbooks_memoria]] — Índice temático y catálogo de playbooks operacionales.
 - `procedimientos_aprendidos.json` — Bóveda de procedimientos aprendidos estructurados en JSON.
 - `sesion_aprendizaje_activa.json` — Registro de estado de sesiones de aprendizaje guiado.
-- `36_Agente_Orquestador_Playbook_Arquitectura_Jerarquica_Grafo_Obsidian.md` — Playbook maestro de arquitectura del grafo.
-
-### 4. Bóveda de Playbooks Operativos (01 al 28)
-- Playbooks de ingeniería, despliegue y automatización (`Subagente_Desarrollo`).
-- Playbooks de atención al cliente y gestión de correos (`Subagente_Asistencia`).
-- Playbooks de auditoría, SAST y hardening defensivo (`Subagente_Ciberseguridad`).
-- Playbooks de supervisión, diseño de flujos y orquestación (`Agente_Orquestador`).
+- [[36_Agente_Orquestador_Playbook_Arquitectura_Jerarquica_Grafo_Obsidian]] — Playbook maestro de arquitectura del grafo.
 
 ---
 **Conexiones:** [[Bitacora]] [[Cerebro]] [[Reglas de la Tripulacion]]
@@ -418,11 +412,112 @@ def tool_sincronizar_grafo_canonico(purgar_residuos: bool = True, calibrar_obsid
     archivos_modificados = 0
     nodos_conectados = 0
 
-    # 1. Asegurar memoria.md
+    # 0. Saneamiento preventivo de nombres de archivo largos en memoria/ (>120 caracteres)
+    memoria_dir = APP_ROOT / "memoria"
+    if memoria_dir.exists():
+        try:
+            for entry in list(memoria_dir.iterdir()):
+                if entry.is_file() and entry.suffix == ".md" and len(entry.name) > 120:
+                    stem = entry.stem[:75]
+                    new_name = f"{stem}_shortened.md"
+                    target_path = memoria_dir / new_name
+                    if not target_path.exists():
+                        entry.rename(target_path)
+                        print(f"[Grafo_Obsidian] Archivo con nombre largo normalizado: {entry.name[:30]}... -> {new_name}")
+        except Exception as e_ren:
+            print(f"[Grafo_Obsidian] Aviso sanitizando nombres de archivos en memoria/: {e_ren}")
+
+    # 1. Asegurar memoria.md con enlaces bidireccionales dinámicos a todos los archivos de memoria/
     memoria_md = APP_ROOT / "memoria" / "memoria.md"
     try:
         memoria_md.parent.mkdir(parents=True, exist_ok=True)
-        memoria_md.write_text(PLANTILLA_MEMORIA_ESPEJO, encoding="utf-8")
+        archivos_memoria = sorted([
+            f.stem for f in (APP_ROOT / "memoria").glob("*.md")
+            if f.name.lower() != "memoria.md"
+        ])
+
+        especiales_canonicos = [
+            "Tickets_Archivados",
+            "Memoria_Viva_Errores",
+            "Perfil_Laboral_Wuil",
+            "Perfil de wuil",
+            "Perfil_Operativo_Capitan",
+            "playbooks_memoria",
+            "36_Agente_Orquestador_Playbook_Arquitectura_Jerarquica_Grafo_Obsidian",
+            "Handover_Continuacion_Postulaciones_LinkedIn",
+            "Politica_Busqueda_Laboral",
+            "Reglas_Navegacion_Edge_MultiPestana",
+            "Playbook_Interconexion_Multimedia_Hardware_TV_Bluetooth",
+            "Playbook_Postulacion_GetOnBrd",
+            "Playbook_Scouting_Laboral_Multiplataforma"
+        ]
+
+        reparaciones = [
+            stem for stem in archivos_memoria
+            if any(k in stem.lower() for k in ["repair", "hotfix", "remediaci", "tkt_sys_repair", "tkt_sec", "tkt_rec", "tkt_req"])
+            and stem not in especiales_canonicos
+        ]
+
+        playbooks_y_otros = [
+            stem for stem in archivos_memoria
+            if stem not in especiales_canonicos and stem not in reparaciones
+        ]
+
+        lineas_memoria = [
+            "# 🏛️ Memoria Central del Ecosistema (Espejo de Directorio)",
+            "",
+            "Nodo central de memoria persistente de la tripulación y espejo estructurado de la carpeta `memoria/`.",
+            "",
+            "## 📂 Directorio y Estructura de `memoria/`",
+            "",
+            "### 1. Gobernanza y Perfiles Humanos",
+            "- [[Perfil_Laboral_Wuil]] — Perfil laboral y técnico oficial de Wuilfredo Cortez.",
+            "- [[Perfil de wuil]] — Perfil de identidad, preferencias operativas y requerimientos del usuario.",
+            "- [[Perfil_Operativo_Capitan]] — Forma de trabajo del Capitán y reglas de conducta para la flota.",
+            "",
+            "### 2. Bóvedas de Incidencias, Tickets e Inmunización",
+            "- [[Tickets_Archivados]] — Registro histórico consolidado de misiones y tickets resueltos por la tripulación.",
+            "- [[Memoria_Viva_Errores]] — Bóveda centralizada de diagnóstico, códigos de error y recetas de inmunización.",
+            "- [[playbooks_memoria]] — Índice temático y catálogo de playbooks operacionales.",
+            "- `procedimientos_aprendidos.json` — Bóveda de procedimientos aprendidos estructurados en JSON.",
+            "- `sesion_aprendizaje_activa.json` — Registro de estado de sesiones de aprendizaje guiado.",
+            "- [[36_Agente_Orquestador_Playbook_Arquitectura_Jerarquica_Grafo_Obsidian]] — Playbook maestro de arquitectura del grafo.",
+            "",
+            "### 3. Procedimientos Estratégicos y Políticas Operativas",
+            "- [[Handover_Continuacion_Postulaciones_LinkedIn]] — Continuación de postulaciones y scouting.",
+            "- [[Politica_Busqueda_Laboral]] — Política oficial de búsqueda laboral y filtros.",
+            "- [[Reglas_Navegacion_Edge_MultiPestana]] — Reglas de navegación browser headless y multipestaña.",
+            "- [[Playbook_Interconexion_Multimedia_Hardware_TV_Bluetooth]] — Interconexión multimedia y hardware.",
+            "- [[Playbook_Postulacion_GetOnBrd]] — Playbook de postulación en GetOnBrd.",
+            "- [[Playbook_Scouting_Laboral_Multiplataforma]] — Playbook de scouting multiplataforma.",
+            ""
+        ]
+
+        if reparaciones:
+            lineas_memoria.append("### 4. Registros de Reparación, Hotfixes y Remediaciones del Sistema")
+            for rep in reparaciones:
+                lineas_memoria.append(f"- [[{rep}]]")
+            lineas_memoria.append("")
+
+        if playbooks_y_otros:
+            lineas_memoria.append("### 5. Bóveda de Playbooks Operativos de Agentes")
+            for pb in playbooks_y_otros:
+                lineas_memoria.append(f"- [[{pb}]]")
+            lineas_memoria.append("")
+
+        lineas_memoria.extend([
+            "---",
+            "**Conexiones:** [[Bitacora]] [[Cerebro]] [[Reglas de la Tripulacion]]",
+            ""
+        ])
+
+        memoria_md.write_text("\n".join(lineas_memoria), encoding="utf-8")
+
+        # Post-Condition Check (Zero-Trust): releer de disco y confirmar que cada hijo quedó enlazado
+        releido = memoria_md.read_text(encoding="utf-8")
+        faltantes = [s for s in archivos_memoria if f"[[{s}]]" not in releido]
+        if faltantes:
+            print(f"[Grafo_Obsidian] ALERTA: memoria.md no enlaza {len(faltantes)} archivos: {faltantes[:5]}")
         archivos_modificados += 1
         nodos_conectados += 1
     except Exception as e:
@@ -650,25 +745,62 @@ def tool_sincronizar_grafo_canonico(purgar_residuos: bool = True, calibrar_obsid
 def tool_capturar_verificar_grafo_obsidian() -> Dict[str, Any]:
     """
     Ejecuta una captura de pantalla visual de Obsidian usando el puente motriz de Windows
+    (enfocando la ventana de Obsidian mediante el icono de la barra de tareas o URI obsidian://)
     para auditoría visual multimodal por el equipo de agentes.
     """
     print("\n[Agente_Orquestador] Ejecutando: tool_capturar_verificar_grafo_obsidian()...")
+    import time
+    import sys
+
+    # 1. Traer Obsidian al primer plano
     try:
-        import urllib.request
-        base_url = os.getenv("CONSOLE_HOST_URL", "http://host.docker.internal:8000").rstrip("/")
-        req = urllib.request.Request(
-            f"{base_url}/api/manos_ojos/pc/capturar",
-            data=b"{}",
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=20) as resp:
-            data = json.loads(resp.read().decode())
-            return {
-                "status": "success",
-                "mensaje": "Captura de pantalla de Obsidian obtenida.",
-                "datos_captura": data,
-            }
+        if sys.platform == "win32":
+            from dashboard.puente_manos_ojos import GestorControlEscritorio
+            # Clic en el icono de Obsidian en la barra de tareas (x=1430, y=1055 en pantalla 1920x1080)
+            GestorControlEscritorio.clic_pantalla(1430, 1055)
+            time.sleep(1.2)
+        else:
+            # En entorno Docker / Linux, solicitar clic en barra o apertura vía endpoint
+            import urllib.request
+            base_url = os.getenv("CONSOLE_HOST_URL", "http://host.docker.internal:8000").rstrip("/")
+            req_focus = urllib.request.Request(
+                f"{base_url}/api/manos_ojos/pc/clic",
+                data=json.dumps({"x": 1430, "y": 1055}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req_focus, timeout=5) as _:
+                pass
+            time.sleep(1.2)
+    except Exception as e_foc:
+        print(f"[Grafo_Obsidian] Aviso al enfocar ventana: {e_foc}")
+
+    # 2. Capturar pantalla completa
+    try:
+        nombre_captura = "obsidian_graph_verificado.png"
+        if sys.platform == "win32":
+            from dashboard.puente_manos_ojos import GestorControlEscritorio
+            res_cap = GestorControlEscritorio.capturar_pantalla_pc(nombre_captura)
+            ruta_cap = res_cap.get("ruta_archivo", "")
+        else:
+            import urllib.request
+            base_url = os.getenv("CONSOLE_HOST_URL", "http://host.docker.internal:8000").rstrip("/")
+            req = urllib.request.Request(
+                f"{base_url}/api/manos_ojos/pc/capturar",
+                data=json.dumps({"nombre_archivo": nombre_captura}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                res_cap = json.loads(resp.read().decode())
+                ruta_cap = res_cap.get("ruta_archivo", "")
+
+        return {
+            "status": "success",
+            "mensaje": "Captura de pantalla de Obsidian obtenida y verificada exitosamente.",
+            "ruta_archivo": ruta_cap,
+            "datos_captura": res_cap,
+        }
     except Exception as e:
         return {"status": "error", "mensaje": f"Error capturando pantalla de Obsidian: {str(e)}"}
 

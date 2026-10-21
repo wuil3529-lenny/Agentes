@@ -81,6 +81,8 @@
 
 ---
 
-**Conexiones:** [[reportes/]] [[Perfil_Subagente_Ciberseguridad]]
 
 *Reporte compilado automáticamente bajo el estándar Zero-Trust de la tripulación — 2026-10-20 15:18*
+
+---
+**Conexiones:** [[reportes_ciberseguridad]]

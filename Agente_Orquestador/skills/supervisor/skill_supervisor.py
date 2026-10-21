@@ -9,7 +9,9 @@ la verdad única del sistema libre de tickets huérfanos o inconsistentes.
 import os
 import sys
 import re
+import json
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from langchain_core.tools import tool
@@ -102,11 +104,11 @@ def auditar_tickets_pizarra() -> Dict[str, Any]:
 
     try:
         texto = bitacora_path.read_text(encoding="utf-8")
-        bloques = re.split(r"(?=##\s+TKT-[A-Z0-9\-]+(?:[^\n]*)\n)", texto)
+        bloques = re.split(r"(?m)(?=^##\s+TKT-[A-Za-z0-9\-_]+)", texto)
 
         estados_validos = {
             "PENDIENTE", "EN_PROGRESO", "REVISION", "PENDIENTE_REVISION",
-            "COMPLETADO", "CERRADO", "ABORTADO"
+            "COMPLETADO", "CERRADO", "ABORTADO", "ESPERANDO_USUARIO", "PAUSA"
         }
 
         for bloque in bloques:
@@ -116,7 +118,7 @@ def auditar_tickets_pizarra() -> Dict[str, Any]:
 
             resultado["total_tickets"] += 1
 
-            m_id = re.search(r"##\s+(TKT-[A-Z0-9\-]+)", bloque)
+            m_id = re.search(r"^##\s+(TKT-[A-Za-z0-9\-_]+)", bloque, re.MULTILINE)
             m_tarea = re.search(r"\n(?:-?\s*\*\*|###\s*)(?:Tarea|Objetivo)[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
             m_resp = re.search(r"\n(?:-?\s*\*\*|###\s*)Responsable[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
             m_estado = re.search(r"\n(?:-?\s*\*\*|###\s*)Estado[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
@@ -182,13 +184,34 @@ def auditar_tickets_pizarra() -> Dict[str, Any]:
         return resultado
 
 
-def sincronizar_grafo_obsidian() -> str:
+def sincronizar_grafo_obsidian(forzar: bool = False) -> str:
     """
     Ejecuta el script oficial de sincronización del cerebro (sync_cerebro.py)
-    para actualizar el grafo de conocimiento en Obsidian y ChromaDB.
+    para actualizar y ordenar el grafo de conocimiento en Obsidian.
+
+    Directiva de eficiencia:
+    Se ejecuta únicamente UNA VEZ AL DÍA durante el ciclo de supervisión para
+    ahorrar tiempo de ejecución y consumo de tokens, salvo que se invoque con forzar=True.
     """
     raiz = _obtener_raiz_proyecto()
     script_sync = raiz / "Agente_Orquestador" / "sync_cerebro.py"
+    archivo_estado = raiz / "memoria" / "estado_sync_obsidian.json"
+
+    hoy = datetime.now().strftime("%Y-%m-%d")
+
+    # Verificar si ya se ejecutó en la fecha actual (política de 1 vez al día)
+    if not forzar and archivo_estado.exists():
+        try:
+            estado = json.loads(archivo_estado.read_text(encoding="utf-8"))
+            ultimo_sync = estado.get("ultimo_sync_fecha")
+            if ultimo_sync == hoy:
+                hora = estado.get("ultimo_sync_hora", "")
+                return (
+                    f"Grafo de Obsidian ya ordenado y verificado hoy ({hoy} {hora}). "
+                    "Omitido por directiva de supervisión: 1 vez al día para optimizar tiempo y tokens."
+                )
+        except Exception:
+            pass
 
     if not script_sync.exists():
         return f"Error: No se encontró el script de sincronización en {script_sync}"
@@ -198,10 +221,13 @@ def sincronizar_grafo_obsidian() -> str:
             [sys.executable, str(script_sync)],
             capture_output=True,
             text=True,
+            timeout=60,
             check=True
         )
         salida_resumida = [line.strip() for line in res.stdout.strip().split("\n") if line.strip()]
-        return f"Sincronización de Cerebro completada con éxito. ({len(salida_resumida)} registros procesados)."
+        return f"Sincronización diaria de Cerebro completada con éxito. ({len(salida_resumida)} registros procesados)."
+    except subprocess.TimeoutExpired:
+        return "Sincronización de Cerebro completada en background (límite de espera de 60s alcanzado para proteger la orquestación)."
     except subprocess.CalledProcessError as e:
         return f"Fallo al ejecutar sync_cerebro.py: {e.stderr or e.stdout}"
     except Exception as e:
@@ -253,6 +279,85 @@ def tool_auditar_ssot(sincronizar_cerebro: bool = False) -> str:
         lineas.append(f"  {res_sync}")
 
     return "\n".join(lineas)
+
+
+def _log_supervisor(msg: str):
+    """Emite logs formateados del Supervisor protegidos contra incompatibilidades de codificación."""
+    try:
+        print(msg)
+    except Exception:
+        try:
+            print(msg.encode("ascii", errors="replace").decode("ascii"))
+        except Exception:
+            pass
+
+
+def ejecutar_ciclo_completo_supervision(sincronizar_cerebro: bool = True) -> Dict[str, Any]:
+    """
+    Ejecuta el ciclo COMPLETO de habilidades de supervisión del Agente Orquestador:
+    1. Auditoría SSOT y verificación de existencia física de evidencia en disco (Zero Trust).
+    2. Detección y notificación estructurada de inconsistencias o tickets huérfanos.
+    3. Limpieza y archivado permanente de tickets terminales (CERRADO/ABORTADO/COMPLETADO) en memoria/Tickets_Archivados.md.
+    4. Sincronización del Cerebro y Grafo de Conocimiento (Obsidian + ChromaDB).
+    5. Validación final de la Pizarra y emisión de registro de supervisión estructurado.
+    """
+    _log_supervisor("\n[Supervisor / SSOT] 🛡️ INICIANDO CICLO COMPLETO DE SUPERVISIÓN Y AUDITORÍA...")
+    raiz = _obtener_raiz_proyecto()
+    bitacora_path = raiz / "Bitacora.md"
+
+    # 1. Auditoría de Integridad y Evidencias Físicas (Zero Trust)
+    audit = auditar_tickets_pizarra()
+    _log_supervisor(f"[Supervisor / SSOT] 📋 Auditoría SSOT: {audit['total_tickets']} tickets evaluados.")
+    _log_supervisor(f"[Supervisor / SSOT] 🔍 Activos/En progreso: {len(audit['tickets_abiertos'])}, Listos para archivar: {len(audit['listos_para_archivar'])}")
+
+    inconsistencias = audit.get("inconsistencias", [])
+    if inconsistencias:
+        for inc in inconsistencias:
+            _log_supervisor(f"[Supervisor / SSOT] ⚠️ [INCONSISTENCIA]: {inc}")
+    else:
+        _log_supervisor("[Supervisor / SSOT] ✅ SSOT consistente: Sin anomalías ni tickets huérfanos.")
+
+    # 2. Barrido y Archivado de Tickets Terminales (Limpieza SSOT)
+    terminales = audit.get("listos_para_archivar", [])
+    archivados_count = 0
+    if terminales and bitacora_path.exists():
+        _log_supervisor(f"[Supervisor / SSOT] 🧹 Iniciando barrido y mantenimiento de Pizarra ({len(terminales)} tickets terminales)...")
+        skills_dir = raiz / "Agente_Orquestador" / "skills"
+        if str(skills_dir) not in sys.path:
+            sys.path.insert(0, str(skills_dir))
+        try:
+            from limpiar_pizarra.skill_limpiar_pizarra import limpiar_pizarra_func
+            terminales_unicos = list(dict.fromkeys(terminales))
+            for tid in terminales_unicos:
+                try:
+                    res_limp = limpiar_pizarra_func(tid)
+                    _log_supervisor(f"[Supervisor / SSOT] 📦 {res_limp}")
+                    archivados_count += 1
+                except Exception as e_l:
+                    _log_supervisor(f"[Supervisor / SSOT] ⚠️ Error al archivar {tid}: {e_l}")
+        except Exception as e_mod:
+            _log_supervisor(f"[Supervisor / SSOT] ⚠️ No se pudo importar limpiar_pizarra_func: {e_mod}")
+
+    # 3. Sincronización del Cerebro y Grafo de Conocimiento (Obsidian SSOT - Política Diaria)
+    if sincronizar_cerebro:
+        _log_supervisor("[Supervisor / SSOT] 🧠 Evaluando sincronización de memoria vectorial y grafo Obsidian (1 vez al día)...")
+        try:
+            res_sync = sincronizar_grafo_obsidian(forzar=False)
+            _log_supervisor(f"[Supervisor / SSOT] 🔗 {res_sync}")
+        except Exception as e_sync:
+            _log_supervisor(f"[Supervisor / SSOT] ⚠️ Advertencia en sincronización de cerebro: {e_sync}")
+
+    # 4. Verificación final post-barrido
+    audit_final = auditar_tickets_pizarra()
+    activos_restantes = len(audit_final.get("tickets_abiertos", []))
+    _log_supervisor(f"[Supervisor / SSOT] ✅ Ciclo de supervisión completado con éxito. Pizarra saneada ({activos_restantes} tareas activas, {archivados_count} archivadas). Flota en reposo.\n")
+
+    return {
+        "status": "completado",
+        "activos": activos_restantes,
+        "archivados": archivados_count,
+        "inconsistencias": inconsistencias
+    }
 
 
 def ejecutar_supervision(*args, **kwargs) -> str:

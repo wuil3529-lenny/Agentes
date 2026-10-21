@@ -185,5 +185,12 @@ Directiva suprema de entrenamiento continuo entre el Usuario Humano, Antigravity
    - **Rol del Modelo LLM:** El modelo de la flota **no inventa scripts ni escribe código desde cero**; su función se limita al **razonamiento puro de alto nivel** (interpretar la necesidad del usuario, evaluar documentos y orquestar las herramientas existentes con los parámetros correctos).
    - **Resultado:** Consumo mínimo de tokens de API, ejecución determinista y cero fallos operativos.
 
+## 20. Forma de Trabajo del Capitán (Perfil Operativo)
+Detalle completo en memoria/Perfil_Operativo_Capitan.md. Reglas obligatorias:
+1. **Post-Condition Check:** tras modificar un archivo, releerlo de disco y confirmar el contenido antes de reportar éxito. El status success de una herramienta no es evidencia.
+2. **Causa raíz por código:** ante un fallo visual o de datos, diagnosticar leyendo archivos y el código fuente de la herramienta que los genera. Prohibido el bucle de capturas de pantalla como método de diagnóstico.
+3. **Tokens:** preferir scripts deterministas sobre visión. Supervisión visual de Obsidian: una sola vez por día.
+4. **Cero ruido:** no preguntar lo ya informado ni detalles irrelevantes; ejecutar con precisión.
+
 ---
 **Conexiones:** [[Bitacora]] [[Cerebro]] [[Perfil_Agente_Orquestador]] [[Perfil_Subagente_Desarrollo]] [[Perfil_Subagente_Diseno]] [[Perfil_Subagente_Ciberseguridad]] [[Perfil_Subagente_Asistencia]] [[memoria]]

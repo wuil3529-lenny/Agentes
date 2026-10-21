@@ -453,15 +453,15 @@ def analizar_permisos_archivo(ruta_archivo: str) -> str:
         es_inseguro = False
         alertas = []
 
-        # En sistemas POSIX (Docker Linux), verificar si tiene lectura para otros (others-read)
+        # En sistemas POSIX (Docker Linux), verificar si tiene escritura pública o lectura excesiva
         if hasattr(os, "stat"):
             perm_octal = oct(stat.S_IMODE(modo))
-            if modo & stat.S_IROTH:
-                es_inseguro = True
-                alertas.append("El archivo sensible tiene permisos de lectura para cualquier usuario (Others Read).")
             if modo & stat.S_IWOTH:
                 es_inseguro = True
                 alertas.append("El archivo sensible tiene permisos de escritura pública (World Writable).")
+            elif (modo & stat.S_IROTH) and perm_octal not in ["0o444", "0o400", "0o644", "0o600"]:
+                es_inseguro = True
+                alertas.append("El archivo sensible tiene permisos excesivos de lectura para otros usuarios.")
         else:
             perm_octal = "N/A (Windows)"
 

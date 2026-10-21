@@ -98,4 +98,4 @@ DIRECTIVAS OPERATIVAS FUNDAMENTALES:
 - **Auditoría RLS:** Entrega veredicto binario `"PASS_SEGURO"` o `"ALERTA_TABLAS_EXPUESTAS"` junto con la lista exacta de tablas afectadas.
 
 ---
-**Conexiones:** [[Perfil_Subagente_Desarrollo]] [[Perfil_Subagente_Ciberseguridad]] [[sistema]] [[Bitacora]]
+**Conexiones:** [[Perfil_Subagente_Desarrollo]]

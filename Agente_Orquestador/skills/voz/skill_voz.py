@@ -674,19 +674,53 @@ def escuchar_microfono_pc(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 4. HERRAMIENTAS LANGCHAIN (@tool) PARA EL AGENTE ORQUESTADOR
+# 4. HERRAMIENTAS LANGCHAIN (@tool) PARA TODA LA FLOTA Y TRIPULACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
 
+MAPA_VOCES_TRIPULACION = {
+    "agente_orquestador": {"edge": "es-MX-JorgeNeural", "eleven": "brian", "canon": "Agente_Orquestador", "alias": "Luffy"},
+    "luffy": {"edge": "es-MX-JorgeNeural", "eleven": "brian", "canon": "Agente_Orquestador", "alias": "Luffy"},
+    "subagente_asistencia": {"edge": "es-ES-AlvaroNeural", "eleven": "chris", "canon": "Subagente_Asistencia", "alias": "Sanji"},
+    "sanji": {"edge": "es-ES-AlvaroNeural", "eleven": "chris", "canon": "Subagente_Asistencia", "alias": "Sanji"},
+    "subagente_ciberseguridad": {"edge": "es-ES-ElviraNeural", "eleven": "sarah", "canon": "Subagente_Ciberseguridad", "alias": "Robin"},
+    "robin": {"edge": "es-ES-ElviraNeural", "eleven": "sarah", "canon": "Subagente_Ciberseguridad", "alias": "Robin"},
+    "subagente_desarrollo": {"edge": "es-MX-CecilioNeural", "eleven": "daniel", "canon": "Subagente_Desarrollo", "alias": "Zoro"},
+    "zoro": {"edge": "es-MX-CecilioNeural", "eleven": "daniel", "canon": "Subagente_Desarrollo", "alias": "Zoro"},
+    "subagente_diseno": {"edge": "es-MX-DaliaNeural", "eleven": "bella", "canon": "Subagente_Diseno", "alias": "Nami"},
+    "diseno": {"edge": "es-MX-DaliaNeural", "eleven": "bella", "canon": "Subagente_Diseno", "alias": "Nami"},
+    "diseño": {"edge": "es-MX-DaliaNeural", "eleven": "bella", "canon": "Subagente_Diseno", "alias": "Nami"},
+    "nami": {"edge": "es-MX-DaliaNeural", "eleven": "bella", "canon": "Subagente_Diseno", "alias": "Nami"},
+}
+
+def resolver_voz_agente(remitente: Optional[str] = None) -> tuple[str, str, str, str]:
+    """Retorna (nombre_canonico, alias, voz_edge, voz_eleven)."""
+    if not remitente:
+        return "Agente_Orquestador", "Luffy", "es-MX-JorgeNeural", "brian"
+    r_low = remitente.strip().lower()
+    for k, v in MAPA_VOCES_TRIPULACION.items():
+        if k in r_low:
+            return v["canon"], v["alias"], v["edge"], v["eleven"]
+    return remitente.strip(), remitente.strip(), "es-MX-JorgeNeural", "brian"
+
+
 @tool
-def tool_hablar_por_cornetas(mensaje: str) -> str:
+def tool_hablar_por_cornetas(mensaje: str, remitente: Optional[str] = None) -> str:
     """
     Habla directamente al usuario a través de las cornetas (altavoces) de la computadora
-    convirtiendo el texto en voz neural del Agente Orquestador.
+    convirtiendo el texto en voz neural de cualquier agente de la flota.
     Úsala cuando el usuario esté conversando por voz en la consola o pida que le hables
     por las cornetas/altavoces de la PC.
+
+    Args:
+        mensaje: El mensaje a decir en voz alta por las cornetas de la PC.
+        remitente: Nombre del agente que habla (ej: 'Subagente_Asistencia', 'Subagente_Ciberseguridad', 'Subagente_Desarrollo', 'Subagente_Diseno', 'Agente_Orquestador').
     """
-    print(f"\n🔊 [Agente_Orquestador] Hablando por las cornetas de la PC: '{mensaje[:80]}...'")
+    canon, alias, edge_v, eleven_v = resolver_voz_agente(remitente)
+    voz_final = eleven_v if _leer_env_valor("ELEVENLABS_API_KEY") else edge_v
+    print(f"\n🔊 [{canon} ({alias})] Hablando por las cornetas de la PC: '{mensaje[:80]}...'")
     res = hablar_por_cornetas_pc(mensaje, bloquear=True)
+    res["agente"] = canon
+    res["alias"] = alias
     return json.dumps(res, ensure_ascii=False)
 
 
@@ -705,50 +739,60 @@ def tool_enviar_nota_voz(
     mensaje_a_hablar: str,
     destino: str = "ambos",
     reproducir_en_cornetas: bool = False,
+    remitente: Optional[str] = None,
 ) -> str:
     """
-    Genera una nota de voz con la voz del Agente Orquestador y la envía al usuario a través
-    de la Consola (Dashboard), a través de Telegram (`sendVoice`), o por ambos canales.
-    Opcionalmente también la reproduce por las cornetas de la computadora.
+    Genera una nota de voz con la voz de cualquier agente de la flota (Luffy, Sanji, Robin, Zoro, Nami)
+    y la envía al usuario a través de la Consola (Dashboard), a través de Telegram (`sendVoice`), o por ambos canales.
+    Opcionalmente también la reproduce en vivo por las cornetas (altavoces) de la computadora.
 
     Args:
-        mensaje_a_hablar: El texto que el Agente Orquestador dirá en la nota de voz.
+        mensaje_a_hablar: El texto que el agente dirá en la nota de voz.
         destino: 'telegram' (envía nota de voz a Telegram), 'consola' (publica nota de voz en la consola), o 'ambos' (por defecto).
-        reproducir_en_cornetas: Si es True, además de enviar la nota de voz, la reproduce por los altavoces de la PC.
+        reproducir_en_cornetas: Si es True, además de enviar la nota de voz, la reproduce en vivo por las cornetas/altavoces de la PC.
+        remitente: Nombre del agente que responde ('Subagente_Asistencia', 'Subagente_Ciberseguridad', 'Subagente_Desarrollo', 'Subagente_Diseno', 'Agente_Orquestador').
     """
-    print(f"\n🎙️ [Agente_Orquestador] Generando y enviando nota de voz (destino={destino})...")
+    canon, alias, edge_v, eleven_v = resolver_voz_agente(remitente)
+    voz_final = eleven_v if _leer_env_valor("ELEVENLABS_API_KEY") else edge_v
+
+    print(f"\n🎙️ [{canon} ({alias})] Generando y enviando nota de voz (destino={destino}, voz={voz_final})...")
     try:
         dest = (destino or "ambos").strip().lower()
-        ruta_mp3 = generar_audio_voz(mensaje_a_hablar, formato="mp3")
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        nombre_base = f"nota_voz_{alias.lower()}_{ts}"
+        ruta_mp3 = generar_audio_voz(mensaje_a_hablar, formato="mp3", nombre_archivo=nombre_base, voz=voz_final)
         if not ruta_mp3 or not ruta_mp3.exists():
             return json.dumps({"status": "error", "mensaje": "No se pudo sintetizar el archivo de audio."}, ensure_ascii=False)
 
         audio_url = f"/static/notas_voz/{ruta_mp3.name}"
-        resultados = {"audio_url": audio_url, "ruta_local": str(ruta_mp3)}
+        resultados = {"audio_url": audio_url, "ruta_local": str(ruta_mp3), "agente": canon, "alias": alias}
 
-        if reproducir_en_cornetas:
+        # Reproducir por las cornetas si se pidió explícitamente o si cornetas_activas=True en estado_voz.json
+        estado_global = obtener_estado_voz()
+        if reproducir_en_cornetas or estado_global.get("cornetas_activas", False):
             reproducir_archivo_en_cornetas(ruta_mp3, bloquear=False)
-            resultados["cornetas"] = "Reproduciendo en cornetas de la PC"
+            resultados["cornetas"] = f"Reproduciendo en cornetas de la PC (Voz {alias})"
 
         if dest in ("telegram", "ambos"):
             from telegram_bridge import enviar_nota_voz_telegram
             res_tg = enviar_nota_voz_telegram(
                 texto_o_ruta_audio=str(ruta_mp3),
-                caption=mensaje_a_hablar[:900],
-                remitente="Agente_Orquestador",
+                caption=f"🎙️ [{alias}]\n\n{mensaje_a_hablar}",
+                remitente=canon,
                 espejear_en_consola=(dest == "ambos" or dest == "telegram"),
             )
             resultados["telegram"] = res_tg
         elif dest == "consola":
             from memory import publicar_mensaje
             publicar_mensaje(
-                de="Agente_Orquestador",
+                de=canon,
                 para="usuario",
                 tipo="nota_voz_dashboard",
                 contenido={
                     "texto": mensaje_a_hablar,
                     "audio_url": audio_url,
                     "es_nota_voz": True,
+                    "remitente_alias": alias,
                 },
                 canal_tipo="usuario",
             )
@@ -759,13 +803,17 @@ def tool_enviar_nota_voz(
         return json.dumps({"status": "error", "mensaje": f"Error enviando nota de voz: {e}"}, ensure_ascii=False)
 
 
-def obtener_prompt_voz() -> str:
-    """System Prompt especializado para interacción por voz, micrófono, cornetas y notas de voz."""
-    return """[🎙️ DIRECTIVA DE SISTEMA DE VOZ, CORNETAS Y NOTAS DE VOZ]
-Cuentas con un sistema de voz bidireccional completo (`skills/voz/`):
-1. Si el usuario te pide que le envíes un audio o una nota de voz (por Telegram o por la Consola), o si te envió una nota de voz y deseas responderle con voz, invoca `tool_enviar_nota_voz(mensaje_a_hablar=..., destino='ambos')`.
-2. Si el usuario te pide que hables directamente por las cornetas / altavoces de la computadora, invoca `tool_hablar_por_cornetas(mensaje=...)`.
-3. Cuando redactes respuestas destinadas a ser habladas por voz o notas de voz, usa un tono natural, fluido, claro y ejecutivo, evitando leer código fuente o rutas largas.
+def obtener_prompt_voz(nombre_agente: str = "Agente") -> str:
+    """System Prompt especializado para interacción por voz, micrófono, cornetas y notas de voz para cualquier agente de la flota."""
+    return f"""[🎙️ DIRECTIVA DE LA FLOTA: RESPUESTAS POR NOTA DE VOZ, CORNETAS Y TELEGRAM]
+Identidad: Eres {nombre_agente}. Cuentas con herramientas de voz bidireccional de la tripulación (`skills/voz/`):
+1. RESPUESTA POR NOTA DE VOZ:
+   Si el usuario te pide que le respondas por nota de voz, que le envíes un audio, o si interactúa por voz/micrófono/corneta/Telegram:
+   DEBES generar tu respuesta como nota de voz ejecutando `tool_enviar_nota_voz(mensaje_a_hablar=..., destino='ambos', reproducir_en_cornetas=True, remitente='{nombre_agente}')`.
+2. CORNETAS / ALTAVOCES DE LA PC:
+   Si el usuario pide que hables por las cornetas/altavoces o la interacción es por voz en vivo en la consola, mantén `reproducir_en_cornetas=True` en `tool_enviar_nota_voz` o invoca `tool_hablar_por_cornetas(mensaje=..., remitente='{nombre_agente}')`.
+3. ESTILO DE LOCUCIÓN:
+   La locución debe ser natural, ejecutiva, concisa y humana. No leas fragmentos de código, tablas markdown ni rutas largas.
 """
 
 

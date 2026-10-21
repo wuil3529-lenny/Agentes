@@ -674,6 +674,20 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                         if t['responsable'].lower() not in ["luffy", "agente_orquestador", "orquestador"] and t['estado'] in ['PENDIENTE', 'ESPERANDO_CORRECCION', 'PENDIENTE_REVISION', 'NUEVO']:
                             ticket_subagente = t
                             break
+
+                    # Si no hay tickets activos para nadie, pero hay tickets terminales pendientes de barrido
+                    if not ticket_subagente and agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+                        try:
+                            skills_dir = _APP_ROOT / "Agente_Orquestador" / "skills"
+                            if str(skills_dir) not in sys.path:
+                                sys.path.insert(0, str(skills_dir))
+                            from supervisor.skill_supervisor import auditar_tickets_pizarra, ejecutar_ciclo_completo_supervision
+                            audit_check = auditar_tickets_pizarra()
+                            if audit_check.get("listos_para_archivar"):
+                                print(f"[Orquestador Listener] 🧹 Tareas terminales detectadas en Pizarra. Ejecutando ciclo de supervisión...")
+                                ejecutar_ciclo_completo_supervision(sincronizar_cerebro=True)
+                        except Exception as e_sup_idle:
+                            pass
                             
                     if ticket_subagente:
                         # [ORQUESTACIÓN] Iniciar Subagente en proceso aislado
@@ -760,12 +774,15 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             except:
                                 t_post = None
                                 
-                            if t_post and any(t_post['estado'].upper().startswith(st) for st in ['PENDIENTE_REVISION', 'PENDIENTE_APROBACION', 'COMPLETADO']):
-                                print(f"[Orquestador] ✅ Auditoría exitosa: {agente_asignado} completó {id_tk} correctamente.")
+                            if t_post and any(t_post['estado'].upper().startswith(st) for st in ['PENDIENTE_REVISION', 'PENDIENTE_APROBACION', 'COMPLETADO', 'PAUSA', 'ESPERANDO_USUARIO', 'BLOQUEADO']):
+                                print(f"[Orquestador] ✅ Auditoría exitosa: {agente_asignado} procesó {id_tk} correctamente (Estado: {t_post['estado']}).")
                                 import re
                                 nb = t_post['bloque_original']
                                 nb = re.sub(r"(?i)(-?\s*\*\*Responsable:\*\*\s*)\w+", r"\g<1>Agente_Orquestador", nb)
-                                nota_cierre = f"Tarea completada por {agente_asignado}. Agente_Orquestador, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
+                                if any(t_post['estado'].upper().startswith(st) for st in ['PAUSA', 'ESPERANDO_USUARIO', 'BLOQUEADO']):
+                                    nota_cierre = f"Tarea pausada/escalada por {agente_asignado} a la espera de insumo externo. Agente_Orquestador: revisa el estado y notifica al usuario si aplica."
+                                else:
+                                    nota_cierre = f"Tarea completada por {agente_asignado}. Agente_Orquestador, revisa la evidencia_hallazgo, notifica al usuario por Telegram y cierra el ticket (CERRADO)."
                                 if "[PIPELINE MULTI-AGENTE]" in nb and "[ETAPA SECUNDARIA DESPACHADA]" not in nb:
                                     nota_cierre = (
                                         f"Etapa inicial completada por {agente_asignado}. Agente_Orquestador: este ticket tiene un [PIPELINE MULTI-AGENTE] activo. "
@@ -1054,6 +1071,17 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             if not any(al in leidos for al in ["luffy", "agente_orquestador", "orquestador"]):
                                 m.setdefault("leido_por", []).extend(["Luffy", "Agente_Orquestador"])
                         _guardar_canal(canal_u, "usuario")
+
+                        # Ejecutar ciclo completo de supervisión al final del ciclo de orquestación
+                        if agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+                            try:
+                                skills_dir = _APP_ROOT / "Agente_Orquestador" / "skills"
+                                if str(skills_dir) not in sys.path:
+                                    sys.path.insert(0, str(skills_dir))
+                                from supervisor.skill_supervisor import ejecutar_ciclo_completo_supervision
+                                ejecutar_ciclo_completo_supervision(sincronizar_cerebro=True)
+                            except Exception as e_sup_end:
+                                print(f"[{agente_nombre} Listener] Advertencia en supervisión de fin de ciclo: {e_sup_end}")
 
                     except Exception as e_del:
                         print(f"[{agente_nombre} Listener] ❌ Error ejecutando la consciencia de {agente_nombre}: {e_del}")
@@ -1348,6 +1376,16 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             if m_eh and len(m_eh.group(1).strip()) > 10:
                                 evidencia_hallazgo = m_eh.group(1).strip()
                                 parsed_data["evidencia_hallazgo"] = evidencia_hallazgo
+                            else:
+                                m_res = _re_eh.search(r'(?i)(?:- \*\*Resumen:\*\*|- \*\*Evidencia:\*\*)\s*(.*?)(?=\n- \*\*|$)', parsed_data["ticket_actualizado"], _re_eh.DOTALL)
+                                if m_res and len(m_res.group(1).strip()) > 10:
+                                    evidencia_hallazgo = m_res.group(1).strip()
+                                    parsed_data["evidencia_hallazgo"] = evidencia_hallazgo
+
+                        if not evidencia_hallazgo and (parsed_data.get("Evidencia_Fisica") or parsed_data.get("evidencia_fisica")):
+                            ev_f = parsed_data.get("Evidencia_Fisica") or parsed_data.get("evidencia_fisica")
+                            evidencia_hallazgo = f"Evidencia física verificada en disco: {ev_f}"
+                            parsed_data["evidencia_hallazgo"] = evidencia_hallazgo
 
                         if not evidencia_hallazgo or (isinstance(evidencia_hallazgo, dict) and len(evidencia_hallazgo) == 0):
                             print(f"[Auditor] ⚠️  {agente_nombre}: Infracción de protocolo — campo 'evidencia_hallazgo' ausente o vacío.")
@@ -1432,6 +1470,18 @@ def iniciar_listener(agente_nombre, ticket_efimero=None):
                             texto_bitacora = texto_bitacora.replace(nuevo_bloque, texto_actualizado)
                             print(f"[{agente_nombre} Listener] Pizarra actualizada.")
                         BITACORA_MD.write_text(texto_bitacora, encoding="utf-8")
+
+                        # Si el ticket quedó en estado terminal, ejecutar ciclo completo de supervisión
+                        if nuevo_ticket.get('estado') in ['CERRADO', 'COMPLETADO', 'ABORTADO'] and agente_nombre.lower() in ["luffy", "agente_orquestador", "orquestador"]:
+                            try:
+                                skills_dir = _APP_ROOT / "Agente_Orquestador" / "skills"
+                                if str(skills_dir) not in sys.path:
+                                    sys.path.insert(0, str(skills_dir))
+                                from supervisor.skill_supervisor import ejecutar_ciclo_completo_supervision
+                                print(f"[{agente_nombre} Listener] 🛡️ Ticket finalizado ({nuevo_ticket.get('id_bloque')}). Ejecutando ciclo completo de supervisión...")
+                                ejecutar_ciclo_completo_supervision(sincronizar_cerebro=True)
+                            except Exception as e_sup_close:
+                                print(f"[{agente_nombre} Listener] Advertencia en ciclo de supervisión post-cierre: {e_sup_close}")
                     except Exception as e:
                         print(f"[{agente_nombre} Listener] Error guardando bitacora final {e}")
                 else:

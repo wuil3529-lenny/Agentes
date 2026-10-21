@@ -210,7 +210,7 @@ def construir_prompt_supervisor(
             "4. Al terminar tu turno, cede el control con el formato estructurado correspondiente."
         )
 
-    system_prompt = "\n".join([prompt_base, bloque_agentes, instruccion_modo]).strip()
+    system_prompt = "\n".join([prompt_base, bloque_agentes, instruccion_modo, obtener_prompt_red_y_tuneles()]).strip()
 
     return ChatPromptTemplate.from_messages([
         SystemMessage(content=system_prompt),
@@ -300,6 +300,19 @@ except Exception:
     tool_evaluar_compatibilidad_vacante = None
     obtener_prompt_scout_laboral = lambda: ""
     HERRAMIENTAS_SCOUT = []
+try:
+    from red_y_tuneles.skill_red_y_tuneles import (
+        tool_obtener_enlaces_acceso,
+        obtener_prompt_red_y_tuneles,
+        HERRAMIENTAS_RED_Y_TUNELES,
+    )
+except ImportError:
+    from skills.red_y_tuneles.skill_red_y_tuneles import (
+        tool_obtener_enlaces_acceso,
+        obtener_prompt_red_y_tuneles,
+        HERRAMIENTAS_RED_Y_TUNELES,
+    )
+
 from git.skill_git import (
     HERRAMIENTAS_GIT,
     obtener_prompt_git,
@@ -419,7 +432,7 @@ HERRAMIENTAS_ORQUESTADOR = [
     tool_enviar_nota_voz,
     tool_hablar_por_cornetas,
     tool_escuchar_microfono,
-] + HERRAMIENTAS_SCOUT + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN + HERRAMIENTAS_GIT
+] + HERRAMIENTAS_SCOUT + HERRAMIENTAS_MANOS_Y_OJOS + HERRAMIENTAS_PROCEDIMIENTOS + HERRAMIENTAS_GRAFO_OBSIDIAN + HERRAMIENTAS_GIT + HERRAMIENTAS_RED_Y_TUNELES
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -961,7 +974,7 @@ def main() -> None:
                 res = orquestador.chat(f"{texto_orden}\n[Responde y envía también nota de voz]", thread_id=thread_id)
                 console.print(Panel(res, title="[bold green]Respuesta + Nota de Voz 🎙️[/bold green]", border_style="green"))
                 from telegram_bridge import enviar_nota_voz_telegram
-                enviar_nota_voz_telegram(res, caption=res[:800], remitente="Agente_Orquestador", espejear_en_consola=True)
+                enviar_nota_voz_telegram(res, caption=res, remitente="Agente_Orquestador", espejear_en_consola=True)
                 if cornetas_activas:
                     hablar_por_cornetas_pc(res, bloquear=True)
             except Exception as e:

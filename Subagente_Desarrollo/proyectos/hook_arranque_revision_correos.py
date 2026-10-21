@@ -84,23 +84,22 @@ def reanudar_tarea_si_pausada() -> bool:
             encontrada = True
             estado_previo = str(t.get("estado", "")).upper()
 
+            from datetime import timedelta
+            try:
+                intervalo = max(10, int(t.get("intervalo_segundos_sensor", 60) or 60))
+            except Exception:
+                intervalo = 60
+
             if estado_previo == "PAUSADA":
                 t["estado"] = "ACTIVA"
-                # Recalcular proxima verificacion (gatillo de evento: +intervalo)
-                try:
-                    intervalo = max(10, int(t.get("intervalo_segundos_sensor", 60) or 60))
-                except Exception:
-                    intervalo = 60
-                from datetime import timedelta
-                t["proxima_verificacion"] = (
-                    datetime.now() + timedelta(seconds=intervalo)
-                ).isoformat()[:19]
-                TAREAS_FILE.write_text(
-                    json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-                )
+                t["proxima_verificacion"] = (datetime.now() + timedelta(seconds=intervalo)).isoformat()[:19]
+                TAREAS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
                 _log(f"Tarea {TAREA_ID} estaba PAUSADA -> REANUDADA (ACTIVA).")
             else:
-                _log(f"Tarea {TAREA_ID} ya estaba en estado '{estado_previo}'. Sin cambios.")
+                # Asegurar que la próxima verificación no haya quedado varada en fecha lejana
+                t["proxima_verificacion"] = datetime.now().isoformat()[:19]
+                TAREAS_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+                _log(f"Tarea {TAREA_ID} activa y sincronizada para monitoreo continuo inmediato.")
             break
 
         if not encontrada:

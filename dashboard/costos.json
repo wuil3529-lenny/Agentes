@@ -6,16 +6,16 @@
   "presupuesto_maximo": 5.0,
   "agentes": {
     "luffy": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 15250442,
+      "costo": 0.330647
     },
     "zoro": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 8045033,
+      "costo": 0.12
     },
     "sanji": {
-      "tokens": 0,
-      "costo": 0.0
+      "tokens": 9821308,
+      "costo": 0.15
     },
     "robin": {
       "tokens": 0,

@@ -1342,11 +1342,11 @@
       <!-- Bottom Action: Voice-to-Voice Activation Button -->
       <div class="pt-2 flex flex-col items-center justify-center shrink-0">
         <button id="voice-toggle-btn" onclick="toggleVoiceSession()" type="button" class="group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgb(var(--c-secondary)/0.4)] hover:scale-[1.02] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none">
-          <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgb(var(--c-primary))]"></span>
+          <span id="voice-btn-dot" class="w-3 h-3 rounded-full bg-secondary animate-pulse shadow-[0_0_10px_#00ffcc]"></span>
           <span class="material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all" id="voice-btn-icon">mic</span>
-          <span id="voice-btn-text">Iniciar Comunicación</span>
+          <span id="voice-btn-text">Grabar Nota de Voz</span>
         </button>
-        <span id="voice-btn-sub" class="text-[11px] text-on-surface-variant/60 mt-2 font-mono">Conexión bidireccional continua • Voz Usuario &lt;-&gt; Voz Agente</span>
+        <span id="voice-btn-sub" class="text-[11px] text-on-surface-variant/60 mt-2 font-mono">Pulsa para grabar • El agente ejecutará la tarea y responderá con voz</span>
       </div>
 
     </div>
@@ -1641,6 +1641,12 @@
           <span>Tareas Completadas</span>
           <span id="count-archivados" class="text-[10px] font-data-mono px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-bold ml-0.5">0</span>
         </button>
+        <button id="btn-tab-programadas" onclick="cambiarTabTareas('programadas')" type="button"
+                class="px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-on-surface-variant hover:text-on-surface">
+          <span class="material-symbols-outlined text-[15px]">event_repeat</span>
+          <span>Tareas Programadas</span>
+          <span id="count-programadas" class="text-[10px] font-data-mono px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-bold ml-0.5">0</span>
+        </button>
       </div>
     </div>
 
@@ -1668,6 +1674,18 @@
       <div id="container-tareas-archivadas" class="w-full hidden">
         <div id="archivados-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 overflow-y-auto max-h-[calc(100vh-300px)] p-1">
           <p class="text-on-surface-variant text-sm italic col-span-full py-8 text-center">No hay tickets archivados todavía...</p>
+        </div>
+      </div>
+
+      <!-- Container 3: Tareas Programadas -->
+      <div id="container-tareas-programadas" class="w-full hidden">
+        <div class="flex items-center gap-1 p-1 mb-4 rounded-xl bg-surface-container/80 border border-outline-variant/40 max-w-md">
+          <button id="btn-diarias" onclick="filterProgramadas('diarias')" type="button" class="flex-1 py-1.5 text-xs font-bold uppercase rounded text-secondary bg-secondary/10 transition-colors">Diarias</button>
+          <button id="btn-semanales" onclick="filterProgramadas('semanales')" type="button" class="flex-1 py-1.5 text-xs font-bold uppercase rounded text-on-surface-variant hover:text-on-surface transition-colors">Semanales</button>
+          <button id="btn-mensuales" onclick="filterProgramadas('mensuales')" type="button" class="flex-1 py-1.5 text-xs font-bold uppercase rounded text-on-surface-variant hover:text-on-surface transition-colors">Mensuales</button>
+        </div>
+        <div id="programadas-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[calc(100vh-340px)] p-1">
+          <p class="text-on-surface-variant text-sm italic col-span-full py-8 text-center">Cargando tareas programadas...</p>
         </div>
       </div>
     </div>
@@ -1723,22 +1741,22 @@
             <div class="text-3xl lg:text-4xl font-bold font-data-mono text-emerald-400 tracking-tight" id="analytics-ticket-precision">100%</div>
             <span class="text-[11px] font-semibold text-emerald-400/80 uppercase font-mono tracking-wider">Efectividad</span>
           </div>
-          <!-- 4 status counters: grid on mobile, row on desktop -->
-          <div class="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 w-full sm:w-auto">
-            <div class="flex flex-col items-center px-1 sm:px-2 py-1 rounded-lg bg-secondary/10 border border-secondary/30" title="Tickets en Progreso">
-              <span class="text-[9px] font-bold text-secondary uppercase font-mono text-center">Progreso</span>
+          <!-- 4 status counters: responsive badges with nowrap protection -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full sm:w-auto">
+            <div class="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-secondary/10 border border-secondary/30 min-w-[62px] whitespace-nowrap" title="Tickets en Progreso">
+              <span class="text-[9px] font-bold text-secondary uppercase font-mono text-center whitespace-nowrap">Progreso</span>
               <span id="stat-progreso" class="text-xs font-bold font-mono text-secondary">0</span>
             </div>
-            <div class="flex flex-col items-center px-1 sm:px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30" title="Tickets Pendientes">
-              <span class="text-[9px] font-bold text-amber-400 uppercase font-mono text-center">Pendiente</span>
+            <div class="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-amber-400/10 border border-amber-400/30 min-w-[62px] whitespace-nowrap" title="Tickets Pendientes">
+              <span class="text-[9px] font-bold text-amber-400 uppercase font-mono text-center whitespace-nowrap">Pendiente</span>
               <span id="stat-pendientes" class="text-xs font-bold font-mono text-amber-400">0</span>
             </div>
-            <div class="flex flex-col items-center px-1 sm:px-2 py-1 rounded-lg bg-emerald-400/10 border border-emerald-400/30" title="Tickets Completados">
-              <span class="text-[9px] font-bold text-emerald-400 uppercase font-mono text-center">Completado</span>
+            <div class="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-emerald-400/10 border border-emerald-400/30 min-w-[62px] whitespace-nowrap" title="Tickets Completados">
+              <span class="text-[9px] font-bold text-emerald-400 uppercase font-mono text-center whitespace-nowrap">Completado</span>
               <span id="stat-completados" class="text-xs font-bold font-mono text-emerald-400">0</span>
             </div>
-            <div class="flex flex-col items-center px-1 sm:px-2 py-1 rounded-lg bg-error/10 border border-error/30" title="Tickets Fallidos">
-              <span class="text-[9px] font-bold text-error uppercase font-mono text-center">Fallido</span>
+            <div class="flex flex-col items-center justify-center px-2 py-1 rounded-lg bg-error/10 border border-error/30 min-w-[62px] whitespace-nowrap" title="Tickets Fallidos">
+              <span class="text-[9px] font-bold text-error uppercase font-mono text-center whitespace-nowrap">Fallido</span>
               <span id="stat-fallidos" class="text-xs font-bold font-mono text-error">0</span>
             </div>
           </div>
@@ -3677,22 +3695,24 @@ window.toggleMobileSidebar = toggleMobileSidebar;
     <!-- Top Cyber Accent Line -->
     <div id="modal-ticket-accent-line" class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-secondary to-purple-500"></div>
 
-    <!-- Header: ID + Status + Close Button -->
-    <div class="flex items-center justify-between gap-3 pb-3 border-b border-outline-variant/20">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shadow-sm shrink-0">
-          <span class="material-symbols-outlined text-[19px]">confirmation_number</span>
+    <!-- Header: Título de la tarea + Responsable + Status + Close Button -->
+    <div class="flex items-start justify-between gap-3 pb-3 border-b border-outline-variant/20">
+      <div class="flex items-start gap-3 min-w-0 flex-1">
+        <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-300 shadow-sm shrink-0 mt-0.5">
+          <span class="material-symbols-outlined text-[20px]" id="modal-ticket-header-icon">event_repeat</span>
         </div>
-        <div class="flex flex-col min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <span id="modal-ticket-id" class="font-mono text-xs sm:text-sm font-black text-white tracking-wider px-2 py-0.5 rounded bg-white/5 border border-white/10 select-all">TKT-000</span>
-            <button onclick="copiarIdTicketModal()" type="button" class="text-slate-400 hover:text-cyan-300 transition-colors p-0.5 cursor-pointer" title="Copiar ID del Ticket">
-              <span class="material-symbols-outlined text-[15px]" id="modal-ticket-copy-icon">content_copy</span>
-            </button>
-          </div>
-          <div id="modal-ticket-agent" class="text-[10.5px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5">
-            <span>Responsable:</span>
-            <span id="modal-ticket-agent-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-white/5 border border-white/10 text-white">-</span>
+        <div class="flex flex-col min-w-0 flex-1">
+          <!-- TÍTULO DE LA TAREA ARRIBA (en vez del ID de ticket en grande) -->
+          <h3 id="modal-ticket-title" class="text-sm sm:text-base font-bold text-white leading-snug select-text"></h3>
+          
+          <div class="flex items-center gap-3 flex-wrap mt-1">
+            <!-- Responsable -->
+            <div id="modal-ticket-agent" class="text-[10.5px] text-slate-400 font-mono flex items-center gap-1.5">
+              <span>Responsable:</span>
+              <span id="modal-ticket-agent-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-bold uppercase bg-white/5 border border-white/10 text-white">-</span>
+            </div>
+            <!-- ID oculto a la vista pero accesible internamente -->
+            <span id="modal-ticket-id" class="hidden font-mono text-[10px] text-slate-500"></span>
           </div>
         </div>
       </div>
@@ -3709,10 +3729,15 @@ window.toggleMobileSidebar = toggleMobileSidebar;
 
     <!-- Scrollable Content Body -->
     <div class="flex-1 overflow-y-auto pr-1 space-y-3.5 max-h-[calc(90vh-170px)] custom-scrollbar">
-      <!-- Title -->
-      <div>
-        <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400 font-mono">Título / Asunto</span>
-        <h3 id="modal-ticket-title" class="text-base sm:text-lg font-bold text-white mt-0.5 leading-snug select-text"></h3>
+      <!-- Sección: Última vez ejecutada (Donde antes estaba el título) -->
+      <div id="modal-ticket-ultima-ejecucion-box" class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 space-y-1.5">
+        <div class="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+          <span class="material-symbols-outlined text-[16px]">history</span>
+          <span>Última vez ejecutada</span>
+        </div>
+        <div id="modal-ticket-ultima-ejecucion" class="text-xs sm:text-[13px] text-slate-200 font-mono leading-relaxed select-text">
+          Sin registros de ejecución previa.
+        </div>
       </div>
 
       <!-- Description / Summary -->
@@ -3722,6 +3747,19 @@ window.toggleMobileSidebar = toggleMobileSidebar;
           <span>Descripción & Resumen</span>
         </div>
         <div id="modal-ticket-desc" class="text-xs sm:text-[13px] text-slate-300 leading-relaxed whitespace-pre-wrap select-text font-sans"></div>
+      </div>
+
+      <!-- Sección: Cuándo se ejecutará nuevamente (Reemplaza a Ver Registro Markdown Original) -->
+      <div id="modal-ticket-proxima-box" class="p-3.5 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-cyan-300">
+            <span class="material-symbols-outlined text-[16px]">event_repeat</span>
+            <span>Cuándo se ejecutará nuevamente</span>
+          </div>
+          <span id="modal-ticket-tiempo-restante-chip" class="text-[10px] font-mono px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-200 border border-cyan-500/30 font-bold">Inmediata</span>
+        </div>
+        <div id="modal-ticket-proxima" class="text-xs sm:text-[13px] text-slate-200 font-sans leading-relaxed select-text font-medium"></div>
+        <div id="modal-ticket-frecuencia-box" class="text-[11px] text-slate-400 font-mono pt-1.5 border-t border-white/10 flex flex-wrap gap-x-4 gap-y-1"></div>
       </div>
 
       <!-- Specific Task (if present) -->
@@ -3777,27 +3815,16 @@ window.toggleMobileSidebar = toggleMobileSidebar;
         </div>
         <div id="modal-ticket-historial" class="space-y-1.5 text-xs text-slate-300"></div>
       </div>
-
-      <!-- Raw Markdown / Content fallback (collapsible) -->
-      <details id="modal-ticket-raw-box" class="group rounded-2xl bg-black/40 border border-white/10 p-3">
-        <summary class="text-[11px] font-mono text-slate-400 cursor-pointer hover:text-white flex items-center justify-between select-none">
-          <span class="flex items-center gap-1.5">
-            <span class="material-symbols-outlined text-[14px]">code</span>
-            <span>Ver Registro Markdown Original</span>
-          </span>
-          <span class="material-symbols-outlined text-[16px] group-open:rotate-180 transition-transform">expand_more</span>
-        </summary>
-        <pre id="modal-ticket-raw" class="mt-2.5 text-[10px] font-mono text-slate-400 whitespace-pre-wrap overflow-x-auto p-2.5 bg-black/60 rounded-xl max-h-60 overflow-y-auto border border-white/5 select-all"></pre>
-      </details>
     </div>
 
-    <!-- Footer: Close & Copy buttons -->
+    <!-- Footer: Close & Voice Command buttons -->
     <div class="pt-3 border-t border-outline-variant/20 flex items-center justify-between gap-3 shrink-0">
       <span class="text-[10px] font-mono text-slate-500">TripulacionIA OS • Sistema de Tareas</span>
       <div class="flex items-center gap-2">
-        <button onclick="copiarDetalleCompletoTicketModal()" type="button" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer">
-          <span class="material-symbols-outlined text-[15px]" id="modal-ticket-copy-all-icon">content_copy</span>
-          <span id="modal-ticket-copy-all-text">Copiar Todo</span>
+        <!-- BOTÓN MODO ESCUCHA / MICRÓFONO PARA HABLAR CON EL AGENTE -->
+        <button onclick="activarModoEscuchaParaTareaModal()" type="button" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-primary/20 to-secondary/20 hover:from-amber-500/30 hover:to-secondary/30 border border-amber-500/40 hover:border-amber-400 text-xs font-bold text-amber-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer shadow-[0_0_15px_rgba(245,158,11,0.25)] active:scale-95" title="Activa el micrófono del agente para darle órdenes por voz sobre esta tarea">
+          <span class="material-symbols-outlined text-[16px] text-amber-400 animate-pulse">mic</span>
+          <span>Hablar con el Agente</span>
         </button>
         <button onclick="cerrarModalDetalleTicket()" type="button" class="px-4 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-xs font-bold text-cyan-300 hover:text-cyan-200 transition-all cursor-pointer">
           Cerrar

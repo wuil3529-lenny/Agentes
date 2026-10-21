@@ -128,4 +128,5 @@ tokenización con `shlex.split()`, rechazo de metacaracteres de shell y lista bl
 binarios. Las tres herramientas de escaneo (`pip_audit`, `npm audit`, `netstat`) siguen
 operativas y el patrón `shell=True` ya no existe como código ejecutable en el módulo.
 
-**Conexiones:** [[Perfil_Subagente_Desarrollo]] · [[proyectos]]
+---
+**Conexiones:** [[proyectos_desarrollo]]

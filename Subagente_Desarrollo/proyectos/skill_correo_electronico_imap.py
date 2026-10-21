@@ -23,6 +23,8 @@ import json
 import base64
 import html
 import re
+import time
+import smtplib
 from pathlib import Path
 from email.mime.text import MIMEText
 from datetime import datetime
@@ -33,8 +35,15 @@ import email
 from email.header import decode_header
 
 # Resolver APP_ROOT y rutas del subagente
+def _resolver_app_root() -> Path:
+    p = Path(__file__).resolve()
+    for parent in p.parents:
+        if (parent / ".env").exists() or (parent / "Bitacora.md").exists():
+            return parent
+    return p.parents[3] if len(p.parents) > 3 else p.parent
+
 _CURRENT = Path(__file__).resolve()
-_APP_ROOT = _CURRENT.parents[3] if len(_CURRENT.parents) > 3 and _CURRENT.parents[2].name.lower() in ["sanji", "subagente_asistencia"] else _CURRENT.parents[2]
+_APP_ROOT = _resolver_app_root()
 _AGENTE = "Subagente_Asistencia"
 
 BASE_DIR = _APP_ROOT / _AGENTE
@@ -582,53 +591,206 @@ def _recibir_via_gmail_api(max_correos: int, solo_no_leidos: bool, notificar_pri
     }, ensure_ascii=False)
 
 
-@tool
-def tool_correo_consultar_detalle(id_correo_o_tema: str, pregunta_especifica: str = "") -> str:
-    """
-    Lee a fondo un correo de Gmail y responde preguntas puntuales sobre su contenido
-    (ej. fechas, códigos, cotizaciones, instrucciones) sin generar informes burocráticos.
-    """
-    if obtener_servicio is None:
-        return json.dumps({"status": "error", "mensaje": "Cliente de Google Workspace no disponible."})
+def _consultar_detalle_imap(target_id: str) -> Optional[Dict[str, Any]]:
+    """Consulta un correo en IMAP por UID o búsqueda de texto."""
+    _cargar_env(override=True)
+    email_user = os.getenv("KEEP_EMAIL", "").strip().strip('"')
+    email_pass = os.getenv("KEEP_APP_PASSWORD", "").strip().strip('"')
+    if not email_user or not email_pass:
+        return None
 
+    imap_host = os.getenv("IMAP_HOST", "imap.gmail.com").strip()
+    imap_port = int(os.getenv("IMAP_PORT", "993"))
+    mail = imaplib.IMAP4_SSL(imap_host, imap_port)
     try:
-        service = obtener_servicio('gmail', 'v1')
-        target_id = id_correo_o_tema.strip()
+        mail.login(email_user, email_pass)
+        mail.select("INBOX", readonly=True)
 
-        # Si el input no parece un ID de Gmail (ej. es una búsqueda por texto o remitente)
-        if len(target_id) < 15 or " " in target_id:
-            busqueda = service.users().messages().list(userId='me', q=target_id, maxResults=1).execute()
-            mensajes = busqueda.get('messages', [])
-            if not mensajes:
-                return json.dumps({"status": "error", "mensaje": f"No se encontró ningún correo con el criterio '{target_id}'."})
-            target_id = mensajes[0]['id']
+        uid_to_fetch = None
+        if target_id.isdigit():
+            uid_to_fetch = target_id
+        else:
+            status, data = mail.search(None, f'(OR FROM "{target_id}" SUBJECT "{target_id}")')
+            if status == "OK" and data and data[0]:
+                uids = data[0].split()
+                if uids:
+                    uid_to_fetch = uids[-1].decode()
 
-        detalle = service.users().messages().get(userId='me', id=target_id, format='full').execute()
-        headers = {h['name'].lower(): h['value'] for h in detalle.get('payload', {}).get('headers', [])}
-        subject = headers.get('subject', '(Sin asunto)')
-        sender = headers.get('from', '(Desconocido)')
-        date = headers.get('date', '')
-        body = _extraer_cuerpo_texto(detalle.get('payload', {}), max_chars=3000)
+        if not uid_to_fetch:
+            return None
 
-        respuesta = {
-            "id": target_id,
+        status, data = mail.fetch(uid_to_fetch, "(RFC822)")
+        if status != "OK" or not data or not data[0]:
+            return None
+
+        msg = email.message_from_bytes(data[0][1])
+        sender = _decodificar_header(msg.get("From")) or "(Desconocido)"
+        subject = _decodificar_header(msg.get("Subject")) or "(Sin asunto)"
+        date = msg.get("Date", "")
+        body = _cuerpo_texto_imap(msg)
+
+        return {
+            "id": uid_to_fetch,
             "de": sender,
             "asunto": subject,
             "fecha": date,
             "cuerpo_texto": body
         }
+    except Exception:
+        return None
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
 
+
+def _responder_via_smtp_imap(
+    id_correo_o_destinatario: str,
+    mensaje_respuesta: str,
+    asunto: str = "",
+    como_borrador: bool = False
+) -> Dict[str, Any]:
+    """Envío o borrador vía SMTP / IMAP usando KEEP_EMAIL y KEEP_APP_PASSWORD."""
+    _cargar_env(override=True)
+    email_user = os.getenv("KEEP_EMAIL", "").strip().strip('"')
+    email_pass = os.getenv("KEEP_APP_PASSWORD", "").strip().strip('"')
+    if not email_user or not email_pass:
+        raise RuntimeError("Credenciales no configuradas en .env (KEEP_EMAIL / KEEP_APP_PASSWORD).")
+
+    destinatario = id_correo_o_destinatario.strip()
+    asunto_final = asunto
+    in_reply_to = None
+
+    if "@" not in destinatario:
+        detalle = _consultar_detalle_imap(destinatario)
+        if detalle:
+            raw_from = detalle.get("de", "")
+            email_match = re.search(r'<([^>]+)>', raw_from)
+            destinatario = email_match.group(1) if email_match else raw_from
+            orig_subj = detalle.get("asunto", "")
+            if not asunto_final and orig_subj:
+                asunto_final = orig_subj if orig_subj.lower().startswith("re:") else f"Re: {orig_subj}"
+
+    if not asunto_final:
+        asunto_final = "Comunicación de Asistencia"
+
+    mime_msg = MIMEText(mensaje_respuesta, "plain", "utf-8")
+    mime_msg['From'] = email_user
+    mime_msg['To'] = destinatario
+    mime_msg['Subject'] = asunto_final
+    if in_reply_to:
+        mime_msg['In-Reply-To'] = in_reply_to
+        mime_msg['References'] = in_reply_to
+
+    if como_borrador:
+        imap_host = os.getenv("IMAP_HOST", "imap.gmail.com").strip()
+        imap_port = int(os.getenv("IMAP_PORT", "993"))
+        mail = imaplib.IMAP4_SSL(imap_host, imap_port)
+        try:
+            mail.login(email_user, email_pass)
+            res, _ = mail.append('"[Gmail]/Drafts"', '\\Draft', imaplib.Time2Internaldate(time.time()), mime_msg.as_bytes())
+            if res != "OK":
+                res, _ = mail.append('"[Gmail]/Borradores"', '\\Draft', imaplib.Time2Internaldate(time.time()), mime_msg.as_bytes())
+            res_id = f"draft_imap_{int(time.time())}"
+            estado = "borrador_creado"
+            mensaje_confirmacion = f"Borrador creado en Gmail para {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
+        finally:
+            try:
+                mail.logout()
+            except Exception:
+                pass
+    else:
+        smtp_host = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+        smtp_port = int(os.getenv("SMTP_PORT", "465"))
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=25) as server:
+            server.login(email_user, email_pass)
+            server.send_message(mime_msg)
+        res_id = f"smtp_{int(time.time())}"
+        estado = "enviado"
+        mensaje_confirmacion = f"Correo enviado exitosamente a {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
+
+    # Actualizar seguimiento si correspondía a un correo pendiente
+    try:
+        seguimiento = _cargar_seguimiento()
+        actualizado = False
+        for item in seguimiento:
+            if item.get("id") == id_correo_o_destinatario or item.get("remitente") == destinatario:
+                item["estado"] = "respondido"
+                item["respuesta_enviada"] = mensaje_respuesta
+                actualizado = True
+        if actualizado:
+            _guardar_seguimiento(seguimiento)
+    except Exception:
+        pass
+
+    return {
+        "status": "success",
+        "estado": estado,
+        "id": res_id,
+        "destinatario": destinatario,
+        "asunto": asunto_final,
+        "mensaje": mensaje_confirmacion,
+        "via": "smtp" if not como_borrador else "imap_draft"
+    }
+
+
+@tool
+def tool_correo_consultar_detalle(id_correo_o_tema: str, pregunta_especifica: str = "") -> str:
+    """
+    Lee a fondo un correo de Gmail y responde preguntas puntuales sobre su contenido
+    (ej. fechas, códigos, cotizaciones, instrucciones) sin generar informes burocráticos.
+    Soporta fallback autónomo vía IMAP si Google Workspace OAuth no está disponible.
+    """
+    target_id = id_correo_o_tema.strip()
+
+    # 1. Intentar Gmail API si está disponible
+    if obtener_servicio is not None:
+        try:
+            service = obtener_servicio('gmail', 'v1')
+            if service:
+                if len(target_id) < 15 or " " in target_id:
+                    busqueda = service.users().messages().list(userId='me', q=target_id, maxResults=1).execute()
+                    mensajes = busqueda.get('messages', [])
+                    if mensajes:
+                        target_id = mensajes[0]['id']
+
+                detalle = service.users().messages().get(userId='me', id=target_id, format='full').execute()
+                headers = {h['name'].lower(): h['value'] for h in detalle.get('payload', {}).get('headers', [])}
+                subject = headers.get('subject', '(Sin asunto)')
+                sender = headers.get('from', '(Desconocido)')
+                date = headers.get('date', '')
+                body = _extraer_cuerpo_texto(detalle.get('payload', {}), max_chars=3000)
+
+                respuesta = {
+                    "id": target_id,
+                    "de": sender,
+                    "asunto": subject,
+                    "fecha": date,
+                    "cuerpo_texto": body
+                }
+                if pregunta_especifica:
+                    respuesta["pregunta_atendida"] = pregunta_especifica
+                    respuesta["instruccion_para_agente"] = (
+                        f"Analiza el cuerpo del correo anterior y responde al usuario puntualmente sobre: '{pregunta_especifica}'. "
+                        "Sé directo, conciso y responde sin generar documentos."
+                    )
+                return json.dumps(respuesta, ensure_ascii=False)
+        except Exception:
+            pass
+
+    # 2. Fallback resiliente vía IMAP
+    detalle_imap = _consultar_detalle_imap(target_id)
+    if detalle_imap:
         if pregunta_especifica:
-            respuesta["pregunta_atendida"] = pregunta_especifica
-            respuesta["instruccion_para_agente"] = (
+            detalle_imap["pregunta_atendida"] = pregunta_especifica
+            detalle_imap["instruccion_para_agente"] = (
                 f"Analiza el cuerpo del correo anterior y responde al usuario puntualmente sobre: '{pregunta_especifica}'. "
                 "Sé directo, conciso y responde sin generar documentos."
             )
+        return json.dumps(detalle_imap, ensure_ascii=False)
 
-        return json.dumps(respuesta, ensure_ascii=False)
-
-    except Exception as e:
-        return json.dumps({"status": "error", "mensaje": f"Error al consultar detalle del correo: {str(e)}"})
+    return json.dumps({"status": "error", "mensaje": f"No se pudo consultar el correo '{target_id}' ni por Gmail API ni por IMAP."})
 
 
 @tool
@@ -642,87 +804,89 @@ def tool_correo_responder(
     Redacta y envía un correo electrónico en nombre del usuario a través de Gmail,
     o crea un borrador para revisión previa. Permite responder directamente en el mismo
     hilo de conversación o iniciar una nueva comunicación.
+    Cuenta con fallback resiliente vía SMTP/IMAP si Google Workspace OAuth está expirado.
     """
-    if obtener_servicio is None:
-        return json.dumps({"status": "error", "mensaje": "Cliente de Google Workspace no disponible."})
+    destinatario = id_correo_o_destinatario.strip()
 
-    try:
-        service = obtener_servicio('gmail', 'v1')
-        destinatario = id_correo_o_destinatario.strip()
-        thread_id = None
-        in_reply_to = None
-        asunto_final = asunto
+    # 1. Intentar Gmail API si está disponible
+    if obtener_servicio is not None:
+        try:
+            service = obtener_servicio('gmail', 'v1')
+            if service:
+                thread_id = None
+                in_reply_to = None
+                asunto_final = asunto
 
-        # Verificar si id_correo_o_destinatario es un ID de correo existente en Gmail
-        if "@" not in destinatario and len(destinatario) >= 12:
-            try:
-                original = service.users().messages().get(userId='me', id=destinatario, format='metadata').execute()
-                thread_id = original.get('threadId')
-                headers = {h['name'].lower(): h['value'] for h in original.get('payload', {}).get('headers', [])}
-                
-                # Obtener dirección del remitente original
-                raw_from = headers.get('from', '')
-                email_match = re.search(r'<([^>]+)>', raw_from)
-                destinatario = email_match.group(1) if email_match else raw_from
+                if "@" not in destinatario and len(destinatario) >= 12:
+                    try:
+                        original = service.users().messages().get(userId='me', id=destinatario, format='metadata').execute()
+                        thread_id = original.get('threadId')
+                        headers = {h['name'].lower(): h['value'] for h in original.get('payload', {}).get('headers', [])}
+                        raw_from = headers.get('from', '')
+                        email_match = re.search(r'<([^>]+)>', raw_from)
+                        destinatario = email_match.group(1) if email_match else raw_from
+                        orig_subject = headers.get('subject', '')
+                        if not asunto_final:
+                            asunto_final = orig_subject if orig_subject.lower().startswith('re:') else f"Re: {orig_subject}"
+                        in_reply_to = headers.get('message-id')
+                    except Exception:
+                        pass
 
-                orig_subject = headers.get('subject', '')
                 if not asunto_final:
-                    asunto_final = orig_subject if orig_subject.lower().startswith('re:') else f"Re: {orig_subject}"
-                
-                in_reply_to = headers.get('message-id')
-            except Exception:
-                pass
+                    asunto_final = "Comunicación de Asistencia"
 
-        if not asunto_final:
-            asunto_final = "Comunicación de Asistencia"
+                mime_msg = MIMEText(mensaje_respuesta)
+                mime_msg['to'] = destinatario
+                mime_msg['subject'] = asunto_final
+                if in_reply_to:
+                    mime_msg['In-Reply-To'] = in_reply_to
+                    mime_msg['References'] = in_reply_to
 
-        # Construcción del mensaje MIME
-        mime_msg = MIMEText(mensaje_respuesta)
-        mime_msg['to'] = destinatario
-        mime_msg['subject'] = asunto_final
-        if in_reply_to:
-            mime_msg['In-Reply-To'] = in_reply_to
-            mime_msg['References'] = in_reply_to
+                raw_str = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode('utf-8')
+                body_payload: Dict[str, Any] = {'raw': raw_str}
+                if thread_id:
+                    body_payload['threadId'] = thread_id
 
-        raw_str = base64.urlsafe_b64encode(mime_msg.as_bytes()).decode('utf-8')
-        body_payload: Dict[str, Any] = {'raw': raw_str}
-        if thread_id:
-            body_payload['threadId'] = thread_id
+                if como_borrador:
+                    draft = service.users().drafts().create(userId='me', body={'message': body_payload}).execute()
+                    res_id = draft.get('id')
+                    estado = "borrador_creado"
+                    mensaje_confirmacion = f"Borrador creado en Gmail para {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
+                else:
+                    enviado = service.users().messages().send(userId='me', body=body_payload).execute()
+                    res_id = enviado.get('id')
+                    estado = "enviado"
+                    mensaje_confirmacion = f"Correo enviado exitosamente a {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
 
-        # Modo Borrador vs Envío Directo
-        if como_borrador:
-            draft = service.users().drafts().create(userId='me', body={'message': body_payload}).execute()
-            res_id = draft.get('id')
-            estado = "borrador_creado"
-            mensaje_confirmacion = f"Borrador creado en Gmail para {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
-        else:
-            enviado = service.users().messages().send(userId='me', body=body_payload).execute()
-            res_id = enviado.get('id')
-            estado = "enviado"
-            mensaje_confirmacion = f"Correo enviado exitosamente a {destinatario} con asunto '{asunto_final}'. ID: {res_id}"
+                seguimiento = _cargar_seguimiento()
+                actualizado = False
+                for item in seguimiento:
+                    if item.get("id") == id_correo_o_destinatario or item.get("remitente") == destinatario:
+                        item["estado"] = "respondido"
+                        item["respuesta_enviada"] = mensaje_respuesta
+                        actualizado = True
+                if actualizado:
+                    _guardar_seguimiento(seguimiento)
 
-            # Actualizar seguimiento si correspondía a un correo pendiente
-            seguimiento = _cargar_seguimiento()
-            actualizado = False
-            for item in seguimiento:
-                if item.get("id") == id_correo_o_destinatario or item.get("remitente") == destinatario:
-                    item["estado"] = "respondido"
-                    item["respuesta_enviada"] = mensaje_respuesta
-                    actualizado = True
-            if actualizado:
-                _guardar_seguimiento(seguimiento)
+                return json.dumps({
+                    "status": "success",
+                    "estado": estado,
+                    "id": res_id,
+                    "destinatario": destinatario,
+                    "asunto": asunto_final,
+                    "mensaje": mensaje_confirmacion,
+                    "via": "gmail_api"
+                }, ensure_ascii=False)
+        except Exception:
+            # Fallback a SMTP
+            pass
 
-        return json.dumps({
-            "status": "success",
-            "estado": estado,
-            "id": res_id,
-            "destinatario": destinatario,
-            "asunto": asunto_final,
-            "mensaje": mensaje_confirmacion
-        }, ensure_ascii=False)
-
-    except Exception as e:
-        return json.dumps({"status": "error", "mensaje": f"Error al responder correo: {str(e)}"})
+    # 2. Fallback resiliente vía SMTP / IMAP
+    try:
+        resultado = _responder_via_smtp_imap(id_correo_o_destinatario, mensaje_respuesta, asunto, como_borrador)
+        return json.dumps(resultado, ensure_ascii=False)
+    except Exception as e_smtp:
+        return json.dumps({"status": "error", "mensaje": f"Error al responder correo (SMTP fallback): {str(e_smtp)}"})
 
 
 @tool

@@ -109,6 +109,18 @@ def _sincronizar_dashboard_json(tareas: list[dict]) -> None:
                 "ultima_ejecucion": ult_ejec,
                 "proxima_ejecucion": t.get("proxima_ejecucion") or t.get("proxima_verificacion") or "",
                 "tiempo_restante": t.get("tiempo_restante") or "",
+                "descripcion_completa": t.get("instrucciones_detalladas", ""),
+                "frecuencia": freq or "diaria",
+                "hora_ejecucion": t.get("hora_ejecucion") or "",
+                "tipo_activacion": t.get("tipo_activacion") or "",
+                "ciclos_completados": t.get("ciclos_completados", 0),
+                "evidencia": t.get("evidencia_esperada") or "",
+                "contexto": (
+                    f"Frecuencia: {freq or 'diaria'} | Hora: {t.get('hora_ejecucion') or 'n/a'} | "
+                    f"Activación: {t.get('tipo_activacion') or 'n/a'} | "
+                    f"Ciclos completados: {t.get('ciclos_completados', 0)} | "
+                    f"Notificación: {t.get('condicion_notificacion') or 'n/a'}"
+                ),
             }
 
             if freq == "semanal" or "scout" in id_tarea.lower():
@@ -545,6 +557,16 @@ def _evaluar_gatillo_zero_token(tarea: dict) -> tuple[bool, str]:
             ult_dt = None
 
     ya_ejecutada_hoy = (ult_dt is not None and ult_dt.date() == ahora.date())
+
+    if frecuencia == "mensual":
+        ya_ejecutada_este_mes = (ult_dt is not None and ult_dt.year == ahora.year and ult_dt.month == ahora.month)
+        if ya_ejecutada_este_mes or ya_ejecutada_hoy:
+            return False, "Ya ejecutada este mes."
+        if ahora.day != 1:
+            return False, f"Hoy no corresponde (día {ahora.day}). Programada para el 1 de cada mes a las {hora_str}."
+        if ahora.time() < datetime.min.time().replace(hour=hh, minute=mm):
+            return False, f"Esperando hora programada: {hora_str}."
+        return True, f"Ejecución mensual programada a las {hora_str}."
 
     if frecuencia == "semanal" or dias_prog:
         dias = dias_prog or [0, 3]  # Por defecto lunes y jueves
@@ -1128,9 +1150,39 @@ def sincronizar_tareas_desde_bitacora(forzar: bool = False) -> dict:
                             t["estado_hoy"] = "Monitoreo mensual activo"
                             cambios = True
                     else:
-                        if t.get("tiempo_restante") != "Inmediata / Continuo" or t.get("estado_hoy") != "Monitoreo diario continuo activo":
-                            t["tiempo_restante"] = "Inmediata / Continuo"
-                            t["estado_hoy"] = "Monitoreo diario continuo activo"
+                        es_vigilante = any(k in raw_id.lower() for k in ["vigilanted", "correo"]) or "continua" in frecuencia.lower()
+                        es_reinicio = ("sec-001" in raw_id.lower()) or (("reinicio" in frecuencia.lower() or "arranque" in tipo.lower()) and "obs" not in raw_id.lower())
+                        
+                        try:
+                            partes_h = hora_ejec.strip().split(":")
+                            hh, mm = int(partes_h[0]), int(partes_h[1])
+                        except Exception:
+                            hh, mm = 9, 0
+                        candidato = ahora.replace(hour=hh, minute=mm, second=0, microsecond=0)
+                        if candidato <= ahora:
+                            candidato += timedelta(days=1)
+                        rest_str = _formatear_tiempo_restante((candidato - ahora).total_seconds())
+
+                        if es_vigilante:
+                            t["tipo_activacion"] = "Sensor continuo por evento"
+                            t["proxima_ejecucion"] = "Inmediata (Al recibir nuevo correo)"
+                            t["tiempo_restante"] = "Sensor activo en tiempo real"
+                            t["estado_hoy"] = "Monitoreando buzón de correo cada 60s (0 tokens)"
+                            t["proxima_verificacion"] = ahora.isoformat()[:19]
+                            cambios = True
+                        elif es_reinicio:
+                            t["tipo_activacion"] = "Hook de Arranque / Reinicio"
+                            t["proxima_ejecucion"] = candidato.isoformat()[:19]
+                            t["tiempo_restante"] = f"Al reiniciar sistema (o en {rest_str})"
+                            t["estado_hoy"] = f"Hook de arranque activo. Se ejecutará al reiniciar o mañana a las {hora_ejec} (faltan {rest_str})."
+                            t["proxima_verificacion"] = candidato.isoformat()[:19]
+                            cambios = True
+                        else:
+                            t["tipo_activacion"] = "Reloj diario programado"
+                            t["proxima_ejecucion"] = candidato.isoformat()[:19]
+                            t["tiempo_restante"] = rest_str
+                            t["estado_hoy"] = f"Programada 1 vez al día. Próxima ejecución: Mañana a las {hora_ejec} (faltan {rest_str})."
+                            t["proxima_verificacion"] = candidato.isoformat()[:19]
                             cambios = True
                 else:
                     nueva = {
@@ -1291,6 +1343,10 @@ def ejecutar_ciclo_tareas_programadas() -> list[str]:
                 prox_dt = datetime.fromisoformat(prox_str)
             except Exception:
                 continue
+
+            # Salvaguarda: si es un sensor continuo por script python y prox_dt quedó atascado en el futuro lejano (>1 hora), resetear a ahora
+            if t.get("tipo_activacion") == "gatillo_script_python" and prox_dt > ahora + timedelta(hours=1):
+                prox_dt = ahora
 
             if ahora < prox_dt:
                 continue

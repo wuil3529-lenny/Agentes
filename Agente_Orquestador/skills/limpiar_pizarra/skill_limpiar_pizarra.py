@@ -44,17 +44,12 @@ DIRECTIVAS OPERATIVAS FUNDAMENTALES:
 """
 
 
-@tool
-def tool_limpiar_pizarra(id_ticket: str) -> str:
+def limpiar_pizarra_func(id_ticket: str) -> str:
     """
-    Extrae un ticket finalizado de la Bitacora.md, lo archiva en memoria/Tickets_Archivados.md
-    y vectoriza la solución en ChromaDB.
-    Solo se permite archivar tickets con estado COMPLETADO, CERRADO o ABORTADO.
-
-    Args:
-        id_ticket: Identificador del ticket (ej: 'TKT-DES-001' o 'TKT-SEC-015').
+    Función base en Python para extraer tickets finalizados de Bitacora.md,
+    archivarlos en memoria/Tickets_Archivados.md y vectorizarlos.
     """
-    print(f"\n[Agente Orquestador] Ejecutando: tool_limpiar_pizarra(id_ticket='{id_ticket}')...")
+    print(f"\n[Agente Orquestador] Ejecutando: limpiar_pizarra(id_ticket='{id_ticket}')...")
 
     raiz = _obtener_raiz_proyecto()
     ruta_bitacora = raiz / "Bitacora.md"
@@ -76,7 +71,7 @@ def tool_limpiar_pizarra(id_ticket: str) -> str:
 
         nuevos_tickets = []
         encontrado = False
-        ticket_borrado_contenido = ""
+        tickets_borrados = []
         estado_ticket = "DESCONOCIDO"
 
         for bloque in tickets:
@@ -86,7 +81,7 @@ def tool_limpiar_pizarra(id_ticket: str) -> str:
             # Coincidencia con el ID del ticket
             if primera_linea.startswith(id_limpio) or f" {id_limpio}" in primera_linea:
                 encontrado = True
-                ticket_borrado_contenido = "## " + bloque
+                tickets_borrados.append("## " + bloque)
 
                 # Extraer estado del ticket
                 m_estado = re.search(r"\n(?:-?\s*\*\*|###\s*)Estado[:\*\*]*\s*(.*?)(?=\n(?:-?\s*\*\*|###)|$)", "\n" + bloque, re.DOTALL | re.IGNORECASE)
@@ -115,6 +110,7 @@ def tool_limpiar_pizarra(id_ticket: str) -> str:
         ruta_archivados = raiz / "memoria" / "Tickets_Archivados.md"
         ruta_archivados.parent.mkdir(parents=True, exist_ok=True)
 
+        ticket_borrado_contenido = "\n\n".join(tickets_borrados)
         contenido_sin_links = re.sub(r'\[\[(.*?)\]\]', r'[\1]', ticket_borrado_contenido)
         with open(ruta_archivados, "a", encoding="utf-8") as f:
             f.write("\n\n" + contenido_sin_links.strip())
@@ -151,6 +147,19 @@ def tool_limpiar_pizarra(id_ticket: str) -> str:
 
     except Exception as e:
         return f"Error al limpiar la pizarra: {str(e)}"
+
+
+@tool
+def tool_limpiar_pizarra(id_ticket: str) -> str:
+    """
+    Extrae un ticket finalizado de la Bitacora.md, lo archiva en memoria/Tickets_Archivados.md
+    y vectoriza la solución en ChromaDB.
+    Solo se permite archivar tickets con estado COMPLETADO, CERRADO o ABORTADO.
+
+    Args:
+        id_ticket: Identificador del ticket (ej: 'TKT-DES-001' o 'TKT-SEC-015').
+    """
+    return limpiar_pizarra_func(id_ticket)
 
 
 if __name__ == "__main__":

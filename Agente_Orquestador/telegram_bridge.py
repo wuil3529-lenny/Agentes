@@ -32,23 +32,58 @@ def _obtener_credenciales_telegram() -> tuple[str, str]:
     return token, chat_id
 
 
-def enviar_mensaje_telegram(mensaje: str, remitente: str = "Agente_Orquestador", audio_url: str = "") -> str:
+
+def _dividir_texto_telegram(texto: str, max_chunk: int = 4000) -> list[str]:
+    """Divide un texto en bloques de max_chunk caracteres respetando párrafos y saltos de línea."""
+    if not texto or len(texto) <= max_chunk:
+        return [texto] if texto else []
+    partes = []
+    resto = texto.strip()
+    while len(resto) > max_chunk:
+        corte = resto[:max_chunk].rfind("\n\n")
+        if corte == -1 or corte < max_chunk // 2:
+            corte = resto[:max_chunk].rfind("\n")
+        if corte == -1 or corte < max_chunk // 2:
+            corte = resto[:max_chunk].rfind(" ")
+        if corte == -1 or corte < max_chunk // 2:
+            corte = max_chunk
+        partes.append(resto[:corte].strip())
+        resto = resto[corte:].strip()
+    if resto:
+        partes.append(resto)
+    return partes
+
+
+def enviar_mensaje_telegram(mensaje: str, remitente: str = "Agente_Orquestador", audio_url: str = "", espejear_en_consola: bool = True) -> str:
     """
     Envía un mensaje a través de Telegram usando el bot y asegura el espejo en la consola.
+    Soporta división automática si excede el límite de Telegram (4096 caracteres).
     """
     token, chat_id = _obtener_credenciales_telegram()
     res = "Telegram no configurado."
     if token and chat_id:
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": mensaje}
-        try:
-            r = requests.post(url, json=payload, timeout=10)
-            r.raise_for_status()
+        chunks = _dividir_texto_telegram(mensaje, max_chunk=4000)
+        exitos = 0
+        errores = []
+        for ch in chunks:
+            payload = {"chat_id": chat_id, "text": ch}
+            try:
+                r = requests.post(url, json=payload, timeout=15)
+                r.raise_for_status()
+                exitos += 1
+            except Exception as e:
+                errores.append(str(e))
+        if exitos > 0 and not errores:
             res = "Mensaje enviado con éxito."
-        except Exception as e:
-            res = f"Error enviando mensaje por Telegram: {e}"
+        elif exitos > 0:
+            res = f"Mensaje enviado parcialmente ({exitos}/{len(chunks)}): {'; '.join(errores)}"
+        else:
+            res = f"Error enviando mensaje por Telegram: {'; '.join(errores)}"
 
     # Espejo automático hacia la consola del Dashboard
+    if not espejear_en_consola:
+        return res
     try:
         from memory import publicar_mensaje, _cargar_canal
         canal = _cargar_canal("usuario")
@@ -283,24 +318,27 @@ def enviar_nota_voz_telegram(
     res_tg = "Telegram no configurado (nota de voz guardada en consola)."
 
     if archivo_enviar and Path(archivo_enviar).exists() and token and chat_id:
+        texto_completo = (caption or (texto_o_ruta_audio if not _es_ruta_audio_existente(texto_o_ruta_audio) else "")).strip()
+        es_texto_largo = len(texto_completo) > 950
+        caption_audio = texto_completo[:920] + "... 📜 (Texto completo a continuación 👇)" if es_texto_largo else texto_completo
+
         url_voice = f"https://api.telegram.org/bot{token}/sendVoice"
         try:
             with open(archivo_enviar, "rb") as f_audio:
                 mime_type = "audio/ogg" if str(archivo_enviar).lower().endswith(".ogg") else "audio/mpeg"
                 files = {"voice": (Path(archivo_enviar).name, f_audio, mime_type)}
                 data = {"chat_id": chat_id}
-                if caption:
-                    data["caption"] = caption[:950]
+                if caption_audio:
+                    data["caption"] = caption_audio
                 r = requests.post(url_voice, data=data, files=files, timeout=25)
                 if r.status_code == 200:
                     res_tg = "Nota de voz enviada por Telegram con éxito."
                 else:
-                    # Fallback a sendAudio si el formato requiere contenedor estándar
                     url_audio = f"https://api.telegram.org/bot{token}/sendAudio"
                     with open(ruta_mp3 or archivo_enviar, "rb") as f_mp3:
                         r2 = requests.post(
                             url_audio,
-                            data={"chat_id": chat_id, "caption": (caption or "")[:950], "title": "Voz Agente Orquestador"},
+                            data={"chat_id": chat_id, "caption": caption_audio, "title": "Voz Tripulación"},
                             files={"audio": (Path(ruta_mp3 or archivo_enviar).name, f_mp3, "audio/mpeg")},
                             timeout=25,
                         )
@@ -308,6 +346,16 @@ def enviar_nota_voz_telegram(
                         res_tg = "Audio enviado por Telegram con éxito."
         except Exception as e:
             res_tg = f"Error enviando nota de voz por Telegram: {e}"
+
+        # Si el texto era largo (>950 chars), enviar el texto 100% COMPLETO inmediatamente vía sendMessage
+        if es_texto_largo:
+            url_msg = f"https://api.telegram.org/bot{token}/sendMessage"
+            chunks = _dividir_texto_telegram(texto_completo, max_chunk=4000)
+            for ch in chunks:
+                try:
+                    requests.post(url_msg, json={"chat_id": chat_id, "text": ch}, timeout=15)
+                except Exception as e_ch:
+                    print(f"[telegram_bridge] Error enviando texto completo post-voz: {e_ch}")
 
     if espejear_en_consola:
         try:
@@ -437,6 +485,54 @@ def daemon_mode():
                                     )
                             else:
                                 enviar_mensaje_telegram("⚠️ Recibí tu nota de voz, pero no pude escuchar con claridad el audio. ¿Podrías repetirlo?")
+                        continue
+
+                    # 3. Foto o captura enviada por el usuario en Telegram
+                    photo_obj = msg.get("photo")
+                    doc_obj = msg.get("document")
+                    caption_msg = msg.get("caption", "").strip()
+
+                    file_id_img = None
+                    if photo_obj and isinstance(photo_obj, list) and len(photo_obj) > 0:
+                        file_id_img = photo_obj[-1].get("file_id")
+                    elif doc_obj and isinstance(doc_obj, dict) and ('image' in doc_obj.get("mime_type", "") or doc_obj.get("file_name", "").endswith(('.jpg', '.png', '.jpeg', '.webp'))):
+                        file_id_img = doc_obj.get("file_id")
+
+                    if file_id_img:
+                        print(f"[telegram_bridge] 📸 Captura/Foto recibida desde Telegram (file_id={file_id_img[:16]}...). Descargando...")
+                        try:
+                            r_info = requests.get(f"https://api.telegram.org/bot{token}/getFile", params={"file_id": file_id_img}, timeout=15)
+                            if r_info.status_code == 200:
+                                fp_tg = r_info.json().get("result", {}).get("file_path", "")
+                                if fp_tg:
+                                    ext_img = Path(fp_tg).suffix or ".jpg"
+                                    capturas_dir = _APP_ROOT / "Archivos_temporales"
+                                    capturas_dir.mkdir(parents=True, exist_ok=True)
+                                    ts_img = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    local_img = capturas_dir / f"captura_telegram_{ts_img}{ext_img}"
+                                    r_bin = requests.get(f"https://api.telegram.org/file/bot{token}/{fp_tg}", timeout=30)
+                                    if r_bin.status_code == 200:
+                                        local_img.write_bytes(r_bin.content)
+                                        print(f"[telegram_bridge] ✅ Captura guardada en: {local_img} ({len(r_bin.content)} bytes)")
+                                        texto_desc = f"[El usuario envió una captura de pantalla del móvil guardada en '{local_img.as_posix()}']"
+                                        if caption_msg:
+                                            texto_desc += f" Texto adjunto: '{caption_msg}'"
+                                        texto_desc += f"\nAnaliza esta imagen con tus herramientas de visión para diagnosticar el error."
+                                        if publicar_mensaje:
+                                            publicar_mensaje(
+                                                "usuario",
+                                                "Agente_Orquestador",
+                                                "mensaje_telegram",
+                                                {
+                                                    "texto": texto_desc,
+                                                    "ruta_foto": str(local_img),
+                                                    "caption": caption_msg,
+                                                },
+                                                "usuario",
+                                            )
+                        except Exception as e_foto:
+                            print(f"[telegram_bridge] Error descargando foto de Telegram: {e_foto}")
+                        continue
 
             time.sleep(1)
         except Exception as e:

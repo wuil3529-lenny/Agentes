@@ -29,47 +29,6 @@ export TZ="${TZ:-America/Caracas}"
 umask 077
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ═════════════════════════════════════════════════════════════════════════════
-# 🔐 [TKT-SEC-20261020151813] AUTO-SANEO DE PERMISOS DE ARCHIVOS SENSIBLES 🔐
-#
-# Mitiga el hallazgo H-01 (ALTO): /app/.env con permisos 0o777.
-# Bloque IDEMPOTENTE y TOLERANTE A FALLOS: intenta restringir a 0600 los
-# archivos con secretos en cada arranque. Si el archivo es un bind-mount del
-# host (root:root) y el usuario del contenedor no puede cambiarlo, emite una
-# ADVERTENCIA explícita con la acción requerida en el host, SIN abortar.
-# ═════════════════════════════════════════════════════════════════════════════
-endurecer_permisos() {
-    local archivo="$1"
-    local modo_deseado="${2:-600}"
-
-    [[ -e "$archivo" ]] || return 0
-
-    local modo_actual
-    modo_actual="$(stat -c '%a' "$archivo" 2>/dev/null || echo '???')"
-
-    if [[ "$modo_actual" == "$modo_deseado" ]]; then
-        ok "Permisos OK ($modo_actual): $archivo"
-        return 0
-    fi
-
-    if chmod "$modo_deseado" "$archivo" 2>/dev/null; then
-        ok "Permisos corregidos ($modo_actual -> $modo_deseado): $archivo"
-    else
-        local propietario
-        propietario="$(stat -c '%U:%G' "$archivo" 2>/dev/null || echo 'desconocido')"
-        warn "NO se pudo restringir $archivo (actual: $modo_actual, dueno: $propietario)."
-        warn "  -> Es un bind-mount del host o pertenece a otro usuario."
-        warn "  -> ACCION REQUERIDA EN EL HOST: chmod 600 <ruta_host>/.env"
-        warn "  -> En Windows: icacls .env /inheritance:r /grant:r \"%USERNAME%:R\""
-    fi
-}
-
-log "Aplicando hardening de permisos a archivos sensibles..."
-endurecer_permisos "/app/.env" 600
-endurecer_permisos "/app/Agente_Orquestador/data/credentials.json" 600
-endurecer_permisos "/app/Agente_Orquestador/data/token.json" 600
-# ═════════════════════════════════════════════════════════════════════════════
-
 # ── Colores para logs legibles en docker compose logs ────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -83,6 +42,132 @@ log()  { echo -e "${CYAN}[$(ts)] [start.sh]${NC} $*"; }
 ok()   { echo -e "${GREEN}[$(ts)] [start.sh ✓]${NC} $*"; }
 warn() { echo -e "${YELLOW}[$(ts)] [start.sh ⚠]${NC} $*"; }
 err()  { echo -e "${RED}[$(ts)] [start.sh ✗]${NC} $*" >&2; }
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 🔐 [TKT-SEC-20261020151813] AUTO-SANEO DE PERMISOS DE ARCHIVOS SENSIBLES 🔐
+#
+# Mitiga el hallazgo H-01 (ALTO): /app/.env con permisos 0o777.
+# Bloque IDEMPOTENTE y TOLERANTE A FALLOS: intenta restringir a 0600 los
+# archivos con secretos en cada arranque. Si el archivo es un bind-mount del
+# host (root:root) y el usuario del contenedor no puede cambiarlo, emite una
+# ALERTA CRÍTICA VISIBLE (fail-loud) con la acción requerida en el host,
+# la persiste en /app/logs/seguridad_permisos.log y NO aborta el arranque.
+# [TKT-SEC-20261020190613] Endurecido: alerta ya NO es silenciosa.
+# ═════════════════════════════════════════════════════════════════════════════
+endurecer_permisos() {
+    local archivo="$1"
+    local modo_deseado="${2:-600}"
+
+    [[ -e "$archivo" ]] || return 0
+
+    local modo_actual
+    modo_actual="$(stat -c '%a' "$archivo" 2>/dev/null || echo '???')"
+
+    # [TKT-SEC-20261020205030] FIX BUG LOGICO: solo el modo exacto deseado (0600)
+    # se considera seguro. Los modos 444/400/644 son world-readable y NO deben
+    # aceptarse como "seguros": eso anulaba el hardening y dejaba el hallazgo H-01
+    # (ALTO) vivo entre reinicios. Si el modo no coincide, se INTENTA el chmod.
+    if [[ "$modo_actual" == "$modo_deseado" ]]; then
+        ok "Permisos seguros ($modo_actual): $archivo"
+        return 0
+    fi
+
+    if chmod "$modo_deseado" "$archivo" 2>/dev/null; then
+        ok "Permisos corregidos ($modo_actual -> $modo_deseado): $archivo"
+        return 0
+    fi
+
+    # ── FALLO: no se pudo restringir (bind-mount del host / otro propietario) ──
+    local propietario
+    propietario="$(stat -c '%U:%G' "$archivo" 2>/dev/null || echo 'desconocido')"
+
+    # [TKT-SEC-20261020190613] ALERTA CRÍTICA VISIBLE — NO silenciosa.
+    err "════════════════════════════════════════════════════════════════════"
+    err "🔴 ALERTA DE SEGURIDAD CRÍTICA — PERMISOS INSEGUROS NO REMEDIABLES"
+    err "════════════════════════════════════════════════════════════════════"
+    err "  Archivo   : $archivo"
+    err "  Permisos  : $modo_actual (esperado: $modo_deseado)"
+    err "  Propietario: $propietario  |  Proceso: $(id -un):$(id -gn)"
+    err ""
+    err "  CAUSA: El archivo es un BIND-MOUNT del host y pertenece a otro"
+    err "         usuario (root). El proceso del contenedor corre como"
+    err "         'tripulacion' (uid 1001) SIN CAP_FOWNER, por lo que chmod"
+    err "         falla con 'Operation not permitted'."
+    err ""
+    err "  RIESGO: Exfiltración y ENVENENAMIENTO de credenciales de la flota"
+    err "          (API keys LLM, N8N_API_KEY, N8N_BASIC_AUTH_PASSWORD, OAuth)."
+    err ""
+    err "  ACCIÓN REQUERIDA EN EL HOST (ejecutar como Administrador):"
+    err "    Linux/macOS : chmod 600 <ruta_host>/.env"
+    err "    Windows     : icacls .env /inheritance:r /grant:r \"%USERNAME%:R\""
+    err "    Ver script : /app/Subagente_Desarrollo/proyectos/remediar_permisos_env.sh"
+    err "════════════════════════════════════════════════════════════════════"
+
+    # Persistir el hallazgo para auditoría del Subagente_Ciberseguridad
+    local log_sec="/app/logs/seguridad_permisos.log"
+    mkdir -p /app/logs 2>/dev/null || true
+    {
+        echo "[$(ts)] ALERTA_CRITICA archivo=$archivo modo=$modo_actual esperado=$modo_deseado propietario=$propietario proceso=$(id -un) causa=bind_mount_root chmod=EPERM"
+    } >> "$log_sec" 2>/dev/null || true
+
+    return 0
+}
+
+log "Aplicando hardening de permisos a archivos sensibles..."
+endurecer_permisos "/app/.env" 600 || true
+endurecer_permisos "/app/Agente_Orquestador/data/credentials.json" 600 || true
+endurecer_permisos "/app/Agente_Orquestador/data/token.json" 600 || true
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔒 [TKT-SEC-20261021085734] GUARD ESTRICTO DE PERMISOS .env (FAIL-CLOSED) 🔒
+#
+# Complementa endurecer_permisos(): si tras el auto-saneo /app/.env conserva
+# bits de acceso para grupo u otros (world-readable/writable/executable),
+# el arranque ABORTA con código 78 (EX_CONFIG) para evitar operar con
+# credenciales de la flota expuestas o envenenables.
+# Idempotente: no se duplica si ya existe el marcador.
+# ═══════════════════════════════════════════════════════════════════════════════
+verificar_permisos_env_estricto() {
+    local archivo="/app/.env"
+    [[ -e "$archivo" ]] || return 0
+
+    local modo_actual
+    modo_actual="$(stat -c '%a' "$archivo" 2>/dev/null || echo '???')"
+
+    # Modo octal de 3 dígitos: el tercer dígito son los bits de "otros".
+    # Rechazamos cualquier modo != 600 (grupo/otros con acceso).
+    if [[ "$modo_actual" == "600" ]]; then
+        ok "GUARD .env: permisos estrictos confirmados (600)."
+        return 0
+    fi
+
+    err "════════════════════════════════════════════════════════════════════════"
+    err "🔴 ARRANQUE ABORTADO — /app/.env CON PERMISOS EXCESIVOS"
+    err "════════════════════════════════════════════════════════════════════════"
+    err "  Archivo    : $archivo"
+    err "  Modo actual: $modo_actual  (requerido: 600)"
+    err "  Propietario: $(stat -c '%U:%G' "$archivo" 2>/dev/null || echo 'desconocido')"
+    err "  Proceso    : $(id -un):$(id -gn) (uid=$(id -u))"
+    err ""
+    err "  El archivo concentra credenciales de TODA la flota (LLM API keys,"
+    err "  N8N_API_KEY, N8N_BASIC_AUTH_PASSWORD, OAuth Gmail, SUPABASE, NGROK)."
+    err "  Operar con acceso de grupo/otros permite exfiltración y envenenamiento."
+    err ""
+    err "  ACCIÓN REQUERIDA:"
+    err "    chmod 600 /app/.env"
+    err "    (o en el HOST si es bind-mount: chmod 600 <ruta_host>/.env)"
+    err "════════════════════════════════════════════════════════════════════════"
+
+    mkdir -p /app/logs 2>/dev/null || true
+    echo "[$(ts)] ARRANQUE_ABORTADO motivo=permisos_env_excesivos modo=$modo_actual requerido=600" \
+        >> /app/logs/seguridad_permisos.log 2>/dev/null || true
+
+    exit 78
+}
+
+verificar_permisos_env_estricto
+# ═══════════════════════════════════════════════════════════════════════════════
+# ═════════════════════════════════════════════════════════════════════════════
 
 # ── Banner ───────────────────────────────────────────────────────────────────
 echo ""

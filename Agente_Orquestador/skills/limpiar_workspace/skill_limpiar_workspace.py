@@ -43,7 +43,8 @@ CARPETAS_RAIZ_OFICIALES = {
     "Subagente_Asistencia",
     "Subagente_Ciberseguridad",
     "Subagente_Desarrollo",
-    "Subagente_Diseno"
+    "Subagente_Diseno",
+    "skills_personal"
 }
 
 CARPETAS_LEGADAS_PERMITIDAS = {
@@ -97,7 +98,10 @@ ARCHIVOS_AGENTE_OFICIALES = {
     "Perfil_Agente_Orquestador.md",
     "Memoria_Ejecucion_Agente_Orquestador.md",
     "Perfil_Luffy.md",
-    "Memoria_Ejecucion_Luffy.md"
+    "Memoria_Ejecucion_Luffy.md",
+    "identidad_agentes.py",
+    "bucle_autocorreccion.py",
+    "qa_gherkin.py"
 }
 
 

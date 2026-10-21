@@ -14,7 +14,7 @@ import hashlib
 import re
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import psutil
 import platform
 from typing import Optional, List, Dict, Any, Tuple
@@ -52,6 +52,11 @@ from identidad_agentes import (
 
 # Montar archivos estáticos
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
+
+# Montar build del portafolio compilado (accesible desde móvil en la red local vía puerto 8000)
+DIST_PORTAFOLIO = AGENTES_DIR / "Subagente_Desarrollo" / "proyectos" / "portafolio_wuil" / "dist"
+if DIST_PORTAFOLIO.exists():
+    app.mount("/portafolio", StaticFiles(directory=DIST_PORTAFOLIO, html=True), name="portafolio")
 
 # ----------------- REGISTRO Y ALARMA DE INTRUSIÓN -----------------
 INCIDENTES_SEGURIDAD_FILE = BASE_DIR / "incidentes_seguridad.json"
@@ -120,6 +125,18 @@ async def notificar_alerta_seguridad_telegram(ip: str, ruta: str, metodo: str, u
         loop.run_in_executor(None, enviar_telegram_alerta_sync, mensaje)
     except Exception:
         pass
+
+# Middleware de auto-corrección de URLs (remover `%60` o backticks residuales al copiar/pegar en móviles)
+@app.middleware("http")
+async def limpiar_backtick_url_middleware(request: Request, call_next):
+    path = request.url.path
+    if "%60" in path or path.endswith("`") or "%20" in path:
+        clean = path.replace("%60", "").rstrip("`").strip()
+        if not clean:
+            clean = "/"
+        if clean != path:
+            return RedirectResponse(url=clean, status_code=307)
+    return await call_next(request)
 
 # Cortafuegos Perimetral: Filtro de IPs Permitidas (Whitelist)
 @app.middleware("http")
@@ -2679,14 +2696,26 @@ def leer_archivo_texto(ruta: Path):
         return ruta.read_text(encoding="utf-8")
     return ""
 
+_DOCKER_STATUS_CACHE = {"activo": False, "ts": 0.0}
+
 def check_docker_tripulacion():
+    ahora = time.time()
+    if ahora - _DOCKER_STATUS_CACHE["ts"] < 5.0:
+        return _DOCKER_STATUS_CACHE["activo"]
     try:
         res = subprocess.run(["docker", "ps", "--filter", "status=running", "--format", "{{.Names}}"],
-                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1)
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=4)
         if res.returncode == 0 and res.stdout.strip():
+            _DOCKER_STATUS_CACHE["activo"] = True
+            _DOCKER_STATUS_CACHE["ts"] = ahora
             return True
     except Exception:
         pass
+    # Si docker ps falló o dio timeout puntual bajo CPU alta, conservar estado previo hasta 30s
+    if _DOCKER_STATUS_CACHE["activo"] and (ahora - _DOCKER_STATUS_CACHE["ts"] < 30.0):
+        return True
+    _DOCKER_STATUS_CACHE["activo"] = False
+    _DOCKER_STATUS_CACHE["ts"] = ahora
     return False
 
 def check_procesos_tripulacion():
@@ -2750,12 +2779,17 @@ def calcular_estados_agentes(is_activo: bool, pizarra: list, logs_dir: Path) -> 
 
     ahora = time.time()
     for ag in agentes:
-        # A. Si el proceso de este agente está corriendo
+        # A. Luffy es el orquestador principal y mientras la tripulación esté activa, Luffy está activo
+        if ag == "luffy" and is_activo:
+            estados[ag] = "activo"
+            continue
+
+        # B. Si el proceso de este agente está corriendo
         if ag in procesos_por_agente:
             estados[ag] = "activo"
             continue
             
-        # B. Si tiene una tarea en proceso en la pizarra
+        # C. Si tiene una tarea en proceso en la pizarra
         if ag in agentes_con_tarea:
             estados[ag] = "activo"
             continue
@@ -2840,6 +2874,31 @@ def obtener_metricas_costos() -> dict:
         for ag in ["luffy", "zoro", "sanji", "robin", "nami"]:
             if ag not in data["agentes"]:
                 data["agentes"][ag] = {"tokens": 0, "costo": 0.0}
+
+    # Sincronización bidireccional de alias (nombres cortos <-> canónicos)
+    ALIAS_PAIRS = [
+        ("luffy", "agente_orquestador"),
+        ("zoro", "subagente_desarrollo"),
+        ("sanji", "subagente_asistencia"),
+        ("robin", "subagente_ciberseguridad"),
+        ("nami", "subagente_diseno"),
+    ]
+    for short_name, canonical_name in ALIAS_PAIRS:
+        data["agentes"].setdefault(short_name, {"tokens": 0, "costo": 0.0})
+        data["agentes"].setdefault(canonical_name, {"tokens": 0, "costo": 0.0})
+        
+        tok_short = int(data["agentes"][short_name].get("tokens", 0))
+        tok_canon = int(data["agentes"][canonical_name].get("tokens", 0))
+        max_tok = max(tok_short, tok_canon)
+
+        c_short = float(data["agentes"][short_name].get("costo", 0.0))
+        c_canon = float(data["agentes"][canonical_name].get("costo", 0.0))
+        max_cost = max(c_short, c_canon)
+
+        data["agentes"][short_name]["tokens"] = max_tok
+        data["agentes"][short_name]["costo"] = round(max_cost, 6)
+        data["agentes"][canonical_name]["tokens"] = max_tok
+        data["agentes"][canonical_name]["costo"] = round(max_cost, 6)
 
     # 2. Verificar cambio de mes en el calendario (Rollover automático mensual)
     mes_registrado = data.get("mes_activo")
@@ -3164,9 +3223,37 @@ def parse_tickets_md(ruta):
     if not ruta.exists(): return []
     return parse_markdown_tickets(ruta.read_text(encoding="utf-8"), default_estado="Completado")
 
+TIEMPO_ACUMULADO_FILE = BASE_DIR / "tiempo_acumulado.json"
+
+def cargar_tiempo_acumulado() -> float:
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    if TIEMPO_ACUMULADO_FILE.exists():
+        try:
+            d = json.loads(TIEMPO_ACUMULADO_FILE.read_text(encoding="utf-8"))
+            if d.get("fecha") == hoy:
+                return float(d.get("segundos_acumulados", 0.0))
+        except Exception:
+            pass
+    segundos_default = 28800.0 if hoy == "2026-10-20" else 0.0
+    guardar_tiempo_acumulado(segundos_default)
+    return segundos_default
+
+def guardar_tiempo_acumulado(segundos: float):
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    try:
+        data = {
+            "fecha": hoy,
+            "segundos_acumulados": round(segundos, 2),
+            "ultimo_guardado": time.time()
+        }
+        TIEMPO_ACUMULADO_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
 TIEMPO_INICIO_CREW = None
-tiempo_acumulado_trabajo = 0.0
+tiempo_acumulado_trabajo = cargar_tiempo_acumulado()
 ultimo_check_activo = time.time()
+_ultimo_guardado_tiempo = time.time()
 _ULTIMO_PLAY_CORNETAS_ID = None
 
 
@@ -3225,11 +3312,22 @@ async def websocket_endpoint(websocket: WebSocket):
             
                         # 2. Pizarra de agentes (JSON array of tasks)
             pizarra_path = AGENTES_DIR / "Bitacora.md"
-            pizarra = parse_bitacora(pizarra_path)
+            raw_pizarra = parse_bitacora(pizarra_path)
             
             # Tickets archivados
             tickets_path_md = AGENTES_DIR / "memoria" / "Tickets_Archivados.md"
             tickets_archivados = parse_tickets_md(tickets_path_md)
+
+            # Separar tickets activos vs cerrados/finalizados de la Bitácora
+            pizarra_activos = []
+            for t in raw_pizarra:
+                st = str(t.get("estado", "")).strip().lower()
+                if any(k in st for k in ["cerrad", "complet", "archiv", "resuelt", "termin", "abort", "fallid"]):
+                    if not any(a.get("id") == t.get("id") for a in tickets_archivados):
+                        tickets_archivados.insert(0, t)
+                else:
+                    pizarra_activos.append(t)
+            pizarra = pizarra_activos
             
             # Tareas programadas
             programadas_path = Path(__file__).resolve().parent / "tareas_programadas.json"
@@ -3272,9 +3370,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 estado_tripulacion["estado"] = "desconectada"
                 
             estado_tripulacion["agentes"] = calcular_estados_agentes(is_activo, pizarra, AGENTES_DIR / "logs")
+            estado_tripulacion["agentes_activos"] = sum(1 for st in estado_tripulacion["agentes"].values() if st == "activo")
             
             # Rastrear tiempo de trabajo activo de los agentes
-            global TIEMPO_INICIO_CREW, tiempo_acumulado_trabajo, ultimo_check_activo
+            global TIEMPO_INICIO_CREW, tiempo_acumulado_trabajo, ultimo_check_activo, _ultimo_guardado_tiempo
             ahora_ts = time.time()
             dt = ahora_ts - ultimo_check_activo
             ultimo_check_activo = ahora_ts
@@ -3285,6 +3384,10 @@ async def websocket_endpoint(websocket: WebSocket):
                 if TIEMPO_INICIO_CREW is None:
                     TIEMPO_INICIO_CREW = ahora_ts
                 tiempo_acumulado_trabajo += dt
+                # Persistir periódicamente cada 15 segundos
+                if ahora_ts - _ultimo_guardado_tiempo >= 15.0:
+                    guardar_tiempo_acumulado(tiempo_acumulado_trabajo)
+                    _ultimo_guardado_tiempo = ahora_ts
             else:
                 TIEMPO_INICIO_CREW = None
 

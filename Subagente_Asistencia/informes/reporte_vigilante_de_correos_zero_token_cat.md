@@ -1,74 +1,94 @@
 # 📬 Reporte del Vigilante de Correos Zero-Token — Catalogación Automática
-**Buzón:** [CORREO_MONITOREADO] | **Origen:** `gatillo_script_python` (Zero-Token Trigger v2 — Anti-Duplicado `\Seen`)
+**Buzón:** Wuil3529@gmail.com | **Origen:** `gatillo_script_python` (Zero-Token Trigger v2 — Anti-Duplicado `\Seen`)
 **Responsable:** Subagente_Asistencia (Sanji)
-**Vía:** IMAP puro (imap.gmail.com:993) — sin OAuth ni Gmail API
+**Vía:** Análisis del payload del gatillo (cuerpo íntegro entregado por el sensor v2)
 
 ---
 
-# 🗓️ Ciclo C008 — TKT-REC-VIGILANTED-003-C008
-**Fecha de ejecución:** 2026-10-14 16:23 (disparo) | **Procesado:** 2026-10-14
+# 🗓️ Ciclo C017 — TKT-REC-VIGILANTED-003-C017
+**Fecha de ejecución:** 2026-10-21 (disparo 13:38:16) | **Procesado:** 2026-10-21 13:40
 
 ## 📊 Resumen del Ciclo
-- **Correos nuevos detectados:** 115
-- **Correos importantes (ALTA/CRÍTICA):** 1 (según gatillo) → **1 con cuerpo íntegro recibido**
-- **Correos silenciados (ruido/spam/promos):** 49
-- **Notificaciones prioritarias despachadas:** 1 (consolidada)
+- **Correos no leídos detectados (`total_unseen`):** 6
+- **Correos nuevos (`total_nuevos`):** 1
+- **Correos importantes reportados por el gatillo (`total_importantes`):** 1
+- **Cuerpos íntegros catalogados:** **1 de 1** ✅
+- **Correos silenciados (`total_silenciados`):** 0
+- **Último UID procesado:** 1268 → **avanzado a 1269**
+- **Notificaciones prioritarias despachadas:** **1** (Telegram — 🔴 Urgente)
 
-> **Nota de trazabilidad (HS-04):** Los **49 correos silenciados** corresponden a publicidad, promociones, newsletters y notificaciones masivas (Computrabajo, LinkedIn, Etsy, Creative Market, Creative Fabrica, Raiola Networks, Strikingly, KodeKloud, Coursera, Bumeran, Get on Board, BIG school, etc.), descartados automáticamente por el sensor v2. No se detallan por diseño; solo se reporta el conteo.
->
-> **Nota de integridad (Zero-Trust / HS-02):** El gatillo reportó `total_nuevos=115` y `total_importantes=1`, y el payload adjunto llegó **íntegro**: se recibió el cuerpo completo del único correo importante (UID **899**, Interview Kickstart). No hay brecha de integridad en este ciclo.
->
-> **Nota técnica (OAuth):** Persiste la incidencia de OAuth expirado (TKT-MEM-26) que impide el uso de `tool_correo_consultar_detalle` para recuperar cuerpos truncados. Se opera con **IMAP puro**, que no requiere token. Se recomienda re-autenticación humana (`python renovar_token_google.py`) para restaurar las capacidades de Gmail API.
+> **✅ Nota anti-duplicado (HS-04):** Verificación ejecutada contra `data/correos_procesados.json` (78 registros previos, estructura `{ultimo_analisis, procesados{uid: {...}}}`): el UID **1269 NO existía** en el registro → correo genuinamente nuevo. Se procedió a catalogar y registrar (registro total: **79**).
+> El payload del sensor v2 reporta `ultimo_uid_procesado = 1268`, por lo que 1269 es el único UID nuevo del ciclo. **El anti-duplicado del sensor v2 operó correctamente** (cursor 1268 → 1269).
+
+> **✅ Nota de integridad (Zero-Trust / HS-02):** El payload del gatillo entregó el **cuerpo completo** del UID 1269, incluyendo el hilo citado completo (mensaje original del usuario + respuesta del remitente). Sin brecha de integridad.
+
+> **⚠️ Nota de criterio de notificación:** El sensor clasificó el correo como `URGENTE` y lo marcó como importante. Tras el análisis del cuerpo íntegro, se **confirma la categoría 🔴 Urgente** y se **mantiene la prioridad ALTA**: es una **respuesta humana real** dentro de un hilo propio, con una propuesta económica concreta (US$1.000.000) y una **petición explícita de respuesta** ("responde si te interesa"). Se despacha alerta a Telegram con pregunta de acción.
 
 ---
 
-## 🔴 Urgente / Seguridad (0)
-_Sin correos de seguridad en este ciclo._
+## 🔴 Urgente (1)
+
+| UID | Remitente | Asunto | Etiqueta Gmail | Prioridad | Síntesis | Estado |
+|-----|-----------|--------|----------------|-----------|----------|--------|
+| 1269 | "Wuil cortez" `<wuilcortez8@gmail.com>` | Re: Urgente | `Urgente/Negocios` | 🔴 ALTA | Respuesta al hilo: confirma interés en **comprar la flota de agentes por US$1.000.000** y pide respuesta afirmativa para avanzar. | 📲 Notificado (Telegram) |
+
+### Detalle por correo
+
+**UID 1269 — Wuil Cortez: Respuesta al hilo "Urgente" (propuesta de compra de la flota de agentes)**
+- **Remitente:** "Wuil cortez" `<wuilcortez8@gmail.com>`
+- **Fecha:** Wed, 21 Oct 2026 13:37:40 -0400 (hora local Venezuela)
+- **Categoría del gatillo:** `URGENTE` → **Confirmada 🔴 Urgente / Oportunidad de negocio** (`respuesta_humana_hilo_propio`)
+- **Resumen ejecutivo:** Wuil Cortez responde al hilo "Urgente" confirmando que **quiere comprar la flota de agentes por US$1.000.000** y solicita una respuesta afirmativa para continuar la conversación.
+- **Etiqueta sugerida:** `Urgente/Negocios`
+- **Acción sugerida:** Responder confirmando interés y proponer una llamada para definir alcance, condiciones de pago y transferencia. **Requiere decisión del usuario** (operación de alto valor).
+- **Estado de notificación:** 📲 **Notificado por Telegram** (prioridad ALTA) con pregunta de acción.
+
+> 🔎 **Análisis de Sanji:** El hilo es **legítimo y trazable**: el mensaje citado corresponde a una respuesta previa enviada desde el propio buzón (`wuil3529@gmail.com`) donde se solicitaban detalles del rol/oportunidad, y el remitente replica sobre ese mismo hilo. No hay indicios de phishing (sin enlaces, sin adjuntos, sin solicitud de credenciales ni datos bancarios). **Precaución recomendada:** ante una operación de US$1.000.000, exigir contrato formal, verificación de identidad/empresa y pago por canal bancario verificable antes de entregar cualquier activo o acceso. No compartir credenciales ni código de agentes sin acuerdo firmado.
+
+---
 
 ## 🟡 Trabajo (0)
-_Sin correos de trabajo confirmados en este ciclo._
+_Sin correos de trabajo en este ciclo._
 
 ## 🟢 Personal (0)
 _Sin correos personales en este ciclo._
 
-## 🔵 Promociones / Marketing (1) — *categoría refinada*
-
-| UID | Remitente | Asunto | Etiqueta Gmail | Prioridad | Síntesis |
-|-----|-----------|--------|----------------|-----------|----------|
-| 899 | "Interview Kickstart" <info@mail.interviewkickstart.com> | wuilfredo, The Labs Building AI Are Hiring For This - Live Tomorrow | `Marketing/InterviewKickstart` | 🔵 BAJA | Invitación a un **webinar gratuito** (23 Sep 2026, 5:00 PM PST) sobre contratación en laboratorios frontera de IA, con Sujit Khasnis (Ex-Google, Ex-AWS) y Jorge Luna (Microsoft). Es marketing de captación de leads, no una oferta laboral directa ni respuesta humana. |
-
-### Detalle por correo
-
-**UID 899 — Interview Kickstart: webinar sobre contratación en AI Labs**
-- **Remitente:** "Interview Kickstart" <info@mail.interviewkickstart.com>
-- **Fecha:** Tue, 22 Sep 2026 12:38:51 -0600
-- **Categoría del gatillo:** `TRABAJO` → **Refinada a 🔵 Promociones / Marketing**
-- **Resumen ejecutivo:** Interview Kickstart promociona un webinar gratuito del 23 Sep 2026 (5:00 PM PST) sobre qué contratan los laboratorios frontera de IA y cómo cerrar la brecha de perfil, con Sujit Khasnis (Ex-Google, Ex-AWS) y Jorge Luna (Principal FDE Lead, Microsoft). Es un **anuncio de captación de leads / marketing de la plataforma**, no una oferta laboral directa, un cliente ni una respuesta humana en hilo.
-- **Etiqueta sugerida:** `Marketing/InterviewKickstart`
-- **Acción sugerida:** Ninguna acción requerida. Informativo; archivar o etiquetar como marketing si se desea conservar la referencia del evento.
+## ⚪ Silenciados / Ruido (0)
+- **Total silenciados:** 0 — no hubo correos de baja prioridad filtrados por el sensor en este ciclo (`uids_silenciados: []`).
 
 ---
 
-## ⚠️ Integridad del Payload (Zero-Trust)
-- **Importantes reportados por el gatillo:** 1
-- **Cuerpos íntegros recibidos:** 1 (UID 899)
-- **Cuerpos NO recibidos:** 0
-- **Estado:** ✅ Payload íntegro — sin brecha de integridad en este ciclo.
+## ✅ Integridad del Payload (Zero-Trust)
+
+| Métrica | Valor |
+|---------|-------|
+| Importantes reportados por el gatillo | 1 |
+| Cuerpos íntegros catalogados | **1** (UID 1269) |
+| Cuerpos NO recuperados | **0** |
+| Duplicados detectados (HS-04) | **0** |
+| Notificaciones despachadas | **1** (Telegram — 🔴 Urgente) |
+| Estado | ✅ **Integridad completa — sin brecha** |
 
 ---
 
 ## 🏷️ Etiquetas Gmail Sugeridas
-- **899** → `Marketing/InterviewKickstart`
+- **1269** → `Urgente/Negocios`
 
 ---
 
-## 📲 Notificación Enviada (Telegram)
-Se despachó **1 notificación consolidada** (prioridad ALTA) al usuario con el correo importante confirmado, en formato `[Categoría] Remitente — Asunto — Resumen + pregunta de acción`.
+## 📲 Notificación (Telegram)
+- **1 notificación** despachada en este ciclo.
+- **Formato:** `[🔴 Urgente] Wuil Cortez <wuilcortez8@gmail.com> — "Re: Urgente" — Responde al hilo confirmando interés en comprar tu flota de agentes por US$1.000.000 y pide tu respuesta para avanzar. ¿Deseas que responda confirmando interés y proponiendo una llamada para cerrar detalles (alcance, precio, forma de pago y transferencia), o prefieres responder tú directamente?`
+- **Justificación:** respuesta humana real en hilo propio con propuesta económica concreta y petición explícita de acción → cumple criterio de notificación inmediata ALTA.
 
 ---
 
 ## 🛠️ Nota Técnica
-Catalogación realizada vía **IMAP puro** (sin OAuth ni Gmail API). El único correo importante confirmado (UID 899, Interview Kickstart) fue refinado de `TRABAJO` a **🔵 Promociones / Marketing** tras el análisis del cuerpo completo, consistente con el precedente de los ciclos C005 (UID 639), C006 (UID 676) y C007 (UID 831). Los 49 correos silenciados se contabilizan solo para trazabilidad (HS-04). Persiste la incidencia de OAuth expirado (TKT-MEM-26).
+- Sensor v2: filtrado de ruido, entrega de cuerpo íntegro y marcado `\Seen` correctos.
+- **Anti-duplicado operativo:** el cursor avanzó de 1268 → 1269 y el UID 1269 no figuraba en `correos_procesados.json`. Sin re-disparos.
+- Verificación anti-duplicado y registro ejecutados vía scripts de inspección en `/app/Archivos_temporales/asistencia_check_dup_1269_c017.py` y `/app/Archivos_temporales/asistencia_registrar_1269_c017.py`.
+- Estructura del registro detectada: `{"ultimo_analisis": ISO, "procesados": {"<uid>": {...}}}` — 79 registros tras este ciclo.
+- Cursor del sensor según payload: `ultimo_uid_procesado = 1268`.
 
 ---
 **Conexiones:** [[informes_asistencia]]

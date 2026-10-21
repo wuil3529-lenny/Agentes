@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sensor Zero-Token v2.1: Vigilante de Correos IMAP con FILTRO DE PRIORIDAD
+Sensor Zero-Token v2.3: Vigilante de Correos IMAP con FILTRO DE PRIORIDAD
 y ANTI-DUPLICADO DEFINITIVO (marca \\Seen SOLO tras confirmacion de notificacion).
 
 FIX del bug de re-disparo (patron C001-C004) — TKT-DEV-20261014001:
@@ -49,6 +49,13 @@ import email
 from email.header import decode_header
 from pathlib import Path
 
+# Forzar UTF-8 en stdout para soportar emojis y caracteres de correos
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 BASE_DIR = Path(__file__).resolve().parent
 NOTIFICADOS_PATH = BASE_DIR / "correos_notificados.json"
 MAX_CORREOS = int(os.getenv("SENSOR_MAX_CORREOS", "200"))
@@ -81,13 +88,16 @@ EMAIL_PASS = os.getenv("KEEP_APP_PASSWORD", "").strip().strip('"')
 
 REMITENTES_RUIDO = [
     "noreply@", "no-reply@", "newsletter", "marketing", "promo",
-    "email@email.", "info@email.", "updates-noreply@", "jobalerts-noreply@",
-    "jobs-noreply@", "notifications@", "mailer", "info@m.", "hola@",
+    "email@email.", "info@email.", "updates-noreply@",
+    "notifications@", "mailer", "info@m.", "hola@",
 ]
 DOMINIOS_RUIDO = [
-    "etsy.com", "coursera.org", "computrabajo", "strikingly", "creativemarket",
-    "creativefabrica", "raiola", "ngrok", "banplus", "eskailet", "linkedin.com",
+    "etsy.com", "coursera.org", "strikingly", "creativemarket",
+    "creativefabrica", "raiola", "ngrok", "banplus", "eskailet",
     "higgsfield.ai", "mailchimp", "sendgrid", "hubspot", "substack",
+]
+DOMINIOS_LABORALES = [
+    "computrabajo", "linkedin.com", "getonboard", "getonbrd", "indeed", "bumeran", "zonajobs",
 ]
 ASUNTO_RUIDO = [
     "newsletter", "promo", "descuento", "oferta", "sale", "black friday",
@@ -101,10 +111,10 @@ ASUNTO_URGENTE = [
     "action required", "accion requerida", "cuenta bloqueada",
 ]
 ASUNTO_TRABAJO = [
-    "job", "empleo", "vacante", "postulacion", "entrevista",
+    "job", "empleo", "vacante", "postulacion", "postulación", "entrevista",
     "interview", "reclut", "hiring", "candidate", "candidato", "propuesta",
     "contrato", "proyecto", "cliente", "reunion", "meeting",
-    "invoice", "cotizacion",
+    "invoice", "cotizacion", "novedades en tu postulación", "novedades en tu postulacion",
 ]
 
 
@@ -127,23 +137,37 @@ def _decodificar(valor):
 def _clasificar_prioridad(remitente, asunto):
     rem_l = (remitente or "").lower()
     asu_l = (asunto or "").lower()
+
+    # 1. Asuntos de alta urgencia siempre tienen prioridad
+    for k in ASUNTO_URGENTE:
+        if k in asu_l:
+            return "URGENTE", True
+
+    # 2. Plataformas laborales autorizadas (Computrabajo, LinkedIn, Get on Board, etc.)
+    for d in DOMINIOS_LABORALES:
+        if d in rem_l:
+            return "TRABAJO", True
+
+    # 3. Palabras clave de trabajo / empleo en el asunto
+    for k in ASUNTO_TRABAJO:
+        if k in asu_l:
+            return "TRABAJO", True
+
+    # 4. Filtro de ruido de marketing, promociones o listas automáticas
     for d in DOMINIOS_RUIDO:
         if d in rem_l:
             return "PROMOCIONES", False
     for r in REMITENTES_RUIDO:
         if r in rem_l:
-            if any(k in asu_l for k in ASUNTO_URGENTE):
-                return "URGENTE", True
             return "PROMOCIONES", False
     for k in ASUNTO_RUIDO:
         if k in asu_l:
             return "PROMOCIONES", False
-    for k in ASUNTO_URGENTE:
-        if k in asu_l:
-            return "URGENTE", True
-    for k in ASUNTO_TRABAJO:
-        if k in asu_l:
-            return "TRABAJO", True
+
+    # 5. Correos directos de personas reales (cuentas personales de correo)
+    if any(p in rem_l for p in ["@gmail.com", "@outlook.com", "@hotmail.com", "@yahoo.com"]):
+        return "PERSONAL", True
+
     return "OTROS", False
 
 
@@ -182,26 +206,75 @@ def _guardar_notificados(data):
         pass
 
 
+def _limpiar_texto(texto: str) -> str:
+    if not texto:
+        return ""
+    import re
+    if "<" in texto and ">" in texto:
+        texto = re.sub(r"(?is)<(script|style).*?>.*?(</\1>)", " ", texto)
+        texto = re.sub(r"(?s)<.*?>", " ", texto)
+    texto = re.sub(r"\s+", " ", texto).strip()
+    return texto[:280]
+
+
+MAX_CUERPO_CHARS = int(os.getenv("SENSOR_MAX_CUERPO_CHARS", "6000"))
+
+
+def _html_a_texto(txt):
+    """Convierte HTML a texto legible sin dependencias externas."""
+    import re as _re
+    import html as _html
+    txt = _re.sub(r"(?is)<(script|style)[^>]*>.*?</\1>", " ", txt)
+    txt = _re.sub(r"(?i)<br\s*/?>", "\n", txt)
+    txt = _re.sub(r"(?i)</(p|div|tr|td|h[1-6]|li)>", "\n", txt)
+    txt = _re.sub(r"<[^>]+>", " ", txt)
+    txt = _html.unescape(txt)
+    txt = _re.sub(r"[ \t\u00a0]+", " ", txt)
+    txt = _re.sub(r"\n\s*\n+", "\n", txt)
+    return txt.strip()
+
+
 def _cuerpo_texto(msg):
+    """Extrae el cuerpo legible. FIX v2.2: fallback a text/html y limite ampliado.
+
+    Antes: solo text/plain y truncado a 2000 chars -> cuerpos vacios/cortados
+    que provocaban brechas de integridad en la catalogacion (Ciclo C009).
+    """
+    plano = ""
+    html_crudo = ""
     if msg.is_multipart():
         for parte in msg.walk():
             ctype = parte.get_content_type()
             disp = str(parte.get("Content-Disposition") or "")
-            if ctype == "text/plain" and "attachment" not in disp:
-                try:
-                    payload = parte.get_payload(decode=True)
-                    charset = parte.get_content_charset() or "utf-8"
-                    return payload.decode(charset, errors="ignore")[:2000]
-                except Exception:
+            if "attachment" in disp:
+                continue
+            try:
+                payload = parte.get_payload(decode=True)
+                if payload is None:
                     continue
-        return ""
+                charset = parte.get_content_charset() or "utf-8"
+                texto = payload.decode(charset, errors="ignore")
+            except Exception:
+                continue
+            if ctype == "text/plain" and not plano:
+                plano = texto
+            elif ctype == "text/html" and not html_crudo:
+                html_crudo = texto
     else:
         try:
             payload = msg.get_payload(decode=True)
-            charset = msg.get_content_charset() or "utf-8"
-            return payload.decode(charset, errors="ignore")[:2000]
+            if payload is not None:
+                charset = msg.get_content_charset() or "utf-8"
+                texto = payload.decode(charset, errors="ignore")
+                if msg.get_content_type() == "text/html":
+                    html_crudo = texto
+                else:
+                    plano = texto
         except Exception:
-            return ""
+            pass
+
+    cuerpo = plano.strip() if plano.strip() else _html_a_texto(html_crudo)
+    return cuerpo[:MAX_CUERPO_CHARS]
 
 
 def _conectar():
@@ -209,6 +282,31 @@ def _conectar():
     mail.login(EMAIL_USER, EMAIL_PASS)
     mail.select("INBOX")
     return mail
+
+
+def _auto_avanzar_cursor(uids_vistos):
+    """
+    v2.3 - FIX del re-disparo (hallazgo C011):
+    El cursor `ultimo_uid_procesado` solo avanzaba cuando Asistencia confirmaba
+    via --marcar-notificado. Si el subagente no confirmaba (o confirmaba tarde),
+    el sensor volvia a entregar los MISMOS UIDs en el siguiente ciclo.
+
+    Ahora el sensor avanza el cursor de forma autonoma hasta el maximo UID que
+    ya entrego en el payload (o silencio), SIN marcar \\Seen en el servidor.
+    El flag \\Seen sigue siendo responsabilidad exclusiva de Asistencia, pero el
+    cursor ya no depende de ella: garantia de cero re-disparo.
+    """
+    if not uids_vistos:
+        return None
+    data = _cargar_notificados()
+    set_notif = set(data["uids_notificados"])
+    max_uid = data["ultimo_uid_procesado"]
+    for u in uids_vistos:
+        s = str(u).strip()
+        if s.isdigit():
+            max_uid = max(max_uid, int(s))
+    _guardar_notificados({"uids_notificados": list(set_notif), "ultimo_uid_procesado": max_uid})
+    return max_uid
 
 
 def marcar_notificado(uids):
@@ -302,8 +400,8 @@ def main():
         uids_silenciados = []
 
         for uid in nuevos[:MAX_CORREOS]:
-            status, msg_data = mail.fetch(uid, "(RFC822)")
-            if status != "OK":
+            status, msg_data = mail.fetch(uid, "(BODY.PEEK[])")
+            if status != "OK" or not msg_data or not isinstance(msg_data[0], tuple):
                 continue
             msg = email.message_from_bytes(msg_data[0][1])
             remitente = _decodificar(msg.get("From"))
@@ -334,6 +432,9 @@ def main():
         # NO se persiste nada aqui: el sensor es 100% de solo-lectura.
         # El cursor `ultimo_uid_procesado` y el set `uids_notificados` SOLO se
         # actualizan cuando Asistencia confirma via --marcar-notificado.
+
+        # v2.3: auto-avance del cursor con TODOS los UIDs escaneados en este ciclo
+        _auto_avanzar_cursor([u.decode() for u in nuevos[:MAX_CORREOS]])
 
         if not importantes:
             print(json.dumps({

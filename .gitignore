@@ -78,6 +78,7 @@ dashboard/static/capturas/
 dashboard/static/notas_voz/
 dashboard/estado_voz.json
 dashboard/tareas_programadas.json
+dashboard/tiempo_acumulado.json
 *BACKUP*
 */data/*.json
 Agente_Orquestador/data/sensores/*.json
@@ -96,3 +97,14 @@ Agente_Orquestador/data/sensores/analisis_plataformas_empleo*
 
 # Habilidades Personales y Privadas del Usuario (Aislamiento de Perfil)
 skills_personal/
+
+# ── [TKT-SEC-20261020205030] Higiene de secretos y respaldos ──────────────
+# token.json contiene tokens OAuth de Google (Gmail/Docs/Drive/Calendar).
+token.json
+token*.json
+**/token.json
+**/token*.json
+# Respaldos de start.sh: pueden contener rutas/credenciales del entorno.
+start.sh.BACKUP_*
+start.sh.bak
+*.BACKUP_*

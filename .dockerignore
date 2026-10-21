@@ -47,3 +47,12 @@ Archivos_temporales/
 .idea/
 *.swp
 *.swo
+
+# ── [TKT-SEC-20261020205030] Secretos y respaldos fuera de la imagen ──────
+.env
+.env.*
+*.env
+token.json
+**/token.json
+start.sh.BACKUP_*
+*.BACKUP_*

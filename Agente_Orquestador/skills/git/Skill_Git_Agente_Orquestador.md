@@ -116,4 +116,4 @@ PAUTAS CRÍTICAS DE OPERACIÓN:
 *"Capitán, el commit 'docs(sistema): actualizar catalogo...' fue aprobado por el Gate de Ciberseguridad de Robin y desplegado exitosamente a la rama main en GitHub."*
 
 ---
-**Conexiones:** [[skills_orquestador]] [[Perfil_Agente_Orquestador]] [[Perfil_Subagente_Ciberseguridad]] [[Reglas de la Tripulacion]]
+**Conexiones:** [[Perfil_Agente_Orquestador]]

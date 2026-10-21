@@ -428,12 +428,26 @@ const AGENT_CHART_CONFIG = {
     nami: { name: 'Nami', color: '#facc15', bg: 'rgba(250, 204, 21, 0.12)' }
 };
 
+function getAnalyticsTimeLabels() {
+    const d = new Date();
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const fmt = (hr, min) => `${String(hr).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+    return [
+        fmt((h - 6 + 24) % 24, 0),
+        fmt((h - 4 + 24) % 24, 0),
+        fmt((h - 2 + 24) % 24, 0),
+        fmt((h - 1 + 24) % 24, 0),
+        fmt(h, m)
+    ];
+}
+
 function initOrUpdateAnalyticsChart() {
     const ctx = document.getElementById('analytics-line-chart');
     if (!ctx || typeof Chart === 'undefined') return;
 
     const agents = ['luffy', 'zoro', 'sanji', 'robin', 'nami'];
-    const timeLabels = ['T-4', 'T-3', 'T-2', 'T-1', 'Actual'];
+    const timeLabels = getAnalyticsTimeLabels();
 
     const datasets = agents.map(ag => {
         const conf = AGENT_CHART_CONFIG[ag];
@@ -442,7 +456,7 @@ function initOrUpdateAnalyticsChart() {
         if (currentChartMode === 'tiempo') {
             const totalSeg = (latestAnalyticsData.tiempo_trabajo && latestAnalyticsData.tiempo_trabajo.segundos) || 0;
             const baseMin = Math.max(1, Math.round(totalSeg / 60));
-            const factor = ag === 'luffy' ? 1.0 : (ag === 'zoro' ? 0.85 : (ag === 'sanji' ? 0.7 : (ag === 'robin' ? 0.6 : 0.5)));
+            const factor = ag === 'luffy' ? 1.0 : (ag === 'zoro' ? 0.85 : (ag === 'sanji' ? 0.72 : (ag === 'robin' ? 0.35 : 0.20)));
             const curVal = Math.round(baseMin * factor);
             dataSeries = [
                 Math.round(curVal * 0.2),
@@ -580,6 +594,7 @@ function initOrUpdateAnalyticsChart() {
             }
         });
     } else {
+        analyticsChart.data.labels = timeLabels;
         analyticsChart.data.datasets = datasets;
         analyticsChart.options.scales.y.min = currentChartMode === 'precision' ? 85 : 0;
         analyticsChart.options.scales.y.max = currentChartMode === 'precision' ? 100 : undefined;
@@ -1937,36 +1952,38 @@ let currentTabTareas = 'activas';
 
 function cambiarTabTareas(tab) {
     currentTabTareas = tab;
-    const btnActivas = document.getElementById('btn-tab-activas');
-    const btnArchivadas = document.getElementById('btn-tab-archivadas');
-    const containerActivas = document.getElementById('container-tareas-activas');
-    const containerArchivadas = document.getElementById('container-tareas-archivadas');
+    const tabs = {
+        activas: {
+            btn: 'btn-tab-activas', box: 'container-tareas-activas',
+            title: 'Tareas en Ejecución & Pendientes', dot: 'w-2.5 h-2.5 rounded-full bg-secondary animate-pulse',
+            on: 'bg-secondary/20 text-secondary border border-secondary/40 shadow-[0_0_10px_rgba(0,255,204,0.2)]'
+        },
+        archivadas: {
+            btn: 'btn-tab-archivadas', box: 'container-tareas-archivadas',
+            title: 'Tareas Completadas & Archivadas', dot: 'w-2.5 h-2.5 rounded-full bg-teal-400',
+            on: 'bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-[0_0_10px_rgba(20,184,166,0.2)]'
+        },
+        programadas: {
+            btn: 'btn-tab-programadas', box: 'container-tareas-programadas',
+            title: 'Tareas Programadas (Diarias, Semanales y Mensuales)', dot: 'w-2.5 h-2.5 rounded-full bg-amber-400',
+            on: 'bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+        }
+    };
+    const base = 'px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ';
+    Object.keys(tabs).forEach(k => {
+        const cfg = tabs[k];
+        const btn = document.getElementById(cfg.btn);
+        const box = document.getElementById(cfg.box);
+        const activo = (k === tab);
+        if (btn) btn.className = base + (activo ? cfg.on : 'text-on-surface-variant hover:text-on-surface');
+        if (box) box.classList.toggle('hidden', !activo);
+    });
     const title = document.getElementById('tab-section-title');
     const dot = document.getElementById('tab-indicator-dot');
-    
-    if (tab === 'archivadas') {
-        if (btnActivas) {
-            btnActivas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-on-surface-variant hover:text-on-surface";
-        }
-        if (btnArchivadas) {
-            btnArchivadas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer bg-teal-500/20 text-teal-300 border border-teal-500/40 shadow-[0_0_10px_rgba(20,184,166,0.2)]";
-        }
-        if (containerActivas) containerActivas.classList.add('hidden');
-        if (containerArchivadas) containerArchivadas.classList.remove('hidden');
-        if (title) title.textContent = "Tareas Completadas & Archivadas";
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-teal-400";
-    } else {
-        if (btnActivas) {
-            btnActivas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer bg-secondary/20 text-secondary border border-secondary/40 shadow-[0_0_10px_rgba(0,255,204,0.2)]";
-        }
-        if (btnArchivadas) {
-            btnArchivadas.className = "px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer text-on-surface-variant hover:text-on-surface";
-        }
-        if (containerActivas) containerActivas.classList.remove('hidden');
-        if (containerArchivadas) containerArchivadas.classList.add('hidden');
-        if (title) title.textContent = "Tareas en Ejecución & Pendientes";
-        if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-secondary animate-pulse";
-    }
+    const cfgAct = tabs[tab] || tabs.activas;
+    if (title) title.textContent = cfgAct.title;
+    if (dot) dot.className = cfgAct.dot;
+    if (tab === 'programadas') renderProgramadas();
 }
 
 // Variables de almacenamiento en caché para tickets y control de modal
@@ -2228,19 +2245,79 @@ function filterProgramadas(tipo) {
     renderProgramadas();
 }
 
+function renderProgramadaCard(t) {
+    const id = cleanMarkdownText(t.id || '');
+    const titulo = cleanMarkdownText(t.titulo || id);
+    const estado = String(t.estado || 'ACTIVA').toUpperCase();
+    const pausada = estado.includes('PAUS') || estado.includes('INACT');
+    const badge = pausada
+        ? 'bg-slate-500/20 text-slate-300 border border-slate-500/40'
+        : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40';
+    const resp = cleanMarkdownText(t.responsable || 'Sistema');
+    const dias = Array.isArray(t.dias_programados) && t.dias_programados.length
+        ? t.dias_programados.join(', ') : '';
+    const fmt = (v) => v ? escapeHtml(String(v).replace('T', ' ')) : '—';
+    const hoy = t.estado_hoy ? escapeHtml(cleanMarkdownText(t.estado_hoy)) : '';
+    const preview = escapeHtml(cleanCardDescription(t.descripcion_completa || t.tarea || ''));
+    return `
+    <div onclick="abrirModalDetalleTicket('${id}')" class="glass-panel rounded-2xl p-3.5 border border-amber-500/30 hover:border-amber-400/70 bg-amber-950/10 hover:bg-amber-950/20 transition-all duration-200 flex flex-col gap-2 cursor-pointer hover:translate-y-[-2px] shadow-sm select-none min-h-[240px]">
+        <div class="flex items-center justify-between gap-2">
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded font-mono text-[9px] font-bold bg-white/5 text-on-surface/90 border border-white/10 truncate" title="${id}">${id}</span>
+            <span class="inline-flex items-center gap-1 text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md ${badge}">
+                <span class="material-symbols-outlined text-[11px]">${pausada ? 'pause_circle' : 'event_repeat'}</span>${escapeHtml(estado)}
+            </span>
+        </div>
+        <h4 class="text-on-surface font-semibold text-[11px] leading-snug line-clamp-2" title="${escapeHtml(titulo)}">${escapeHtml(titulo)}</h4>
+        <p class="text-[10px] text-on-surface-variant/80 leading-relaxed line-clamp-3">${preview}</p>
+        <div class="mt-auto grid grid-cols-1 gap-1 text-[9.5px] font-mono text-on-surface-variant border-t border-white/10 pt-2">
+            <div><span class="text-amber-300/80">Responsable:</span> ${escapeHtml(resp)}</div>
+            ${dias ? `<div><span class="text-amber-300/80">Días:</span> ${escapeHtml(dias)}${t.hora_ejecucion ? ' · ' + escapeHtml(t.hora_ejecucion) : ''}</div>` : (t.hora_ejecucion ? `<div><span class="text-amber-300/80">Hora:</span> ${escapeHtml(t.hora_ejecucion)}</div>` : '')}
+            <div><span class="text-amber-300/80">Última:</span> ${fmt(t.ultima_ejecucion)}</div>
+            <div><span class="text-amber-300/80">Próxima:</span> ${fmt(t.proxima_ejecucion)}</div>
+            ${t.tiempo_restante ? `<div><span class="text-amber-300/80">Falta:</span> ${escapeHtml(t.tiempo_restante)}</div>` : ''}
+            ${hoy ? `<div class="text-[9px] italic text-on-surface-variant/70">${hoy}</div>` : ''}
+        </div>
+        <div class="flex items-center justify-end gap-1.5 pt-1">
+            <button onclick="event.stopPropagation(); pedirCambioTareaProgramada('${id}')" type="button" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 text-[9px] font-bold transition-all cursor-pointer active:scale-95">
+                <span>Pedir cambio</span><span class="material-symbols-outlined text-[11px]">edit</span>
+            </button>
+            <button onclick="event.stopPropagation(); abrirModalDetalleTicket('${id}')" type="button" class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-cyan-500/10 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 text-[9px] font-bold transition-all cursor-pointer active:scale-95">
+                <span>Ver más</span><span class="material-symbols-outlined text-[11px]">visibility</span>
+            </button>
+        </div>
+    </div>`;
+}
+
+function pedirCambioTareaProgramada(id) {
+    // Prellena el chat con la tarea elegida para que el Capitán solo escriba el cambio y envíe.
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    input.value = `Luffy, sobre la tarea programada ${id}: cambia lo siguiente → `;
+    input.focus();
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    try { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+}
+
+function updateProgramadasCount() {
+    const el = document.getElementById('count-programadas');
+    if (!el) return;
+    let total = 0;
+    ['diarias', 'semanales', 'mensuales'].forEach(c => {
+        if (Array.isArray(cacheProgramadas[c])) total += cacheProgramadas[c].length;
+    });
+    el.textContent = total;
+}
+
 function renderProgramadas() {
+    updateProgramadasCount();
     const list = document.getElementById('programadas-list');
     if (!list) return;
     const data = cacheProgramadas[currentFiltroProgramadas];
     if (!data || data.length === 0) {
-        list.innerHTML = '<p class="text-on-surface-variant text-sm italic">No hay tareas programadas para esta categoría.</p>';
+        list.innerHTML = '<p class="text-on-surface-variant text-sm italic col-span-full py-8 text-center">No hay tareas programadas para esta categoría.</p>';
         return;
     }
-    let html = '';
-    data.forEach(t => {
-        html += renderTareaBlock(t);
-    });
-    list.innerHTML = html;
+    list.innerHTML = data.map(renderProgramadaCard).join('');
 }
 
 // ==========================================
@@ -2258,9 +2335,21 @@ function abrirModalDetalleTicket(ticketId) {
     
     ticketActualModalData = ticket;
     
-    // ID
+    // ID (oculto en DOM pero accesible)
     const elId = document.getElementById('modal-ticket-id');
     if (elId) elId.textContent = ticket.id || 'TKT';
+
+    // Título de la tarea arriba en el encabezado
+    const elTitle = document.getElementById('modal-ticket-title');
+    const displayTitle = cleanMarkdownText(ticket.titulo || ticket.id || 'Ticket de Tarea');
+    if (elTitle) elTitle.textContent = displayTitle;
+
+    // Icono del header
+    const elHeaderIcon = document.getElementById('modal-ticket-header-icon');
+    if (elHeaderIcon) {
+        const isProg = String(ticket.id || '').toUpperCase().startsWith('REC-') || Boolean(ticket.frecuencia || ticket.dias_programados);
+        elHeaderIcon.textContent = isProg ? 'event_repeat' : 'confirmation_number';
+    }
     
     // Responsable y Configuración de Agente
     const elAgentBadge = document.getElementById('modal-ticket-agent-badge');
@@ -2316,15 +2405,25 @@ function abrirModalDetalleTicket(ticketId) {
         stLabel = 'Completado';
         stClass = 'bg-teal-500/15 text-teal-300 border border-teal-500/40';
         stIcon = 'check_circle';
+    } else if (estadoRaw.includes('activa') || estadoRaw.includes('activo')) {
+        stLabel = 'Activa';
+        stClass = 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/40';
+        stIcon = 'check_circle';
     }
     if (elStatusBadge) elStatusBadge.className = `px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase border flex items-center gap-1.5 ${stClass}`;
     if (elStatusIcon) elStatusIcon.textContent = stIcon;
     if (elStatusText) elStatusText.textContent = stLabel;
-    
-    // Título
-    const elTitle = document.getElementById('modal-ticket-title');
-    if (elTitle) elTitle.textContent = ticket.titulo || ticket.id || 'Ticket de Tarea';
-    
+
+    // Sección: Última vez ejecutada (Donde antes estaba el título)
+    const elUltima = document.getElementById('modal-ticket-ultima-ejecucion');
+    if (elUltima) {
+        if (ticket.ultima_ejecucion) {
+            elUltima.innerHTML = `<span class="text-amber-300 font-bold">${escapeHtml(String(ticket.ultima_ejecucion).replace('T', ' '))}</span>`;
+        } else {
+            elUltima.innerHTML = `<span class="text-slate-400 italic">Sin registros de ejecución previa</span>`;
+        }
+    }
+
     // Descripción / Resumen
     const elDescBox = document.getElementById('modal-ticket-desc-box');
     const elDesc = document.getElementById('modal-ticket-desc');
@@ -2334,6 +2433,38 @@ function abrirModalDetalleTicket(ticketId) {
         if (elDescBox) elDescBox.classList.remove('hidden');
     } else if (elDescBox) {
         elDescBox.classList.add('hidden');
+    }
+
+    // Sección: Cuándo se ejecutará nuevamente
+    const elProxima = document.getElementById('modal-ticket-proxima');
+    const elChip = document.getElementById('modal-ticket-tiempo-restante-chip');
+    const elFreqBox = document.getElementById('modal-ticket-frecuencia-box');
+    if (elProxima) {
+        const prox = ticket.proxima_ejecucion ? escapeHtml(String(ticket.proxima_ejecucion).replace('T', ' ')) : 'Inmediata (Sensor continuo)';
+        const restante = ticket.tiempo_restante ? escapeHtml(ticket.tiempo_restante) : 'Continuo';
+        elProxima.innerHTML = `<span>${prox}</span> <span class="text-cyan-300/80 font-normal">(${restante})</span>`;
+    }
+    if (elChip) {
+        elChip.textContent = ticket.tiempo_restante ? cleanMarkdownText(ticket.tiempo_restante) : 'Inmediata';
+    }
+    if (elFreqBox) {
+        let detailsHtml = '';
+        if (ticket.dias_programados && Array.isArray(ticket.dias_programados) && ticket.dias_programados.length) {
+            detailsHtml += `<div><span class="text-cyan-300">Días:</span> ${escapeHtml(ticket.dias_programados.join(', '))}</div>`;
+        }
+        if (ticket.hora_ejecucion) {
+            detailsHtml += `<div><span class="text-cyan-300">Hora:</span> ${escapeHtml(ticket.hora_ejecucion)}</div>`;
+        }
+        if (ticket.frecuencia) {
+            detailsHtml += `<div><span class="text-cyan-300">Frecuencia:</span> ${escapeHtml(ticket.frecuencia)}</div>`;
+        }
+        if (ticket.ciclos_completados) {
+            detailsHtml += `<div><span class="text-cyan-300">Ciclos:</span> ${ticket.ciclos_completados}</div>`;
+        }
+        if (ticket.estado_hoy) {
+            detailsHtml += `<div class="w-full text-slate-300 italic pt-0.5">${escapeHtml(cleanMarkdownText(ticket.estado_hoy))}</div>`;
+        }
+        elFreqBox.innerHTML = detailsHtml || `<div class="text-slate-400 italic">Monitoreo continuo en tiempo real</div>`;
     }
     
     // Tarea específica
@@ -2370,8 +2501,8 @@ function abrirModalDetalleTicket(ticketId) {
     const elDiagBox = document.getElementById('modal-ticket-diag-box');
     const elDiag = document.getElementById('modal-ticket-diag');
     let diagPruebasText = '';
-    if (ticket.diagnostico) diagPruebasText += 'Diagnóstico:\n' + ticket.diagnostico + '\n\n';
-    if (ticket.pruebas) diagPruebasText += 'Pruebas:\n' + ticket.pruebas;
+    if (ticket.diagnostico) diagPruebasText += 'Diagnóstico:\\n' + ticket.diagnostico + '\\n\\n';
+    if (ticket.pruebas) diagPruebasText += 'Pruebas:\\n' + ticket.pruebas;
     if (diagPruebasText.trim() && elDiag) {
         elDiag.textContent = diagPruebasText.trim();
         if (elDiagBox) elDiagBox.classList.remove('hidden');
@@ -2406,16 +2537,47 @@ function abrirModalDetalleTicket(ticketId) {
         elHistBox.classList.add('hidden');
     }
     
-    // Raw Markdown block
-    const elRaw = document.getElementById('modal-ticket-raw');
-    if (elRaw) {
-        elRaw.textContent = ticket.raw_block || JSON.stringify(ticket, null, 2);
-    }
-    
     // Mostrar modal
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
 }
+
+function activarModoEscuchaParaTareaModal() {
+    if (!ticketActualModalData) return;
+    const t = ticketActualModalData;
+    const id = t.id || '';
+    const titulo = cleanMarkdownText(t.titulo || id || 'esta tarea');
+
+    // 1. Cerrar el modal
+    cerrarModalDetalleTicket();
+
+    // 2. Pre-llenar el input del chat con el contexto de la tarea para la orden por voz
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = `Luffy, sobre la tarea "${titulo}": `;
+        input.focus();
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        try {
+            input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {}
+    }
+
+    // 3. Abrir el chat si está cerrado
+    const sidebar = document.getElementById('chat-sidebar');
+    if (sidebar && sidebar.style.display === 'none') {
+        if (typeof toggleChat === 'function') toggleChat();
+    }
+
+    // 4. Activar el modo escucha / micrófono del agente
+    setTimeout(() => {
+        if (typeof toggleDictation === 'function') {
+            toggleDictation();
+        } else if (typeof toggleVoiceSession === 'function') {
+            toggleVoiceSession();
+        }
+    }, 150);
+}
+window.activarModoEscuchaParaTareaModal = activarModoEscuchaParaTareaModal;
 
 function cerrarModalDetalleTicket() {
     const modal = document.getElementById('modal-detalle-ticket');
@@ -2646,17 +2808,28 @@ function setSpeakingAgent(agentName, durationMs = 4500) {
 }
 window.setSpeakingAgent = setSpeakingAgent;
 
-// Toggle Voice Session (Voz a Voz)
+// ---------------------------------------------------------------------------
+// CANAL DE VOZ EN INICIO: PUSH-TO-TALK / NOTA DE VOZ POR TURNOS
+// ---------------------------------------------------------------------------
+let inicioMediaRecorder = null;
+let inicioVoiceChunks = [];
+let inicioVoiceState = 'idle'; // 'idle' | 'recording' | 'processing' | 'speaking'
+
 async function toggleVoiceSession() {
     const btn = document.getElementById('voice-toggle-btn');
     const btnText = document.getElementById('voice-btn-text');
     const btnIcon = document.getElementById('voice-btn-icon');
     const btnDot = document.getElementById('voice-btn-dot');
+    const btnSub = document.getElementById('voice-btn-sub');
     const feedback = document.getElementById('voice-feedback');
     const badge = document.getElementById('voice-speaker-badge');
 
-    if (!voiceSessionActive) {
-        // INICIAR COMUNICACIÓN
+    if (inicioVoiceState === 'processing' || inicioVoiceState === 'speaking') {
+        return;
+    }
+
+    if (inicioVoiceState === 'idle') {
+        // 1. INICIAR GRABACIÓN DE NOTA DE VOZ
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             voiceMicrophoneStream = stream;
@@ -2668,372 +2841,185 @@ async function toggleVoiceSession() {
             voiceAnalyser.fftSize = 256;
             source.connect(voiceAnalyser);
 
+            inicioVoiceChunks = [];
+            const mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported('audio/webm;codecs=opus'))
+                ? 'audio/webm;codecs=opus'
+                : 'audio/webm';
+            inicioMediaRecorder = new MediaRecorder(stream, { mimeType });
+            
+            inicioMediaRecorder.ondataavailable = (ev) => {
+                if (ev.data && ev.data.size > 0) inicioVoiceChunks.push(ev.data);
+            };
+
+            inicioMediaRecorder.onstop = async () => {
+                stream.getTracks().forEach(t => t.stop());
+                if (voiceAudioContext && voiceAudioContext.state !== 'closed') {
+                    try { voiceAudioContext.close(); } catch(e) {}
+                }
+                voiceAnalyser = null;
+                voiceSessionActive = false;
+
+                const chunksCopy = inicioVoiceChunks.slice();
+                inicioVoiceChunks = [];
+
+                if (chunksCopy.length === 0) {
+                    resetVoiceSessionUI();
+                    return;
+                }
+
+                // Estado: PROCESANDO
+                inicioVoiceState = 'processing';
+                if (btn) {
+                    btn.className = 'group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-amber-500/20 border border-amber-400 text-amber-300 shadow-[0_0_25px_rgba(251,191,36,0.3)] transition-all duration-300 cursor-wait text-sm font-bold tracking-wider uppercase select-none';
+                }
+                if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-amber-400 animate-pulse shadow-[0_0_10px_#fbbf24]';
+                if (btnIcon) {
+                    btnIcon.innerText = 'sync';
+                    btnIcon.className = 'material-symbols-outlined text-[22px] text-amber-400 animate-spin';
+                }
+                if (btnText) btnText.innerText = 'Agente Procesando Tarea...';
+                if (btnSub) btnSub.innerText = 'Transcribiendo audio y ejecutando orden en la flota...';
+                if (badge) {
+                    badge.innerText = 'Procesando';
+                    badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-400/20 border border-amber-400 text-amber-300 animate-pulse';
+                    badge.style = '';
+                }
+                if (feedback) {
+                    feedback.innerText = 'Transcribiendo instrucción y ejecutando herramientas...';
+                    feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-amber-400 font-bold pointer-events-none transition-all';
+                }
+
+                const blob = new Blob(chunksCopy, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.onloadend = async () => {
+                    const base64Audio = reader.result;
+                    try {
+                        const res = await fetch('/api/voz/nota-voz', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                audio_base64: base64Audio,
+                                ext: 'webm',
+                                usar_cornetas: true,
+                                modo: currentChatMode
+                            })
+                        });
+                        const data = await res.json();
+                        
+                        if (data.status === 'ok') {
+                            if (feedback) {
+                                feedback.innerText = `Instrucción: "${data.texto_transcrito || 'Orden enviada'}"`;
+                            }
+                            if (data.mensajes && typeof updateChat === 'function') {
+                                updateChat(data.mensajes);
+                            }
+
+                            // Estado: RESPONDIENDO POR AUDIO
+                            inicioVoiceState = 'speaking';
+                            if (btnText) btnText.innerText = 'Luffy Respondiendo...';
+                            if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-secondary animate-pulse shadow-[0_0_10px_#00ffcc]';
+                            if (btnIcon) {
+                                btnIcon.className = 'material-symbols-outlined text-[22px] text-secondary animate-pulse';
+                                btnIcon.innerText = 'volume_up';
+                            }
+                            if (btnSub) btnSub.innerText = 'Reproduciendo audio de respuesta en cornetas físicas...';
+                            if (badge) {
+                                badge.innerText = 'Luffy Hablando';
+                                badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
+                            }
+                            if (typeof setSpeakingAgent === 'function') {
+                                setSpeakingAgent('luffy', 6000);
+                            }
+
+                            setTimeout(() => {
+                                resetVoiceSessionUI();
+                            }, 6000);
+
+                        } else {
+                            alert(data.message || 'No se pudo procesar la nota de voz.');
+                            resetVoiceSessionUI();
+                        }
+                    } catch (err) {
+                        console.error('Error enviando nota de voz de Inicio:', err);
+                        resetVoiceSessionUI();
+                    }
+                };
+                reader.readAsDataURL(blob);
+            };
+
+            inicioMediaRecorder.start(200);
+            inicioVoiceState = 'recording';
             voiceSessionActive = true;
-            window.voiceSessionActive = true;
 
-            // Activar cornetas y auto-nota de voz en backend
-            fetch('/api/voz/estado', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ cornetas_activas: true, auto_nota_voz: true })
-            }).catch(() => {});
-
-            // Update Button & UI to Active State
+            // Actualizar UI a Grabando
             if (btn) {
-                btn.className = 'group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-error/20 border border-error hover:bg-error/30 shadow-[0_0_30px_rgba(255,68,68,0.45)] transition-all duration-300 cursor-pointer text-sm font-bold text-error tracking-wider uppercase select-none';
+                btn.className = 'group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-error/25 border border-error hover:bg-error/35 shadow-[0_0_35px_rgba(255,68,68,0.5)] transition-all duration-300 cursor-pointer text-sm font-bold text-error tracking-wider uppercase select-none scale-[1.02]';
             }
-            if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-error animate-pulse shadow-[0_0_10px_#ff4444]';
+            if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-error animate-ping shadow-[0_0_12px_#ff4444]';
             if (btnIcon) {
-                btnIcon.innerText = 'mic';
-                btnIcon.className = 'material-symbols-outlined text-[22px] text-error animate-pulse';
+                btnIcon.innerText = 'stop_circle';
+                btnIcon.className = 'material-symbols-outlined text-[24px] text-error animate-pulse';
             }
-            if (btnText) btnText.innerText = 'Finalizar Comunicación';
+            if (btnText) btnText.innerText = 'Enviar Instrucción al Agente';
+            if (btnSub) btnSub.innerText = '🎙️ Grabando tu voz... Pulsa este botón cuando termines para enviar';
             if (badge) {
-                badge.innerText = 'Escuchando Voz + Cornetas';
-                badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
-                badge.style = '';
+                badge.innerText = 'Grabando Voz';
+                badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-error/20 border border-error text-error animate-pulse shadow-[0_0_10px_rgba(255,68,68,0.4)]';
             }
             if (feedback) {
-                feedback.innerText = 'Micrófono y cornetas activos — Habla ahora';
-                feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-secondary font-bold pointer-events-none transition-all';
-            }
-
-            // Web Speech Recognition for hands-free continuous voice conversation (Half-Duplex Anti-Eco)
-            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (SpeechRec) {
-                let accumulatedFinalTranscript = '';
-                let pendingInterimTranscript = '';
-                let silenceCommitTimer = null;
-                const SILENCE_COMMIT_MS = 3200; // 3.2 segundos de silencio continuo para auto-enviar
-                window.waitingForAgentVoiceReply = false;
-                window.agentReplyArrivedForTurn = false;
-
-                const normalizarTextoEco = (str) => {
-                    return String(str || '')
-                        .toLowerCase()
-                        .normalize('NFD')
-                        .replace(/[\u0300-\u036f]/g, '')
-                        .replace(/[^a-z0-9\s]/g, ' ')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                };
-
-                const esPosibleEcoAcustico = (texto) => {
-                    // Si las cornetas no están activas físicamente ni en cola acústica, y el agente no está procesando,
-                    // NO es eco: es el usuario hablando legítimamente. No filtrar por coincidencia con respuestas.
-                    if (!window.agentIsSpeakingOnSpeakers && !window.agentIsThinkingOrProcessing) {
-                        return false;
-                    }
-                    const cand = normalizarTextoEco(texto);
-                    if (!cand) return true;
-                    const frasesAgente = [
-                        'hola capitan',
-                        'aqui luffy',
-                        'pizarra limpia',
-                        'tickets a ciegas',
-                        'alcanzo a leer',
-                        'opciones mas probables',
-                        'llegaron fragmentados',
-                        'dime en una frase clara',
-                        'estructuramos de inmediato',
-                        'parece que querias pedirme',
-                        'necesito que me aclares'
-                    ];
-                    for (const f of frasesAgente) {
-                        if (cand.includes(f)) return true;
-                    }
-                    return false;
-                };
-
-                const hayAudioReproduciendose = () => {
-                    const domAudioPlaying = Array.from(document.querySelectorAll('audio')).some(a => !a.paused && !a.ended);
-                    return Boolean(window.agentIsSpeakingOnSpeakers) || domAudioPlaying;
-                };
-
-                const estaOcupadoElAgente = () => {
-                    return Boolean(
-                        window.waitingForAgentVoiceReply ||
-                        window.agentIsThinkingOrProcessing ||
-                        hayAudioReproduciendose()
-                    );
-                };
-
-                // APAGADO FÍSICO DE MICRÓFONO (HARD MUTE WALKIE-TALKIE)
-                const silenciarMicrofonoHard = () => {
-                    accumulatedFinalTranscript = '';
-                    pendingInterimTranscript = '';
-                    if (silenceCommitTimer) {
-                        clearTimeout(silenceCommitTimer);
-                        silenceCommitTimer = null;
-                    }
-                    // 1. Cortar señal a nivel de hardware de audio en el navegador
-                    if (voiceMicrophoneStream) {
-                        try {
-                            voiceMicrophoneStream.getAudioTracks().forEach(t => { t.enabled = false; });
-                        } catch(e) {}
-                    }
-                    // 2. Destruir el reconocedor para no capturar conversaciones en la habitación
-                    if (speechRecognizer) {
-                        try {
-                            speechRecognizer.onend = null;
-                            speechRecognizer.onerror = null;
-                            speechRecognizer.onresult = null;
-                            speechRecognizer.abort();
-                        } catch (e) {}
-                        speechRecognizer = null;
-                    }
-                    if (badge) {
-                        badge.innerText = 'Micrófono Apagado';
-                        badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-amber-500/20 border border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.3)]';
-                    }
-                };
-
-                // REACTIVACIÓN FÍSICA DE MICRÓFONO (TU TURNO)
-                const activarMicrofonoHard = () => {
-                    if (!voiceSessionActive || estaOcupadoElAgente()) return;
-                    accumulatedFinalTranscript = '';
-                    pendingInterimTranscript = '';
-                    // 1. Reactivar señal de audio a nivel de hardware
-                    if (voiceMicrophoneStream) {
-                        try {
-                            voiceMicrophoneStream.getAudioTracks().forEach(t => { t.enabled = true; });
-                        } catch(e) {}
-                    }
-                    if (badge) {
-                        badge.innerText = 'Escuchando Voz + Cornetas';
-                        badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-secondary/20 border border-secondary text-secondary animate-pulse shadow-[0_0_10px_rgba(0,255,204,0.4)]';
-                    }
-                    crearYArrancarRecognizer();
-                };
-
-                const enviarTextoVozDetectado = (textoEnviar) => {
-                    const limpio = (textoEnviar || '').trim();
-                    if (!limpio) return;
-                    if (estaOcupadoElAgente() || esPosibleEcoAcustico(limpio)) {
-                        console.log('[Walkie-Talkie] Transcripción ignorada por estar ocupado o eco:', limpio);
-                        accumulatedFinalTranscript = '';
-                        pendingInterimTranscript = '';
-                        return;
-                    }
-
-                    // 🔇 APAGAR EL MICRÓFONO INMEDIATAMENTE: No escuchar a nadie más en la habitación
-                    silenciarMicrofonoHard();
-                    window.waitingForAgentVoiceReply = true;
-                    window.waitingForAgentSince = Date.now();
-                    window.agentReplyArrivedForTurn = false;
-                    window.lastSeenAgentMsgIdBeforeSend = window.currentLastAgentMsgId || null;
-
-                    if (feedback) {
-                        feedback.innerText = `🔇 Micrófono apagado — Orquestador procesando tu respuesta...`;
-                    }
-                    const chatIn = document.getElementById('chat-input');
-                    if (chatIn) chatIn.value = limpio;
-                    if (typeof sendChatMessage === 'function') {
-                        sendChatMessage();
-                    }
-                };
-
-                // Callback cuando el usuario envía manualmente (Enter o botón Enviar) en modo voz
-                window.onVoiceMessageSentExplicitly = () => {
-                    if (silenceCommitTimer) {
-                        clearTimeout(silenceCommitTimer);
-                        silenceCommitTimer = null;
-                    }
-                    accumulatedFinalTranscript = '';
-                    pendingInterimTranscript = '';
-                    silenciarMicrofonoHard();
-                    window.waitingForAgentVoiceReply = true;
-                    window.waitingForAgentSince = Date.now();
-                    window.agentReplyArrivedForTurn = false;
-                    window.lastSeenAgentMsgIdBeforeSend = window.currentLastAgentMsgId || null;
-                    if (feedback) {
-                        feedback.innerText = `🔇 Micrófono apagado — Orquestador procesando tu respuesta...`;
-                    }
-                };
-
-                const crearYArrancarRecognizer = () => {
-                    if (!voiceSessionActive) return;
-                    if (estaOcupadoElAgente()) return;
-                    if (speechRecognizer) return;
-                    try {
-                        const rec = new SpeechRec();
-                        rec.continuous = true; // Permite hablar oraciones múltiples sin cortar la grabación
-                        rec.interimResults = true;
-                        rec.lang = 'es-ES';
-
-                        rec.onresult = (event) => {
-                            if (estaOcupadoElAgente()) {
-                                silenciarMicrofonoHard();
-                                return;
-                            }
-
-                            // Reconstruir el texto completo acumulado de la locución continua
-                            let totalFinal = '';
-                            let currentInterim = '';
-
-                            for (let i = 0; i < event.results.length; ++i) {
-                                const res = event.results[i];
-                                if (res.isFinal) {
-                                    const part = res[0].transcript.trim();
-                                    if (part) {
-                                        totalFinal += (totalFinal ? ' ' : '') + part;
-                                    }
-                                } else {
-                                    currentInterim += res[0].transcript;
-                                }
-                            }
-
-                            accumulatedFinalTranscript = totalFinal.trim();
-                            pendingInterimTranscript = currentInterim.trim();
-
-                            const textoCompleto = (accumulatedFinalTranscript + (pendingInterimTranscript ? (' ' + pendingInterimTranscript) : '')).trim();
-
-                            if (textoCompleto) {
-                                // Reflejar en vivo en el campo de texto del chat
-                                const chatIn = document.getElementById('chat-input');
-                                if (chatIn) chatIn.value = textoCompleto;
-
-                                if (feedback) {
-                                    feedback.innerHTML = `🎙️ <span class="text-white font-medium">"${textoCompleto}"</span> <span class="text-secondary/80 text-[10px] block mt-0.5">(Pausa de 3.2s para enviar automáticamente, o pulsa Enter para enviar ya 🚀)</span>`;
-                                }
-
-                                // Reiniciar temporizador de silencio cada vez que pronuncia nuevas palabras
-                                if (silenceCommitTimer) clearTimeout(silenceCommitTimer);
-                                silenceCommitTimer = setTimeout(() => {
-                                    const textoFinalAEnviar = (accumulatedFinalTranscript + (pendingInterimTranscript ? (' ' + pendingInterimTranscript) : '')).trim();
-                                    if (textoFinalAEnviar && !estaOcupadoElAgente()) {
-                                        accumulatedFinalTranscript = '';
-                                        pendingInterimTranscript = '';
-                                        silenceCommitTimer = null;
-                                        enviarTextoVozDetectado(textoFinalAEnviar);
-                                    }
-                                }, SILENCE_COMMIT_MS);
-                            }
-                        };
-
-                        rec.onerror = (e) => {
-                            if (e && e.error !== 'no-speech' && e.error !== 'aborted') {
-                                console.warn('SpeechRecognition aviso:', e.error);
-                            }
-                        };
-
-                        rec.onend = () => {
-                            speechRecognizer = null;
-                            // Si la sesión sigue activa y el agente no está ocupado, reiniciar para seguir escuchando
-                            if (voiceSessionActive && !estaOcupadoElAgente()) {
-                                setTimeout(() => {
-                                    if (voiceSessionActive && !estaOcupadoElAgente() && !speechRecognizer) {
-                                        crearYArrancarRecognizer();
-                                    }
-                                }, 100);
-                            }
-                        };
-
-                        speechRecognizer = rec;
-                        rec.start();
-                    } catch (errStart) {
-                        speechRecognizer = null;
-                    }
-                };
-
-                // Monitor Walkie-Talkie (cada 300ms): mantiene el micrófono apagado mientras el agente piensa o habla
-                if (window.voiceHalfDuplexInterval) clearInterval(window.voiceHalfDuplexInterval);
-                window.voiceHalfDuplexInterval = setInterval(() => {
-                    if (!voiceSessionActive) {
-                        clearInterval(window.voiceHalfDuplexInterval);
-                        window.voiceHalfDuplexInterval = null;
-                        return;
-                    }
-                    const now = Date.now();
-                    const audioActivo = hayAudioReproduciendose();
-                    const pensando = Boolean(window.agentIsThinkingOrProcessing);
-
-                    // Liberar bloqueo de espera cuando la respuesta ya llegó y las cornetas terminaron de hablar
-                    if (window.waitingForAgentVoiceReply) {
-                        const elapsedWait = now - (window.waitingForAgentSince || now);
-                        const elapsedSinceReply = window.agentReplyArrivedAt ? (now - window.agentReplyArrivedAt) : 0;
-                        if (window.agentReplyArrivedForTurn && elapsedSinceReply > 3500 && !audioActivo && !pensando) {
-                            window.waitingForAgentVoiceReply = false;
-                        } else if (elapsedWait > 90000 && !audioActivo && !pensando) {
-                            window.waitingForAgentVoiceReply = false;
-                        }
-                    }
-
-                    const ocupado = estaOcupadoElAgente();
-                    if (ocupado) {
-                        silenciarMicrofonoHard();
-                        if (feedback) {
-                            if (audioActivo) {
-                                feedback.innerText = '🔊 Micrófono apagado — Orquestador hablando por cornetas...';
-                            } else {
-                                feedback.innerText = '🔇 Micrófono apagado — Orquestador procesando tu respuesta...';
-                            }
-                        }
-                    } else if (!speechRecognizer) {
-                        if (feedback) {
-                            feedback.innerText = '🎙️ Tu turno — Habla ahora para continuar';
-                        }
-                        activarMicrofonoHard();
-                    }
-                }, 300);
-
-                activarMicrofonoHard();
+                feedback.innerText = 'Habla con tranquilidad — el canvas visualiza tu voz en vivo';
+                feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-error font-bold pointer-events-none transition-all';
             }
 
         } catch (err) {
             console.error('Error accediendo al micrófono:', err);
-            alert('No se pudo acceder al micrófono: ' + (err.message || err));
-        }
-    } else {
-        // DETENER COMUNICACIÓN
-        voiceSessionActive = false;
-        window.voiceSessionActive = false;
-        window.waitingForAgentVoiceReply = false;
-        if (window.voiceHalfDuplexInterval) {
-            clearInterval(window.voiceHalfDuplexInterval);
-            window.voiceHalfDuplexInterval = null;
-        }
-        if (speechRecognizer) {
-            try { speechRecognizer.onend = null; speechRecognizer.abort(); } catch(e) {}
-            speechRecognizer = null;
-        }
-        if (voiceMicrophoneStream) {
-            voiceMicrophoneStream.getTracks().forEach(t => t.stop());
-            voiceMicrophoneStream = null;
-        }
-        if (voiceAudioContext) {
-            voiceAudioContext.close().catch(() => {});
-            voiceAudioContext = null;
-            voiceAnalyser = null;
+            alert('No se pudo acceder al micrófono para grabar la nota de voz.');
+            resetVoiceSessionUI();
         }
 
-        fetch('/api/voz/estado', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ cornetas_activas: Boolean(window.speakerCornetasActive), auto_nota_voz: false })
-        }).catch(() => {});
-
-        // Restore Button & UI to Idle
-        if (btn) {
-            btn.className = 'group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgba(0,255,204,0.3)] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none';
-        }
-        if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_#ff2d78]';
-        if (btnIcon) {
-            btnIcon.innerText = 'mic';
-            btnIcon.className = 'material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all';
-        }
-        if (btnText) btnText.innerText = 'Iniciar Comunicación';
-        if (badge) {
-            badge.innerText = 'En Reposo';
-            badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant';
-            badge.style = '';
-        }
-        if (feedback) {
-            feedback.innerText = 'Canal de voz en espera';
-            feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none transition-all';
+    } else if (inicioVoiceState === 'recording') {
+        // 2. DETENER GRABACIÓN Y ENVIAR
+        if (inicioMediaRecorder && inicioMediaRecorder.state !== 'inactive') {
+            try { inicioMediaRecorder.stop(); } catch(e) {}
         }
     }
 }
+
+function resetVoiceSessionUI() {
+    inicioVoiceState = 'idle';
+    voiceSessionActive = false;
+    inicioMediaRecorder = null;
+    inicioVoiceChunks = [];
+
+    const btn = document.getElementById('voice-toggle-btn');
+    const btnText = document.getElementById('voice-btn-text');
+    const btnIcon = document.getElementById('voice-btn-icon');
+    const btnDot = document.getElementById('voice-btn-dot');
+    const btnSub = document.getElementById('voice-btn-sub');
+    const feedback = document.getElementById('voice-feedback');
+    const badge = document.getElementById('voice-speaker-badge');
+
+    if (btn) {
+        btn.className = 'group relative flex items-center gap-3 py-3.5 px-8 rounded-2xl bg-gradient-to-r from-primary/20 via-surface-container-highest to-secondary/20 hover:from-primary/30 hover:to-secondary/30 border border-primary/50 hover:border-secondary hover:shadow-[0_0_30px_rgb(var(--c-secondary)/0.4)] hover:scale-[1.02] transition-all duration-300 cursor-pointer text-sm font-bold text-on-surface tracking-wider uppercase select-none';
+    }
+    if (btnDot) btnDot.className = 'w-3 h-3 rounded-full bg-secondary animate-pulse shadow-[0_0_10px_#00ffcc]';
+    if (btnIcon) {
+        btnIcon.innerText = 'mic';
+        btnIcon.className = 'material-symbols-outlined text-[22px] text-primary group-hover:text-secondary group-hover:scale-110 transition-all';
+    }
+    if (btnText) btnText.innerText = 'Grabar Nota de Voz';
+    if (btnSub) btnSub.innerText = 'Pulsa para grabar • El agente ejecutará la tarea y responderá con voz';
+    if (badge) {
+        badge.innerText = 'En Reposo';
+        badge.className = 'py-0.5 px-2.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-surface-container-high border border-outline-variant text-on-surface-variant';
+        badge.style = '';
+    }
+    if (feedback) {
+        feedback.innerText = 'Canal de voz en espera';
+        feedback.className = 'absolute bottom-4 inset-x-6 text-center text-xs font-mono text-on-surface-variant/70 italic pointer-events-none transition-all';
+    }
+}
+window.resetVoiceSessionUI = resetVoiceSessionUI;
 window.toggleVoiceSession = toggleVoiceSession;
 
 // ---------------------------------------------------------------------------

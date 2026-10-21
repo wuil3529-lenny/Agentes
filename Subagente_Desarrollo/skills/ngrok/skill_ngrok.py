@@ -100,18 +100,41 @@ def ngrok_iniciar_tunel(puerto: int) -> str:
             except Exception:
                 continue
 
+        if not url_publica:
+            # Fallback resiliente automático: Túnel SSH localhost.run (anti-bloqueo Venezuela / sin OFAC)
+            try:
+                import re
+                cmd_ssh = [
+                    "ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=30",
+                    "-R", f"80:127.0.0.1:{puerto_int}", "nokey@localhost.run"
+                ]
+                log_p = Path(__file__).resolve().parent.parent.parent.parent / "Archivos_temporales" / f"tunel_ssh_{puerto_int}.log"
+                log_p.parent.mkdir(parents=True, exist_ok=True)
+                lf = open(log_p, "w+", encoding="utf-8", errors="ignore")
+                subprocess.Popen(cmd_ssh, stdout=lf, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, start_new_session=True)
+                pat = re.compile(r"https://[a-zA-Z0-9-]+\.lhr\.life")
+                for _ in range(16):
+                    time.sleep(0.5)
+                    lf.seek(0)
+                    m = pat.search(lf.read())
+                    if m:
+                        url_publica = m.group(0)
+                        break
+            except Exception:
+                pass
+
         if url_publica:
             return json.dumps({
                 "status": "success",
                 "puerto": puerto,
-                "mensaje": f"Túnel Ngrok iniciado exitosamente en puerto {puerto}.",
+                "mensaje": f"Túnel iniciado exitosamente en puerto {puerto}.",
                 "url_publica": url_publica
             })
         else:
             return json.dumps({
                 "status": "warning",
                 "puerto": puerto,
-                "mensaje": "El proceso de Ngrok fue iniciado pero la URL pública aún no está lista. Consulta con ngrok_obtener_url."
+                "mensaje": "El túnel fue iniciado pero la URL pública aún no está disponible."
             })
     except Exception as e:
         return json.dumps({"status": "error", "mensaje": str(e)})

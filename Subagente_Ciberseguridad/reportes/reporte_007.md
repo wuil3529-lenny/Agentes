@@ -49,4 +49,4 @@ Robin detectó la presencia de tokens JWT embebidos en texto plano dentro de dos
 3. **Estado del Modo Centinela:** **ACTIVO Y VIGILANTE**. Toda la flota y el perímetro multi-repositorio permanecen monitorizados.
 
 ---
-**Conexiones:** [[reportes_ciberseguridad]] [[Perfil_Subagente_Ciberseguridad]] [[sistema]] [[Bitacora]]
+**Conexiones:** [[reportes_ciberseguridad]]
